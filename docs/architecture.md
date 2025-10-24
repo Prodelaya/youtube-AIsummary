@@ -1,20 +1,19 @@
 # ARQUITECTURA - IA MONITOR
 
-**Version:** 1.0  
-**Fecha:** Octubre 2025  
+**Version:** 1.0
+**Fecha:** Octubre 2025
 **Autor:** Prodelaya
 
 ---
 
 ## RESUMEN EJECUTIVO
 
-**Proyecto:** Agregador inteligente de contenido sobre IA en desarrollo software  
+**Proyecto:** Agregador inteligente de contenido sobre IA en desarrollo software
 **Objetivo dual:**
-- **Utilidad real:** Mantenerse informado sobre novedades en IA
 - **Portfolio profesional:** Demostrar backend Python moderno con IA funcional
 
-**Stack core:** FastAPI + PostgreSQL + Redis + Celery + Whisper (local) + ApyHub API  
-**Deployment:** Servidor local HP EliteDesk 800 G2 con Cloudflare Tunnel  
+**Stack core:** FastAPI + PostgreSQL + Redis + Celery + Whisper (local) + ApyHub API
+**Deployment:** Servidor local HP EliteDesk 800 G2 con Cloudflare Tunnel
 **Presupuesto:** $0 (todo gratuito/local)
 
 ---
@@ -190,51 +189,51 @@ graph TB
         USER[Usuario/Frontend]
         TGBOT[Telegram Bot]
     end
-    
+
     subgraph "API Layer"
         API[FastAPI<br/>API REST]
     end
-    
+
     subgraph "Application Layer"
         SERVICES[Services<br/>Business Logic]
         REPOS[Repositories<br/>Data Access]
     end
-    
+
     subgraph "Data Layer"
         PG[(PostgreSQL<br/>8GB RAM)]
         REDIS[(Redis<br/>Cache + Broker)]
     end
-    
+
     subgraph "Worker Layer"
         WORKER1[Celery Worker 1<br/>Transcription]
         WORKER2[Celery Worker 2<br/>Summarization]
         BEAT[Celery Beat<br/>Scheduler]
     end
-    
+
     subgraph "External Services"
         YT[YouTube]
         APYHUB[ApyHub API<br/>Summarization]
         WHISPER[Whisper Local<br/>Transcription]
     end
-    
+
     USER --> API
     TGBOT --> API
     API --> SERVICES
     SERVICES --> REPOS
     REPOS --> PG
     SERVICES --> REDIS
-    
+
     BEAT --> REDIS
     REDIS --> WORKER1
     REDIS --> WORKER2
-    
+
     WORKER1 --> YT
     WORKER1 --> WHISPER
     WORKER1 --> PG
-    
+
     WORKER2 --> APYHUB
     WORKER2 --> PG
-    
+
     style API fill:#4CAF50
     style PG fill:#336791
     style REDIS fill:#DC382D
@@ -282,7 +281,7 @@ sequenceDiagram
     participant U as Usuario
     participant API as FastAPI
     participant DB as PostgreSQL
-    
+
     U->>API: POST /api/v1/sources<br/>{channel_url, name}
     API->>API: Validar URL YouTube
     API->>DB: INSERT INTO sources
@@ -299,17 +298,17 @@ sequenceDiagram
     participant W1 as Worker 1
     participant YT as YouTube
     participant DB as PostgreSQL
-    
+
     BEAT->>REDIS: Encolar "sync_sources_task"<br/>(cada 6 horas)
     REDIS->>W1: Ejecutar tarea
     W1->>DB: SELECT * FROM sources WHERE active=true
-    
+
     loop Para cada fuente
         W1->>YT: yt-dlp --get-json <channel_url>
         YT-->>W1: JSON metadata (ultimos 10 videos)
-        
+
         W1->>DB: SELECT video_id FROM videos<br/>WHERE source_id AND youtube_id
-        
+
         alt Video nuevo (no existe)
             W1->>DB: INSERT INTO videos<br/>(youtube_id, title, url, duration, published_at)
             W1->>REDIS: Encolar "process_video_task"<br/>(video_id)
@@ -330,31 +329,31 @@ sequenceDiagram
     participant W2 as Worker 2
     participant APYHUB as ApyHub API
     participant DB as PostgreSQL
-    
+
     REDIS->>W1: process_video_task(video_id)
     W1->>DB: SELECT * FROM videos WHERE id=video_id
-    
+
     Note over W1: FASE 1: Descarga audio
     W1->>YT: yt-dlp -x --audio-format mp3 <video_url>
     YT-->>W1: audio.mp3
     W1->>DB: UPDATE videos SET status='downloaded'
-    
+
     Note over W1: FASE 2: Transcripcion
     W1->>WHISPER: transcribe(audio.mp3, model='base')
     WHISPER-->>W1: {text, language, segments}
     W1->>DB: INSERT INTO transcriptions<br/>(video_id, text, language, model='whisper-base')
     W1->>W1: Eliminar audio.mp3 (liberar espacio)
     W1->>DB: UPDATE videos SET status='transcribed'
-    
+
     Note over W1: FASE 3: Encolar resumen
     W1->>REDIS: Encolar "summarize_task"<br/>(transcription_id)
-    
+
     REDIS->>W2: summarize_task(transcription_id)
     W2->>DB: SELECT text FROM transcriptions WHERE id
-    
+
     Note over W2: FASE 4: Rate limiting check
     W2->>REDIS: GET apyhub_calls_today
-    
+
     alt Limite no alcanzado (<10 llamadas)
         W2->>APYHUB: POST /ai-summarize<br/>{text: transcription}
         APYHUB-->>W2: {summary, keywords}
@@ -375,10 +374,10 @@ sequenceDiagram
     participant API as FastAPI
     participant REDIS as Redis Cache
     participant DB as PostgreSQL
-    
+
     U->>API: GET /api/v1/summaries?limit=20&offset=0
     API->>REDIS: GET summaries:page:0
-    
+
     alt Cache hit
         REDIS-->>API: Cached data
         API-->>U: 200 OK [summaries]
@@ -402,7 +401,7 @@ erDiagram
     VIDEOS ||--o| TRANSCRIPTIONS : has
     TRANSCRIPTIONS ||--o| SUMMARIES : has
     VIDEOS ||--o{ TAGS : has
-    
+
     SOURCES {
         uuid id PK
         string name
@@ -413,7 +412,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
-    
+
     VIDEOS {
         uuid id PK
         uuid source_id FK
@@ -427,7 +426,7 @@ erDiagram
         timestamp created_at
         timestamp updated_at
     }
-    
+
     TRANSCRIPTIONS {
         uuid id PK
         uuid video_id FK
@@ -437,7 +436,7 @@ erDiagram
         jsonb segments
         timestamp created_at
     }
-    
+
     SUMMARIES {
         uuid id PK
         uuid transcription_id FK
@@ -447,7 +446,7 @@ erDiagram
         jsonb metadata
         timestamp created_at
     }
-    
+
     TAGS {
         uuid id PK
         string name UK
@@ -942,7 +941,7 @@ Donde desplegar el proyecto. Opciones: Servidor local, Oracle Cloud, Hetzner VPS
 
 ## TIMELINE DE IMPLEMENTACION
 
-Ver [docs/contexting-prompts/roadmap.md](contexting-prompts/roadmap.md) para roadmap detallado con pasos incrementales (4 semanas estimadas).
+Ver [docs/roadmap.md](roadmap.md) para roadmap detallado con pasos incrementales (4 semanas estimadas).
 
 ---
 

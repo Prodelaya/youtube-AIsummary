@@ -1,0 +1,30 @@
+{
+  // Extensiones recomendadas para este proyecto
+  // VS Code te preguntará si quieres instalarlas al abrir el workspace
+  "recommendations": [
+    // Python
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.black-formatter",
+    "charliermarsh.ruff",
+    
+    // Testing
+    "littlefoxteam.vscode-python-test-adapter",
+    
+    // Docker (para docker-compose.yml)
+    "ms-azuretools.vscode-docker",
+    
+    // YAML (para docker-compose y GitHub Actions)
+    "redhat.vscode-yaml",
+    
+    // Git
+    "eamodio.gitlens",
+    
+    // Markdown (para docs/)
+    "yzhang.markdown-all-in-one",
+    
+    // Utilidades
+    "streetsidesoftware.code-spell-checker",  // Spell checker
+    "wayou.vscode-todo-highlight"  // Resalta TODOs
+  ]
+}

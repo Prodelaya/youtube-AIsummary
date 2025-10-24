@@ -1,0 +1,67 @@
+{
+  // Tareas comunes del proyecto
+  // Ejecuta con: Ctrl+Shift+P → "Tasks: Run Task"
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run FastAPI Server",
+      "type": "shell",
+      "command": "poetry run uvicorn src.api.main:app --reload",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Run Tests",
+      "type": "shell",
+      "command": "poetry run pytest -v",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Run Tests with Coverage",
+      "type": "shell",
+      "command": "poetry run pytest --cov=src --cov-report=html",
+      "problemMatcher": [],
+      "group": "test"
+    },
+    {
+      "label": "Format Code (Black)",
+      "type": "shell",
+      "command": "poetry run black src/ tests/",
+      "problemMatcher": []
+    },
+    {
+      "label": "Lint Code (Ruff)",
+      "type": "shell",
+      "command": "poetry run ruff check src/ tests/",
+      "problemMatcher": []
+    },
+    {
+      "label": "Type Check (MyPy)",
+      "type": "shell",
+      "command": "poetry run mypy src/",
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Celery Worker",
+      "type": "shell",
+      "command": "poetry run celery -A src.core.celery_app worker --loglevel=info",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker Compose Up",
+      "type": "shell",
+      "command": "docker-compose up -d",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker Compose Down",
+      "type": "shell",
+      "command": "docker-compose down",
+      "problemMatcher": []
+    }
+  ]
+}

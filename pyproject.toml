@@ -1,0 +1,143 @@
+[tool.poetry]
+name = "youtube-aisummary"
+version = "0.1.0"
+description = "Agregador inteligente de contenido sobre IA con transcripción Whisper y resúmenes automáticos"
+authors = ["Prodelaya <tu_email@ejemplo.com>"]  # Ajusta tu email
+readme = "README.md"
+license = "MIT"
+packages = [{include = "src"}]
+
+# Python version requerida
+# ^3.11 significa: "3.11.0 o superior, pero NO 4.0"
+[tool.poetry.dependencies]
+python = "^3.11"
+
+# === WEB FRAMEWORK ===
+# FastAPI: Framework async moderno para APIs REST
+# uvicorn[standard]: Servidor ASGI con extras (watchfiles, websockets)
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+
+# === BASE DE DATOS ===
+# SQLAlchemy 2.0: ORM con mejor soporte async
+# psycopg2-binary: Driver PostgreSQL (versión precompilada para facilidad)
+# alembic: Sistema de migraciones (Git para tu schema de BD)
+sqlalchemy = "^2.0.36"
+psycopg2-binary = "^2.9.10"
+alembic = "^1.14.0"
+
+# === CACHE + WORKERS ===
+# redis: Cliente para cache y broker de Celery
+# celery: Sistema de colas para tareas pesadas (transcripciones, resúmenes)
+redis = "^5.2.0"
+celery = "^5.4.0"
+
+# === VALIDACIÓN Y CONFIG ===
+# pydantic: Validación de datos con tipos (integrado en FastAPI)
+# pydantic-settings: Gestión de variables de entorno con validación
+pydantic = "^2.10.0"
+pydantic-settings = "^2.6.0"
+
+# === IA Y PROCESAMIENTO ===
+# openai-whisper: Transcripción de audio local (gratis, sin límites)
+# yt-dlp: Descarga audio/video de YouTube
+# httpx: Cliente HTTP async (necesario para FastAPI)
+openai-whisper = "^20240930"
+yt-dlp = "^2024.12.13"
+httpx = "^0.28.0"
+
+# === UTILIDADES ===
+# python-dotenv: Cargar variables desde .env
+# tenacity: Reintentos inteligentes con backoff exponencial
+# structlog: Logs estructurados en JSON para producción
+python-dotenv = "^1.0.1"
+tenacity = "^9.0.0"
+structlog = "^24.4.0"
+
+# === OBSERVABILIDAD ===
+# prometheus-client: Exponer métricas para Prometheus
+prometheus-client = "^0.21.0"
+
+# === DEV DEPENDENCIES ===
+# Solo se instalan en desarrollo con: poetry install --with dev
+[tool.poetry.group.dev.dependencies]
+# Testing
+pytest = "^8.3.3"
+pytest-asyncio = "^0.24.0"  # Tests para código async
+pytest-cov = "^6.0.0"        # Cobertura de tests
+httpx = "^0.28.0"            # Para TestClient de FastAPI
+
+# Calidad de código
+black = "^24.10.0"           # Formateador automático (estilo único)
+ruff = "^0.8.0"              # Linter ultra-rápido (reemplaza flake8, isort, etc)
+mypy = "^1.13.0"             # Verificador de tipos estáticos
+
+# === CONFIGURACIÓN DE HERRAMIENTAS ===
+
+# Black: Formateador de código
+[tool.black]
+line-length = 100  # Líneas de máximo 100 caracteres (balance legibilidad/densidad)
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.venv
+  | __pycache__
+  | migrations  # No formatear migraciones de Alembic (pueden romper)
+)/
+'''
+
+# Ruff: Linter moderno y rápido
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort (ordenar imports)
+    "B",   # flake8-bugbear (bugs comunes)
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade (sintaxis moderna)
+]
+ignore = [
+    "E501",  # Línea demasiado larga (ya lo maneja Black)
+    "B008",  # No usar function calls en argumentos por defecto (común en FastAPI)
+]
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".venv",
+    "__pycache__",
+    "migrations",
+]
+
+# MyPy: Verificador de tipos
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # Por ahora flexible, endurecer después
+ignore_missing_imports = true  # Algunas libs no tienen tipos
+
+# Pytest: Framework de testing
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",                    # Verbose (mostrar cada test)
+    "--strict-markers",      # Error si usas marker no registrado
+    "--cov=src",             # Medir cobertura del código en src/
+    "--cov-report=term-missing",  # Mostrar líneas sin cubrir
+    "--cov-report=html",     # Generar reporte HTML
+    "--cov-fail-under=80",   # Fallar si cobertura <80%
+]
+asyncio_mode = "auto"        # Detectar tests async automáticamente
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

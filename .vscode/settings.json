@@ -1,0 +1,62 @@
+{
+  // === PYTHON INTERPRETER ===
+  // Apunta al Python del entorno virtual de Poetry
+  // Ajusta esto después de ejecutar: poetry env info --path
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  
+  // === FORMATEO AUTOMÁTICO ===
+  // Black formatea al guardar (Ctrl+S)
+  "editor.formatOnSave": true,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"  // Ordena imports automáticamente
+    }
+  },
+  
+  // === LINTING CON RUFF ===
+  // Ruff es ultra-rápido (reemplaza flake8, isort, pylint)
+  "ruff.enable": true,
+  "ruff.lint.enable": true,
+  "ruff.format.enable": true,
+  "ruff.organizeImports": true,
+  
+  // === TYPE CHECKING ===
+  // Pylance usa mypy config de pyproject.toml
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
+  
+  // === TESTING ===
+  // Descubre tests automáticamente en tests/
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": [
+    "tests",
+    "-v",
+    "--tb=short"  // Tracebacks cortos, más legibles
+  ],
+  
+  // === TERMINAL ===
+  // Activa entorno Poetry automáticamente en terminal integrada
+  "python.terminal.activateEnvironment": true,
+  
+  // === ARCHIVOS A IGNORAR ===
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.mypy_cache": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true,
+    "**/htmlcov": true  // Reporte de coverage
+  },
+  
+  // === EDITOR ===
+  "editor.rulers": [100],  // Línea guía en columna 100 (nuestro límite)
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  
+  // === INTELLISENSE ===
+  "python.analysis.completeFunctionParens": true,  // Autocompleta paréntesis
+  "python.analysis.inlayHints.functionReturnTypes": true  // Muestra tipos de retorno
+}
