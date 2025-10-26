@@ -30,6 +30,8 @@ class Settings(BaseSettings):
         ENVIRONMENT: Entorno de ejecución (development, staging, production).
         DEBUG: Activa modo debug (logs detallados, recargas automáticas).
         LOG_LEVEL: Nivel de logging (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+        CORS_ORIGINS: Lista de orígenes permitidos para CORS (puede ser string separado por comas).
+        TRUSTED_HOSTS: Lista de hosts confiables (solo producción, puede ser string separado por comas).
     """
 
     # ==================== BASE DE DATOS ====================
@@ -86,6 +88,17 @@ class Settings(BaseSettings):
         description="Nivel de verbosidad de logs",
     )
 
+    # ==================== CORS Y SEGURIDAD ====================
+    CORS_ORIGINS: list[str] = Field(
+        default=["http://localhost:3000", "http://localhost:5173"],
+        description="Orígenes permitidos para peticiones CORS (frontends)",
+    )
+
+    TRUSTED_HOSTS: list[str] = Field(
+        default=["localhost", "127.0.0.1"],
+        description="Hosts permitidos para prevenir Host Header Injection (solo producción)",
+    )
+
     # ==================== CONFIGURACIÓN DE PYDANTIC ====================
     model_config = SettingsConfigDict(
         env_file=".env",  # Archivo desde donde cargar variables
@@ -122,6 +135,38 @@ class Settings(BaseSettings):
             URL como string limpia para cliente Redis.
         """
         return str(value)
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
+        """
+        Convierte string separado por comas en lista.
+
+        Args:
+            value: String "domain1.com,domain2.com" o lista ya parseada.
+
+        Returns:
+            Lista de dominios.
+        """
+        if isinstance(value, str):
+            return [origin.strip() for origin in value.split(",")]
+        return value
+
+    @field_validator("TRUSTED_HOSTS", mode="before")
+    @classmethod
+    def parse_trusted_hosts(cls, value: str | list[str]) -> list[str]:
+        """
+        Convierte string separado por comas en lista.
+
+        Args:
+            value: String "host1.com,host2.com" o lista ya parseada.
+
+        Returns:
+            Lista de hosts.
+        """
+        if isinstance(value, str):
+            return [host.strip() for host in value.split(",")]
+        return value
 
     # ==================== PROPIEDADES DERIVADAS ====================
     @property
