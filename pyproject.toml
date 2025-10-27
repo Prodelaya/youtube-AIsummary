@@ -2,7 +2,7 @@
 name = "youtube-aisummary"
 version = "0.1.0"
 description = "Agregador inteligente de contenido sobre IA con transcripción Whisper y resúmenes automáticos"
-authors = ["Prodelaya <tu_email@ejemplo.com>"]  # Ajusta tu email
+authors = ["Prodelaya <proyectos.delaya@gmail.com>"]
 readme = "README.md"
 license = "MIT"
 packages = [{include = "src"}]
@@ -93,6 +93,15 @@ exclude = '''
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = [
+    ".git",
+    ".mypy_cache",
+    ".venv",
+    "__pycache__",
+    "migrations",
+]
+
+[tool.ruff.lint]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings
@@ -106,13 +115,10 @@ ignore = [
     "E501",  # Línea demasiado larga (ya lo maneja Black)
     "B008",  # No usar function calls en argumentos por defecto (común en FastAPI)
 ]
-exclude = [
-    ".git",
-    ".mypy_cache",
-    ".venv",
-    "__pycache__",
-    "migrations",
-]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
 
 # MyPy: Verificador de tipos
 [tool.mypy]

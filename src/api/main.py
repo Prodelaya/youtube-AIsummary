@@ -8,9 +8,11 @@ La aplicación se inicializa mediante una función factory (create_app) para fac
 testing y permitir diferentes configuraciones según el entorno (dev/staging/prod).
 """
 
+# Built-in (estándar)
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
 
+# Third-party (librerías externas)
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +21,7 @@ from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+# Local (módulos propios)
 from src.core.config import settings
 
 # Importar routers cuando existan

@@ -89,12 +89,12 @@ class Settings(BaseSettings):
     )
 
     # ==================== CORS Y SEGURIDAD ====================
-    CORS_ORIGINS: list[str] = Field(
+    CORS_ORIGINS: str | list[str] = Field(
         default=["http://localhost:3000", "http://localhost:5173"],
         description="Orígenes permitidos para peticiones CORS (frontends)",
     )
 
-    TRUSTED_HOSTS: list[str] = Field(
+    TRUSTED_HOSTS: str | list[str] = Field(
         default=["localhost", "127.0.0.1"],
         description="Hosts permitidos para prevenir Host Header Injection (solo producción)",
     )
