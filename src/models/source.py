@@ -74,10 +74,11 @@ class Source(TimestampedUUIDBase):
         comment="Si esta fuente está siendo monitoreada activamente",
     )
 
-    metadata: Mapped[dict | None] = mapped_column(
-        JSONB,  # Tipo JSONB de PostgreSQL (indexable, consultable)
+    extra_metadata: Mapped[dict | None] = mapped_column(
+        "metadata",  # Nombre real de la columna en la tabla SQL
+        JSONB,
         nullable=True,
-        default=dict,  # Dict vacío por defecto
+        default=dict,
         comment="Metadatos adicionales (suscriptores, thumbnail, etc.)",
     )
 
@@ -124,7 +125,7 @@ class Source(TimestampedUUIDBase):
             "url": self.url,
             "source_type": self.source_type,
             "active": self.active,
-            "metadata": self.metadata or {},
+            "metadata": self.extra_metadata or {},
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

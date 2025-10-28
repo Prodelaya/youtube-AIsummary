@@ -121,7 +121,8 @@ class Video(TimestampedUUIDBase):
         comment="Cuándo se publicó el video en YouTube",
     )
 
-    metadata: Mapped[dict | None] = mapped_column(
+    extra_metadata: Mapped[dict | None] = mapped_column(
+        "metadata",  # Nombre real de la columna en la tabla SQL
         JSONB,
         nullable=True,
         default=dict,
@@ -174,7 +175,7 @@ class Video(TimestampedUUIDBase):
             "duration_seconds": self.duration_seconds,
             "status": self.status.value,
             "published_at": (self.published_at.isoformat() if self.published_at else None),
-            "metadata": self.metadata or {},
+            "metadata": self.extra_metadata or {},
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

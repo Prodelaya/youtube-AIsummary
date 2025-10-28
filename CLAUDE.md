@@ -4,7 +4,7 @@
 
 **Proyecto:** `youtube-AIsummary`
 **Autor:** Pablo (prodelaya)
-**Última actualización:** 25/10/2025
+**Última actualización:** 28/10/2025
 **Propósito:** Guía oficial para Claude Code en este proyecto. Define cómo debe analizar, modificar y documentar el código.
 
 ---
@@ -143,11 +143,13 @@ B) Ejecución automática si el usuario lo autoriza.
 
 ## 📏 Límites técnicos y estilo
 
+- Siempre revisar CLAUDE.md y docs/contexting-prompts/clean-code.md antes de generar código.
 - Máx. **10 archivos** o **300 líneas** por edición.
 - Mostrar *diffs* antes de aplicar.
 - Cumplir `clean-code.md` (PEP8, tipado estricto, funciones cortas).
 - Sin dependencias circulares ni globales.
 - Documentar funciones públicas con docstrings.
+
 
 ---
 
@@ -189,8 +191,42 @@ B) Ejecución automática si el usuario lo autoriza.
 
 ## ✅ Estado actual
 
-**Fase 1 - Paso 5:** Config + Variables de Entorno (Pydantic Settings).
-Pendiente: Crear `src/core/config.py` para validar `DATABASE_URL`, `REDIS_URL`, `APYHUB_TOKEN`.
+### ✅ Paso 7: ORM + Migraciones (COMPLETADO)
+**Implementado:**
+- ✅ `src/core/database.py` creado con engine, SessionLocal y get_db()
+- ✅ Alembic configurado en `migrations/env.py` con Base.metadata
+- ✅ Modelos `Source` y `Video` con relaciones, índices y timestamps
+- ✅ Migración `a22c096070a4` generada y aplicada
+- ✅ Tablas `sources` y `videos` creadas en Postgres
+- ✅ Foreign key con CASCADE funcional
+- ✅ Test de integración pasado (inserción + consultas + relaciones)
+
+**Archivos creados/modificados:**
+- `src/core/database.py` - Configuración SQLAlchemy
+- `src/models/source.py` - Modelo Source (renombrado metadata → extra_metadata)
+- `src/models/video.py` - Modelo Video (renombrado metadata → extra_metadata)
+- `migrations/env.py` - Configuración Alembic
+- `migrations/versions/a22c096070a4_*.py` - Primera migración
+
+---
+
+### 📍 Paso 8: Integración ApyHub (SIGUIENTE PASO)
+**¿Qué hacer?**
+- Crear `src/services/summarization_service.py`
+- Implementar método `summarize_text()` que llama a ApyHub API
+- Implementar método `get_summary_status()` para consultar resultado del job
+- Usar **tenacity** para reintentos exponenciales (3 intentos máx.)
+- Manejo de errores: rate limit, timeout, respuestas inválidas
+
+**¿Por qué primero?**
+- Es el componente externo crítico del sistema
+- Si ApyHub está caído o cambia API, mejor descubrirlo YA
+- Lo más rápido de validar (no requiere BD ni otros servicios)
+
+**Validación:**
+- Test de integración que llama a API real con texto de prueba
+- Resumen generado correctamente en español
+- Reintentos funcionan ante fallos temporales
 
 ---
 
