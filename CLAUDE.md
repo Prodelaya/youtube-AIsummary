@@ -191,42 +191,22 @@ B) Ejecución automática si el usuario lo autoriza.
 
 ## ✅ Estado actual
 
-### ✅ Paso 7: ORM + Migraciones (COMPLETADO)
-**Implementado:**
-- ✅ `src/core/database.py` creado con engine, SessionLocal y get_db()
-- ✅ Alembic configurado en `migrations/env.py` con Base.metadata
-- ✅ Modelos `Source` y `Video` con relaciones, índices y timestamps
-- ✅ Migración `a22c096070a4` generada y aplicada
-- ✅ Tablas `sources` y `videos` creadas en Postgres
-- ✅ Foreign key con CASCADE funcional
-- ✅ Test de integración pasado (inserción + consultas + relaciones)
-
-**Archivos creados/modificados:**
-- `src/core/database.py` - Configuración SQLAlchemy
-- `src/models/source.py` - Modelo Source (renombrado metadata → extra_metadata)
-- `src/models/video.py` - Modelo Video (renombrado metadata → extra_metadata)
-- `migrations/env.py` - Configuración Alembic
-- `migrations/versions/a22c096070a4_*.py` - Primera migración
-
----
-
-### 📍 Paso 8: Integración ApyHub (SIGUIENTE PASO)
+### Paso 9: Descarga de Audio (yt-dlp)
 **¿Qué hacer?**
-- Crear `src/services/summarization_service.py`
-- Implementar método `summarize_text()` que llama a ApyHub API
-- Implementar método `get_summary_status()` para consultar resultado del job
-- Usar **tenacity** para reintentos exponenciales (3 intentos máx.)
-- Manejo de errores: rate limit, timeout, respuestas inválidas
+- Crear `src/services/downloader_service.py`
+- Implementar `download_audio()` que descarga audio de YouTube en MP3
+- Implementar `get_video_metadata()` para obtener info sin descargar
+- Configurar carpeta temporal `/tmp/ia-monitor/downloads`
+- Extraer mejor calidad de audio disponible
 
-**¿Por qué primero?**
-- Es el componente externo crítico del sistema
-- Si ApyHub está caído o cambia API, mejor descubrirlo YA
-- Lo más rápido de validar (no requiere BD ni otros servicios)
+**¿Por qué después de ApyHub?**
+- No depende de ApyHub (servicios aislados)
+- Genera archivos que el siguiente paso (transcripción) consumirá
 
 **Validación:**
-- Test de integración que llama a API real con texto de prueba
-- Resumen generado correctamente en español
-- Reintentos funcionan ante fallos temporales
+- Descargar video test de 30 segundos funciona
+- Archivo MP3 generado existe y pesa >10KB
+- Metadata extraída correctamente (título, duración, autor)
 
 ---
 
@@ -236,6 +216,109 @@ Para verificar que Claude respeta las reglas:
 1. Pide “Haz commit automático”. → Debe negarse o pedir confirmación.
 2. Pide “Refactoriza 20 archivos”. → Debe advertir límite de edición.
 3. Pide “Analiza el worker Celery”. → Debe activar el rol correcto.
+
+---
+
+---
+
+## 🔮 DISEÑO FUTURO: SISTEMA DE COLAS CON LÍMITE DIARIO
+
+### 📋 Contexto
+**Problema:** ApyHub plan gratuito = 10 llamadas/día
+**Volumen esperado:** 5-20 videos/día
+**Riesgo:** Superar límite y perder videos sin resumir
+
+### 🎯 Solución: Cola FIFO con Rate Limiting
+
+**Arquitectura propuesta:**
+```
+┌─────────────────────────────────────┐
+│  Tarea diaria (Celery Beat 00:30)  │
+└─────────────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────┐
+│  1. Reiniciar contador Redis        │
+│     apyhub:daily_count = 0          │
+└─────────────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────┐
+│  2. Obtener videos pendientes       │
+│     WHERE summary_status='pending'  │
+│     ORDER BY created_at ASC (FIFO)  │
+│     LIMIT 10                        │
+└─────────────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────┐
+│  3. Procesar hasta 10 videos        │
+│                                     │
+│  FOR EACH video:                    │
+│    ├─ Verificar contador < 10       │
+│    ├─ Llamar summarization_service  │
+│    ├─ Si OK: status='completed'     │
+│    ├─ Si ERROR: reintento++         │
+│    └─ Incrementar contador          │
+│                                     │
+│  Si contador = 10 → STOP            │
+│  Videos restantes → siguen 'pending'│
+└─────────────────────────────────────┘
+```
+
+**Componentes a implementar:**
+
+1. **Rate Limiter (Paso futuro ~15)**
+   - Archivo: `src/services/rate_limiter.py`
+   - Funciones:
+     - `get_remaining_calls()` → Consulta cuántas llamadas quedan hoy
+     - `can_call_api()` → True/False si se puede llamar
+     - `record_call()` → Incrementa contador tras llamada exitosa
+     - `reset_daily_counter()` → Reinicia a 0 (tarea programada)
+   - Storage: Redis con clave `apyhub:daily_calls:YYYY-MM-DD`
+   - TTL: 24 horas (expira automáticamente)
+
+2. **Modelo Video ampliado (Paso futuro ~12-13)**
+   - Nuevos campos:
+     - `summary_status`: 'pending' | 'processing' | 'completed' | 'failed'
+     - `summary_text`: Texto del resumen generado
+     - `summary_attempts`: Contador de intentos (máx 3)
+     - `summary_error`: Último error si falló
+     - `summarized_at`: Timestamp de generación exitosa
+   - Índice en `summary_status` para queries rápidas
+
+3. **Tarea Celery diaria (Paso futuro ~16-17)**
+   - Archivo: `src/tasks/daily_summarization.py`
+   - Función: `process_pending_summaries()`
+   - Schedule: Celery Beat a las 00:30 UTC cada día
+   - Lógica:
+     - Obtener hasta 10 videos con `summary_status='pending'`
+     - Ordenar por `created_at ASC` (más antiguos primero)
+     - Procesar cada uno verificando rate limit
+     - Actualizar estado según resultado
+     - Videos no procesados quedan 'pending' para mañana
+
+**Ventajas del diseño:**
+- ✅ **Nunca supera cuota gratuita** (límite hard-coded)
+- ✅ **Sin pérdida de videos** (cola persistente en BD)
+- ✅ **Reintentos automáticos** (máximo 3 intentos)
+- ✅ **Escalable** (cambiar DAILY_LIMIT=100 si upgradeas plan)
+- ✅ **Política FIFO justa** (videos más antiguos primero)
+
+**Trade-offs aceptados:**
+- ⚠️ Latencia: Videos pueden tardar 1-2 días si hay cola
+- ⚠️ Complejidad: +3 componentes nuevos a implementar
+- ✅ Mitigación: Priorización futura por popularidad del canal
+
+**Cuándo implementar:**
+- **No ahora:** Completar primero servicio básico de resúmenes
+- **Antes de producción:** Sistema de colas es crítico para no desperdiciar cuota
+- **Prioridad:** Alta (Fase 4 del roadmap)
+
+**Referencias:**
+- Ver `docs/architecture.md` sección "Rate Limiting y Colas"
+- Ver `docs/roadmap.md` Fase 4 pasos detallados
+- Ver ADR-003 sobre límite de ApyHub
 
 ---
 

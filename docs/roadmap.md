@@ -435,9 +435,210 @@ git commit -m "test: add API integration tests"
 
 ---
 
-## ⚡ FASE 4: WORKERS ASYNC (2-3 días)
+## ⚡ FASE 4: RATE LIMITING & COLAS (6 días)
 
-### Paso 15: Celery Setup
+**Objetivo:** Implementar sistema de colas con límite diario para respetar 10 llamadas/día de ApyHub.
+
+**Contexto crítico:**
+- ApyHub plan gratuito = 10 llamadas/día
+- Sin sistema de colas = videos se pierden si hay >10/día
+- Sistema de colas = videos pendientes se procesan al día siguiente
+
+---
+
+### Paso 15: Rate Limiter con Redis
+**¿Qué hacer?**
+- Crear `src/services/rate_limiter.py`
+- Implementar clase `ApyHubRateLimiter` con Redis
+- Métodos:
+  - `get_remaining_calls()` → Consulta cuántas llamadas quedan hoy
+  - `can_call_api()` → True/False si se puede llamar
+  - `record_call()` → Incrementa contador tras llamada exitosa
+  - `reset_daily_counter()` → Reinicia a 0 (tarea programada)
+- Clave Redis: `apyhub:daily_calls:YYYY-MM-DD`
+- TTL automático: 24 horas
+
+**¿Por qué este orden?**
+- Componente aislado, se puede testear independientemente
+- No requiere cambios en BD
+- Funcionalidad crítica: previene exceder cuota
+
+**Validación:**
+- Tests unitarios con Redis mock
+- Test de integración con Redis real
+- Contador se incrementa correctamente
+- TTL expira a medianoche
+
+**Git:**
+```bash
+git commit -m "feat: add ApyHub rate limiter with Redis"
+git commit -m "test: add rate limiter unit and integration tests"
+```
+**Nos da paso a:** Extender modelo Video con campos de cola.
+
+---
+
+### Paso 16: Ampliar Modelo Video
+**¿Qué hacer?**
+- Añadir campos a `src/models/video.py`:
+  - `summary_status`: 'pending' | 'processing' | 'completed' | 'failed'
+  - `summary_text`: Texto del resumen generado
+  - `summary_attempts`: Contador de intentos (máx 3)
+  - `summary_error`: Último error si falló
+  - `summarized_at`: Timestamp de generación exitosa
+- Crear índice en `summary_status` (queries rápidas)
+- Crear índice parcial en `created_at WHERE summary_status='pending'`
+- Generar migración Alembic
+- Aplicar migración: `alembic upgrade head`
+
+**¿Por qué ahora?**
+- Necesitamos persistir estado de cola en BD
+- Migraciones antes de lógica = evita inconsistencias
+
+**Validación:**
+- Tabla `videos` tiene nuevos campos
+- Índices creados correctamente
+- Valores por defecto funcionan (`summary_status='pending'`)
+
+**Git:**
+```bash
+git commit -m "feat: add summary queue fields to Video model"
+git commit -m "feat: add migration for video summary queue"
+```
+**Nos da paso a:** Crear tarea Celery para procesamiento diario.
+
+---
+
+### Paso 17: Tarea Celery Diaria
+**¿Qué hacer?**
+- Crear `src/tasks/daily_summarization.py`
+- Implementar función `process_pending_summaries()`
+  - Obtener hasta 10 videos con `summary_status='pending'`
+  - Ordenar por `created_at ASC` (FIFO)
+  - Para cada video:
+    - Verificar `can_call_api()` del rate limiter
+    - Si OK: procesar resumen
+    - Si límite alcanzado: STOP (resto mañana)
+  - Actualizar estados en BD según resultado
+- Integrar con `SummarizationService` existente
+- Manejar reintentos (máximo 3, después → 'failed')
+
+**¿Por qué esta lógica?**
+- Procesa máximo 10/día automáticamente
+- Videos no procesados quedan en cola para mañana
+- Estado persistente en BD = resistente a caídas
+
+**Validación:**
+- Tarea ejecuta correctamente con 5 videos pending
+- Si hay 15 videos, solo procesa 10
+- Reintentos funcionan (fallos → pending, 3 intentos → failed)
+- Rate limiter registra llamadas correctamente
+
+**Git:**
+```bash
+git commit -m "feat: add daily summarization Celery task"
+git commit -m "test: add daily summarization task tests"
+```
+**Nos da paso a:** Programar tarea con Celery Beat.
+
+---
+
+### Paso 18: Celery Beat Scheduler
+**¿Qué hacer?**
+- Configurar Celery Beat en `src/core/celery_app.py`
+- Añadir schedule:
+  ```python
+  'daily-summarization': {
+      'task': 'daily_summarization',
+      'schedule': crontab(hour=0, minute=30),  # 00:30 UTC
+      'options': {'expires': 3600}
+  }
+  ```
+- Crear script de inicio: `scripts/start_beat.sh`
+- Documentar en README cómo arrancar Beat
+
+**¿Por qué 00:30 UTC?**
+- Después de medianoche = contador Redis resetado
+- Hora tranquila = menos carga en servidor
+- Antes del amanecer = resúmenes listos por la mañana
+
+**Validación:**
+- Beat scheduler arranca sin errores
+- Tarea se programa correctamente
+- Ejecutar manualmente funciona
+- Logs muestran próxima ejecución programada
+
+**Git:**
+```bash
+git commit -m "feat: add Celery Beat scheduler for daily tasks"
+git commit -m "docs: add Beat startup instructions to README"
+```
+**Nos da paso a:** Añadir métricas para observabilidad.
+
+---
+
+### Paso 19: Métricas Prometheus
+**¿Qué hacer?**
+- Añadir métricas en `src/services/summarization_service.py`:
+  - `apyhub_calls_total` (Counter): Llamadas por status
+  - `apyhub_calls_remaining` (Gauge): Llamadas restantes hoy
+  - `videos_pending_summary` (Gauge): Videos en cola
+  - `summarization_duration_seconds` (Histogram): Tiempo de resumen
+- Instrumentar rate limiter
+- Instrumentar tarea diaria
+- Actualizar endpoint `/metrics`
+
+**¿Por qué métricas?**
+- Monitorear uso de cuota en tiempo real
+- Detectar problemas antes de que se acumulen
+- Datos para optimizar sistema
+
+**Validación:**
+- Endpoint `/metrics` expone nuevas métricas
+- Métricas se actualizan tras procesar video
+- Prometheus scrapea correctamente
+
+**Git:**
+```bash
+git commit -m "feat: add Prometheus metrics for rate limiting"
+```
+**Nos da paso a:** Dashboard visual en Grafana.
+
+---
+
+### Paso 20: Dashboard Grafana
+**¿Qué hacer?**
+- Crear dashboard "ApyHub Queue Management"
+- Paneles:
+  1. Llamadas ApyHub (usadas/restantes hoy)
+  2. Videos en cola (pending vs completed)
+  3. Tasa de éxito (% completed vs failed)
+  4. Tiempo promedio de resumen
+  5. Alertas (rate limit, >50 pending)
+- Exportar dashboard como JSON
+- Guardar en `docs/grafana-dashboards/`
+
+**¿Por qué dashboard dedicado?**
+- Visualización rápida de salud del sistema
+- Detectar cuellos de botella visualmente
+- Portfolio impresionante (no solo código, también ops)
+
+**Validación:**
+- Dashboard accesible en Grafana
+- Paneles muestran datos reales
+- Alertas se activan correctamente
+
+**Git:**
+```bash
+git commit -m "feat: add Grafana dashboard for queue management"
+```
+**Nos da paso a:** Workers asíncronos.
+
+---
+
+## ⚡ FASE 5: WORKERS ASYNC (2-3 días)
+
+### Paso 21: Celery Setup
 **¿Qué hacer?**
 - Configurar Celery en `src/core/celery_app.py` con Redis como broker
 - Crear tarea `src/tasks/process_content_task.py` que ejecuta el pipeline completo
@@ -464,7 +665,7 @@ git commit -m "feat: add process_content async task"
 
 ---
 
-### Paso 16: Jobs Programados (Celery Beat)
+### Paso 22: Jobs Programados (Celery Beat)
 **¿Qué hacer?**
 - Configurar Celery Beat scheduler
 - Crear tarea `sync_sources_task.py` que:
@@ -492,9 +693,9 @@ git commit -m "feat: add sync_sources periodic task"
 
 ---
 
-## 📊 FASE 5: OBSERVABILIDAD (2 días)
+## 📊 FASE 6: OBSERVABILIDAD (2 días)
 
-### Paso 17: Logging Estructurado
+### Paso 23: Logging Estructurado
 **¿Qué hacer?**
 - Configurar **structlog** para logs estructurados
 - Logs en formato JSON con campos: timestamp, level, message, context
@@ -520,7 +721,7 @@ git commit -m "feat: add structured logging with structlog"
 
 ---
 
-### Paso 18: Métricas (Prometheus)
+### Paso 24: Métricas (Prometheus)
 **¿Qué hacer?**
 - Instalar `prometheus-client` para Python
 - Exponer endpoint `/metrics` en FastAPI
@@ -550,7 +751,7 @@ git commit -m "feat: add Prometheus to Docker Compose"
 
 ---
 
-### Paso 19: Grafana Dashboard
+### Paso 25: Grafana Dashboard
 **¿Qué hacer?**
 - Agregar Grafana a `docker-compose.yml`
 - Configurar datasource Prometheus
@@ -578,9 +779,9 @@ git commit -m "feat: add Grafana dashboard for system metrics"
 
 ---
 
-## ✅ FASE 6: TESTING & CI/CD (2 días)
+## ✅ FASE 7: TESTING & CI/CD (2 días)
 
-### Paso 20: Suite de Tests Completa
+### Paso 26: Suite de Tests Completa
 **¿Qué hacer?**
 - Tests unitarios en `tests/unit/` para servicios y repositories
 - Tests de integración en `tests/integration/` para API y BD
@@ -606,7 +807,7 @@ git commit -m "test: add comprehensive test suite with >80% coverage"
 
 ---
 
-### Paso 21: GitHub Actions (CI/CD)
+### Paso 27: GitHub Actions (CI/CD)
 **¿Qué hacer?**
 - Crear `.github/workflows/test.yml`:
   - Trigger en `push` y `pull_request`
@@ -636,9 +837,9 @@ git commit -m "ci: add GitHub Actions for tests and linting"
 
 ---
 
-## 🚀 FASE 7: DEPLOYMENT (2-3 días)
+## 🚀 FASE 8: DEPLOYMENT (2-3 días)
 
-### Paso 22: Dockerfile Optimizado
+### Paso 28: Dockerfile Optimizado
 **¿Qué hacer?**
 - Crear Dockerfile multi-stage (builder + runtime)
 - Stage 1: Instalar dependencias con Poetry
@@ -664,7 +865,7 @@ git commit -m "feat: add optimized multi-stage Dockerfile"
 
 ---
 
-### Paso 23: Docker Compose Producción
+### Paso 29: Docker Compose Producción
 **¿Qué hacer?**
 - Crear `docker-compose.prod.yml` con todos los servicios:
   - API (FastAPI)
@@ -695,7 +896,7 @@ git commit -m "feat: add production Docker Compose configuration"
 
 ---
 
-### Paso 24: Scripts de Deployment
+### Paso 30: Scripts de Deployment
 **¿Qué hacer?**
 - Crear `scripts/deploy.sh` que:
   - Pull últimos cambios de Git
@@ -725,7 +926,7 @@ git commit -m "feat: add deployment and backup scripts"
 
 ---
 
-### Paso 25: CD Automático (GitHub Actions)
+### Paso 31: CD Automático (GitHub Actions)
 **¿Qué hacer?**
 - Crear `.github/workflows/deploy.yml`:
   - Trigger solo en push a `main`
@@ -752,7 +953,7 @@ git commit -m "ci: add continuous deployment workflow"
 
 ---
 
-### Paso 26: Documentación Final
+### Paso 32: Documentación Final
 **¿Qué hacer?**
 - README completo con:
   - Descripción del proyecto y valor
@@ -794,21 +995,28 @@ git commit -m "docs: finalize ADRs for key technical decisions"
 - **Jueves:** Tests de integración API
 - **Viernes:** Celery setup + Worker tasks
 
-### Semana 3: Ops & Quality
-- **Lunes:** Celery Beat + Jobs programados
-- **Martes:** Logging + Prometheus metrics
-- **Miércoles:** Grafana dashboard
-- **Jueves:** Suite de tests completa + CI
-- **Viernes:** Dockerfile + Docker Compose prod
+### Semana 3: Rate Limiting & Colas
+- **Lunes:** Rate Limiter con Redis (Paso 15)
+- **Martes:** Ampliar modelo Video + Migración (Paso 16)
+- **Miércoles:** Tarea Celery diaria + Celery Beat (Pasos 17-18)
+- **Jueves:** Métricas Prometheus (Paso 19)
+- **Viernes:** Dashboard Grafana + Tests (Paso 20)
 
-### Semana 4: Deployment & Docs
-- **Lunes:** Scripts de deployment + Backups
-- **Martes:** CD automático + Validación
-- **Miércoles:** Documentación final + ADRs
+### Semana 4: Workers & Observabilidad
+- **Lunes:** Celery workers + Jobs programados (Pasos 21-22)
+- **Martes:** Logging estructurado (Paso 23)
+- **Miércoles:** Métricas Prometheus + Grafana (Pasos 24-25)
+- **Jueves:** Suite de tests completa + CI (Pasos 26-27)
+- **Viernes:** Dockerfile + Docker Compose prod (Pasos 28-29)
+
+### Semana 5: Deployment & Docs
+- **Lunes:** Scripts de deployment + Backups (Paso 30)
+- **Martes:** CD automático + Validación (Paso 31)
+- **Miércoles:** Documentación final + ADRs (Paso 32)
 - **Jueves:** Optimizaciones + Pulido
 - **Viernes:** Demo video + Publicación
 
-**Total:** ~4 semanas trabajando 3-4h/día
+**Total:** ~5 semanas trabajando 3-4h/día (añadida 1 semana para rate limiting)
 
 ---
 
