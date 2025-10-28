@@ -143,6 +143,9 @@ addopts = [
     "--cov-fail-under=80",   # Fallar si cobertura <80%
 ]
 asyncio_mode = "auto"        # Detectar tests async automáticamente
+markers = [
+    "integration: marks tests as integration tests (may consume API quota)",
+]
 
 [build-system]
 requires = ["poetry-core"]
