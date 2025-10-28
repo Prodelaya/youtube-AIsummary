@@ -36,14 +36,14 @@
 
 ### Servidor: HP EliteDesk 800 G2 DM
 
-| Componente | Especificacion | Estado | Notas |
-|------------|----------------|---------|-------|
-| **CPU** | Intel Core i5-6500T (4c/4t, 2.5-3.1 GHz) | ✅ Suficiente | Adecuado para Whisper base |
-| **RAM** | 8 GB DDR4 2133 MHz | ⚠️ Ajustado | Ampliable a 32GB (~$40) |
-| **Storage** | 256 GB NVMe SSD Samsung | ✅ Suficiente | ~10GB proyecto + ~50GB videos temp |
-| **SO** | Ubuntu 24.04 LTS x86-64 | ✅ Ideal | Mismo stack que desarrollo |
-| **Red** | Cloudflare Tunnel configurado | ✅ Operativo | Exposicion web segura sin IP publica |
-| **Disponibilidad** | 24/7 siempre encendido | ✅ OK | Necesario para jobs programados |
+| Componente         | Especificacion                           | Estado       | Notas                                |
+| ------------------ | ---------------------------------------- | ------------ | ------------------------------------ |
+| **CPU**            | Intel Core i5-6500T (4c/4t, 2.5-3.1 GHz) | ✅ Suficiente | Adecuado para Whisper base           |
+| **RAM**            | 8 GB DDR4 2133 MHz                       | ⚠️ Ajustado   | Ampliable a 32GB (~$40)              |
+| **Storage**        | 256 GB NVMe SSD Samsung                  | ✅ Suficiente | ~10GB proyecto + ~50GB videos temp   |
+| **SO**             | Ubuntu 24.04 LTS x86-64                  | ✅ Ideal      | Mismo stack que desarrollo           |
+| **Red**            | Cloudflare Tunnel configurado            | ✅ Operativo  | Exposicion web segura sin IP publica |
+| **Disponibilidad** | 24/7 siempre encendido                   | ✅ OK         | Necesario para jobs programados      |
 
 **Veredicto:** Servidor VIABLE para MVP. Path de upgrade economico disponible.
 
@@ -69,14 +69,14 @@
 
 **Comparativa de frameworks:**
 
-| Aspecto | FastAPI | Flask | Django |
-|---------|---------|-------|--------|
-| **Performance** | ⭐⭐⭐⭐⭐ Async nativo | ⭐⭐⭐ WSGI sync | ⭐⭐⭐ WSGI sync |
-| **Documentacion API** | ✅ Auto (Swagger/OpenAPI) | ❌ Manual | ⭐ DRF |
-| **Curva aprendizaje** | ⭐⭐⭐⭐ Similar a Flask | ⭐⭐⭐⭐⭐ Muy simple | ⭐⭐ Complejo |
-| **Validacion datos** | ✅ Pydantic integrado | ❌ Requires marshmallow | ✅ Django Forms |
-| **Ecosistema async** | ✅ Nativo | ⚠️ Via extensiones | ⚠️ Desde 3.1+ |
-| **Peso** | ⭐⭐⭐⭐⭐ Ligero | ⭐⭐⭐⭐⭐ Minimo | ⭐⭐ Pesado |
+| Aspecto               | FastAPI                  | Flask                  | Django         |
+| --------------------- | ------------------------ | ---------------------- | -------------- |
+| **Performance**       | ⭐⭐⭐⭐⭐ Async nativo       | ⭐⭐⭐ WSGI sync          | ⭐⭐⭐ WSGI sync  |
+| **Documentacion API** | ✅ Auto (Swagger/OpenAPI) | ❌ Manual               | ⭐ DRF          |
+| **Curva aprendizaje** | ⭐⭐⭐⭐ Similar a Flask     | ⭐⭐⭐⭐⭐ Muy simple       | ⭐⭐ Complejo    |
+| **Validacion datos**  | ✅ Pydantic integrado     | ❌ Requires marshmallow | ✅ Django Forms |
+| **Ecosistema async**  | ✅ Nativo                 | ⚠️ Via extensiones      | ⚠️ Desde 3.1+   |
+| **Peso**              | ⭐⭐⭐⭐⭐ Ligero             | ⭐⭐⭐⭐⭐ Minimo           | ⭐⭐ Pesado      |
 
 **Decision:** FastAPI
 - ✅ Async nativo (necesario para I/O intensivo: descargas, transcripciones, APIs)
@@ -88,14 +88,14 @@
 
 **Comparativa de bases de datos:**
 
-| Aspecto | PostgreSQL | MySQL | MongoDB | SQLite |
-|---------|-----------|-------|---------|--------|
-| **Transacciones ACID** | ✅ Completas | ✅ Completas | ⚠️ Limitadas | ✅ Basicas |
-| **JSON nativo** | ✅ JSONB indexable | ⭐ JSON basico | ✅ Nativo | ❌ No |
-| **Full-text search** | ✅ Potente | ⭐ Basico | ⭐ Via Atlas | ❌ Limitado |
-| **Concurrencia** | ⭐⭐⭐⭐⭐ MVCC | ⭐⭐⭐⭐ Row-level | ⭐⭐⭐⭐ Document | ⭐⭐ File-level |
-| **Escalabilidad** | ⭐⭐⭐⭐ Excelente | ⭐⭐⭐⭐ Buena | ⭐⭐⭐⭐⭐ Horizontal | ⭐ Local only |
-| **Recursos (8GB RAM)** | ⭐⭐⭐⭐ ~500MB | ⭐⭐⭐⭐ ~400MB | ⭐⭐⭐ ~800MB | ⭐⭐⭐⭐⭐ ~50MB |
+| Aspecto                | PostgreSQL        | MySQL          | MongoDB          | SQLite        |
+| ---------------------- | ----------------- | -------------- | ---------------- | ------------- |
+| **Transacciones ACID** | ✅ Completas       | ✅ Completas    | ⚠️ Limitadas      | ✅ Basicas     |
+| **JSON nativo**        | ✅ JSONB indexable | ⭐ JSON basico  | ✅ Nativo         | ❌ No          |
+| **Full-text search**   | ✅ Potente         | ⭐ Basico       | ⭐ Via Atlas      | ❌ Limitado    |
+| **Concurrencia**       | ⭐⭐⭐⭐⭐ MVCC        | ⭐⭐⭐⭐ Row-level | ⭐⭐⭐⭐ Document    | ⭐⭐ File-level |
+| **Escalabilidad**      | ⭐⭐⭐⭐ Excelente    | ⭐⭐⭐⭐ Buena     | ⭐⭐⭐⭐⭐ Horizontal | ⭐ Local only  |
+| **Recursos (8GB RAM)** | ⭐⭐⭐⭐ ~500MB       | ⭐⭐⭐⭐ ~400MB    | ⭐⭐⭐ ~800MB       | ⭐⭐⭐⭐⭐ ~50MB   |
 
 **Decision:** PostgreSQL
 - ✅ JSONB para metadatos flexibles (transcripciones, API responses)
@@ -108,13 +108,13 @@
 
 **Comparativa de sistemas de cache:**
 
-| Aspecto | Redis | Memcached | Local (dict) |
-|---------|-------|-----------|--------------|
-| **Persistencia** | ✅ Opcional | ❌ No | ❌ RAM volatil |
+| Aspecto               | Redis                 | Memcached  | Local (dict)    |
+| --------------------- | --------------------- | ---------- | --------------- |
+| **Persistencia**      | ✅ Opcional            | ❌ No       | ❌ RAM volatil   |
 | **Estructuras datos** | ✅ Lists, Sets, Hashes | ❌ Solo K-V | ⭐ Python nativo |
-| **Pub/Sub** | ✅ Si | ❌ No | ❌ No |
-| **Broker Celery** | ✅ Nativo | ❌ No | ❌ No |
-| **Recursos** | ~100MB | ~50MB | ~0MB |
+| **Pub/Sub**           | ✅ Si                  | ❌ No       | ❌ No            |
+| **Broker Celery**     | ✅ Nativo              | ❌ No       | ❌ No            |
+| **Recursos**          | ~100MB                | ~50MB      | ~0MB            |
 
 **Decision:** Redis
 - ✅ Doble proposito: cache + broker Celery (un servicio, dos funciones)
@@ -126,14 +126,14 @@
 
 **Comparativa de sistemas async:**
 
-| Aspecto | Celery | FastAPI BackgroundTasks | RQ | Dramatiq |
-|---------|--------|------------------------|-----|----------|
-| **Complejidad setup** | ⭐⭐⭐ Media | ⭐⭐⭐⭐⭐ Cero | ⭐⭐⭐⭐ Simple | ⭐⭐⭐ Media |
-| **Scheduling** | ✅ Celery Beat | ❌ Requires APScheduler | ❌ Requires extra | ✅ Si |
-| **Monitoring** | ✅ Flower | ❌ Manual | ⭐ RQ Dashboard | ⭐ Dramatiq Dashboard |
-| **Reintentos** | ✅ Configurables | ⭐ Manual | ✅ Si | ✅ Si |
-| **Larga duracion** | ✅ Ideal | ❌ No recomendado | ✅ Si | ✅ Si |
-| **Maduro** | ✅ 2009, battle-tested | ✅ Nativo FastAPI | ⭐ 2011 | ⭐ 2016 |
+| Aspecto               | Celery                | FastAPI BackgroundTasks | RQ               | Dramatiq             |
+| --------------------- | --------------------- | ----------------------- | ---------------- | -------------------- |
+| **Complejidad setup** | ⭐⭐⭐ Media             | ⭐⭐⭐⭐⭐ Cero              | ⭐⭐⭐⭐ Simple      | ⭐⭐⭐ Media            |
+| **Scheduling**        | ✅ Celery Beat         | ❌ Requires APScheduler  | ❌ Requires extra | ✅ Si                 |
+| **Monitoring**        | ✅ Flower              | ❌ Manual                | ⭐ RQ Dashboard   | ⭐ Dramatiq Dashboard |
+| **Reintentos**        | ✅ Configurables       | ⭐ Manual                | ✅ Si             | ✅ Si                 |
+| **Larga duracion**    | ✅ Ideal               | ❌ No recomendado        | ✅ Si             | ✅ Si                 |
+| **Maduro**            | ✅ 2009, battle-tested | ✅ Nativo FastAPI        | ⭐ 2011           | ⭐ 2016               |
 
 **Decision:** Celery
 - ✅ Tareas largas (transcripcion 5-20 min por video)
@@ -146,13 +146,13 @@
 
 **Comparativa transcripcion:**
 
-| Servicio | Coste | Precision | Velocidad | Idiomas |
-|----------|-------|-----------|-----------|---------|
-| **Whisper base (local)** | $0 | 85-90% | 2x realtime | 99 |
-| **Whisper small (local)** | $0 | 90-95% | 3x realtime | 99 |
-| AssemblyAI | $0.006/min | 95%+ | 0.2x realtime | 10+ |
-| Deepgram | $0.0043/min | 95%+ | 0.1x realtime | 30+ |
-| Google Speech-to-Text | $0.006/min | 95%+ | 0.3x realtime | 125 |
+| Servicio                  | Coste       | Precision | Velocidad     | Idiomas |
+| ------------------------- | ----------- | --------- | ------------- | ------- |
+| **Whisper base (local)**  | $0          | 85-90%    | 2x realtime   | 99      |
+| **Whisper small (local)** | $0          | 90-95%    | 3x realtime   | 99      |
+| AssemblyAI                | $0.006/min  | 95%+      | 0.2x realtime | 10+     |
+| Deepgram                  | $0.0043/min | 95%+      | 0.1x realtime | 30+     |
+| Google Speech-to-Text     | $0.006/min  | 95%+      | 0.3x realtime | 125     |
 
 **Decision:** Whisper base (local)
 - ✅ $0 coste (requisito del proyecto)
@@ -164,12 +164,12 @@
 
 **Comparativa resumenes:**
 
-| Servicio | Coste | Limite gratuito | Calidad |
-|----------|-------|-----------------|---------|
-| **ApyHub** | $0 | 10 llamadas/dia | ⭐⭐⭐⭐ Buena |
-| OpenAI GPT-4 | $0.03/1K tokens | $0 | ⭐⭐⭐⭐⭐ Excelente |
-| Claude API | $0.015/1K tokens | $0 | ⭐⭐⭐⭐⭐ Excelente |
-| LangChain + local LLM | $0 | Ilimitado | ⭐⭐⭐ Variable |
+| Servicio              | Coste            | Limite gratuito | Calidad         |
+| --------------------- | ---------------- | --------------- | --------------- |
+| **ApyHub**            | $0               | 10 llamadas/dia | ⭐⭐⭐⭐ Buena      |
+| OpenAI GPT-4          | $0.03/1K tokens  | $0              | ⭐⭐⭐⭐⭐ Excelente |
+| Claude API            | $0.015/1K tokens | $0              | ⭐⭐⭐⭐⭐ Excelente |
+| LangChain + local LLM | $0               | Ilimitado       | ⭐⭐⭐ Variable    |
 
 **Decision:** ApyHub API
 - ✅ $0 coste con 10 llamadas/dia (suficiente para 5-10 videos/dia)
@@ -566,12 +566,12 @@ sequenceDiagram
 
 #### Tabla de estados de resumen
 
-| Estado | Descripción | Siguiente acción |
-|--------|--------------|-------------------|
-| `pending` | Video nuevo, sin procesar | Encolar para siguiente batch diario |
-| `processing` | Resumen en progreso | Esperar finalización (polling) |
-| `completed` | Resumen generado exitosamente | Ninguna (estado final) |
-| `failed` | Fallo tras 3 intentos | Revisión manual o descarte |
+| Estado       | Descripción                   | Siguiente acción                    |
+| ------------ | ----------------------------- | ----------------------------------- |
+| `pending`    | Video nuevo, sin procesar     | Encolar para siguiente batch diario |
+| `processing` | Resumen en progreso           | Esperar finalización (polling)      |
+| `completed`  | Resumen generado exitosamente | Ninguna (estado final)              |
+| `failed`     | Fallo tras 3 intentos         | Revisión manual o descarte          |
 
 #### Flujo de transición de estados
 
@@ -752,13 +752,13 @@ LIMIT 10;
 
 **Tipos de errores:**
 
-| Error | Acción | Consume cuota |
-|-------|---------|---------------|
-| Timeout de red | Reintentar mañana | Sí |
-| Rate limit 429 | Detener batch, mañana | No |
-| Token inválido 401 | Alertar admin, pausar | Sí |
-| Texto muy largo 400 | Marcar 'failed', no reintentar | Sí |
-| Job no completa | Reintentar mañana | Sí |
+| Error               | Acción                         | Consume cuota |
+| ------------------- | ------------------------------ | ------------- |
+| Timeout de red      | Reintentar mañana              | Sí            |
+| Rate limit 429      | Detener batch, mañana          | No            |
+| Token inválido 401  | Alertar admin, pausar          | Sí            |
+| Texto muy largo 400 | Marcar 'failed', no reintentar | Sí            |
+| Job no completa     | Reintentar mañana              | Sí            |
 
 ### Métricas y observabilidad
 
@@ -1198,6 +1198,35 @@ Donde desplegar el proyecto. Opciones: Servidor local, Oracle Cloud, Hetzner VPS
 - ✅ Aprendizaje deployment real (Docker, systemd)
 - ⚠️ Sin redundancia (mitigado: backups diarios)
 - 📋 Futuro: Arquitectura hibrida si volumen crece
+
+---
+# ADR-008: Conservar transcripciones indefinidamente en MVP
+
+**Contexto:**
+Las transcripciones son generadas por Whisper y consumidas por ApyHub para generar resúmenes.
+Necesitamos decidir si conservarlas o eliminarlas después del resumen.
+
+**Decisión:** Conservar transcripciones indefinidamente
+
+**Razón:**
+- Costo de almacenamiento despreciable (~18MB/año para 10 videos/día)
+- Útil para debugging si resúmenes son de baja calidad
+- Habilita features futuras (búsqueda full-text, análisis temporal)
+- Simplicidad: no requiere lógica adicional de limpieza
+
+**Trade-offs:**
+- ✅ Espacio: ~18MB/año vs 0MB (diferencia insignificante)
+- ✅ Features: Búsqueda en transcripciones vs solo resúmenes
+- ✅ Implementación: 0 líneas código vs tarea de limpieza
+
+**Consecuencias:**
+- ✅ MVP más simple
+- ✅ Flexibilidad para analytics avanzado
+- ⚠️ Migrar a borrado automático si BD crece excesivamente (>50K videos)
+
+**Path de migración:**
+Si en el futuro necesitamos optimizar espacio, implementar Estrategia 3
+(borrado diferido con retención de 30 días).
 
 ---
 
