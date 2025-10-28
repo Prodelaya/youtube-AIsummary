@@ -20,7 +20,6 @@ from src.services.summarization_service import (
     ApyHubAPIError,
     InvalidResponseError,
     SummarizationService,
-    SummarizationTimeoutError,
 )
 
 # Texto de prueba: corto pero con contenido suficiente para resumir
@@ -77,7 +76,7 @@ async def test_submit_summarization_job_success(skip_if_no_token):
         assert job.status_url is not None
         assert "apyhub.com" in job.status_url
 
-        print(f"\n✅ Job enviado exitosamente:")
+        print("\n✅ Job enviado exitosamente:")
         print(f"   Job ID: {job.job_id}")
         print(f"   Status URL: {job.status_url}")
 
@@ -117,12 +116,12 @@ async def test_get_summary_result_success(skip_if_no_token):
             for keyword in ["inteligencia", "artificial", "ia", "desarrollo", "software"]
         )
 
-        print(f"\n✅ Resumen generado exitosamente:")
+        print("\n✅ Resumen generado exitosamente:")
         print(f"   Longitud original: {result.original_length} chars")
         print(f"   Longitud resumen: {result.summary_length} chars")
         print(f"   Reducción: {100 - (result.summary_length * 100 / result.original_length):.1f}%")
         print(f"   Idioma: {result.language}")
-        print(f"\n📄 Resumen:")
+        print("\n📄 Resumen:")
         print(f"   {result.summary}")
 
 
@@ -148,7 +147,7 @@ async def test_check_job_status_pending(skip_if_no_token):
         assert "status" in status
         assert status["status"] in ["pending", "processing", "completed"]
 
-        print(f"\n✅ Estado del job consultado:")
+        print("\n✅ Estado del job consultado:")
         print(f"   Job ID: {job.job_id}")
         print(f"   Estado: {status['status']}")
 
@@ -174,7 +173,7 @@ async def test_submit_without_token_fails():
         # Verificar que el error contiene información útil
         assert exc_info.value.status_code in [401, 403]  # Unauthorized o Forbidden
 
-        print(f"\n✅ Error detectado correctamente:")
+        print("\n✅ Error detectado correctamente:")
         print(f"   Status code: {exc_info.value.status_code}")
         print(f"   Mensaje: {str(exc_info.value)}")
 
@@ -223,7 +222,7 @@ async def manual_test():
         )
 
         print("✅ Resumen generado exitosamente!\n")
-        print(f"📊 Estadísticas:")
+        print("📊 Estadísticas:")
         print(f"   - Original: {result.original_length} caracteres")
         print(f"   - Resumen: {result.summary_length} caracteres")
         print(
@@ -231,7 +230,7 @@ async def manual_test():
         )
         print(f"   - Idioma: {result.language}\n")
 
-        print(f"📄 Resumen:")
+        print("📄 Resumen:")
         print(f"{result.summary}\n")
 
 
