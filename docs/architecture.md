@@ -25,9 +25,10 @@
 3. [Arquitectura del Sistema](#arquitectura-del-sistema)
 4. [Flujos de Procesamiento](#flujos-de-procesamiento)
 5. [Modelo de Datos](#modelo-de-datos)
-6. [Estructura de Directorios](#estructura-de-directorios)
-7. [Plan de Escalabilidad](#plan-de-escalabilidad)
-8. [ADRs (Decisiones Arquitectonicas)](#adrs)
+6. [Rate Limiting y Sistema de Colas](#rate-limiting-y-sistema-de-colas)
+7. [Estructura de Directorios](#estructura-de-directorios)
+8. [Plan de Escalabilidad](#plan-de-escalabilidad)
+9. [ADRs (Decisiones Arquitectonicas)](#adrs)
 
 ---
 
@@ -497,7 +498,342 @@ CREATE INDEX idx_summaries_transcription_id ON summaries(transcription_id);
 -- Full-text search
 CREATE INDEX idx_summaries_summary_fts ON summaries USING gin(to_tsvector('spanish', summary));
 CREATE INDEX idx_videos_title_fts ON videos USING gin(to_tsvector('spanish', title));
+
+-- Rate limiting (futuro)
+CREATE INDEX idx_videos_summary_status ON videos(summary_status);  -- Para cola de procesamiento
+CREATE INDEX idx_videos_summary_pending ON videos(created_at) WHERE summary_status='pending';  -- Partial index
 ```
+
+---
+
+## RATE LIMITING Y SISTEMA DE COLAS
+
+### Contexto del problema
+
+**Limitación crítica:** ApyHub API plan gratuito = **10 llamadas/día**
+
+**Volumen esperado:** 5-20 videos nuevos por día
+
+**Riesgo sin sistema de colas:**
+- Día con 15 videos nuevos → Solo 10 se resumen, 5 se pierden
+- Errores en API → Reintentos desperdician cuota
+- Sin priorización → Videos importantes podrían quedar sin resumir
+
+### Diseño de solución
+
+#### Arquitectura del sistema de colas
+
+```mermaid
+sequenceDiagram
+    participant BEAT as Celery Beat<br/>(00:30 UTC)
+    participant REDIS as Redis<br/>Rate Limiter
+    participant WORKER as Celery Worker
+    participant DB as PostgreSQL
+    participant APYHUB as ApyHub API
+
+    Note over BEAT: Tarea programada diaria
+    BEAT->>REDIS: RESET apyhub:daily_calls:2025-10-29
+    REDIS-->>BEAT: OK (contador = 0)
+
+    BEAT->>DB: SELECT * FROM videos<br/>WHERE summary_status='pending'<br/>ORDER BY created_at ASC LIMIT 10
+    DB-->>BEAT: [video_1, video_2, ..., video_10]
+
+    loop Para cada video (max 10)
+        BEAT->>REDIS: GET apyhub:daily_calls:2025-10-29
+        REDIS-->>BEAT: current_count
+
+        alt current_count < 10
+            BEAT->>WORKER: Encolar process_summary_task(video_id)
+            WORKER->>DB: UPDATE videos SET summary_status='processing'
+            WORKER->>APYHUB: POST /content/summarize
+            APYHUB-->>WORKER: {job_id, status_url}
+
+            Note over WORKER: Polling job status
+            WORKER->>APYHUB: GET /job/status/{job_id}
+            APYHUB-->>WORKER: {status: 'completed', result: {...}}
+
+            WORKER->>DB: UPDATE videos SET<br/>summary_status='completed',<br/>summary_text='...',<br/>summarized_at=NOW()
+            WORKER->>REDIS: INCR apyhub:daily_calls:2025-10-29
+            REDIS-->>WORKER: new_count
+        else current_count >= 10
+            Note over BEAT: Límite alcanzado, detener<br/>Videos restantes quedan 'pending'
+            BEAT->>BEAT: BREAK loop
+        end
+    end
+
+    Note over BEAT: Fin de procesamiento diario<br/>Videos no procesados se intentarán mañana
+```
+
+#### Tabla de estados de resumen
+
+| Estado | Descripción | Siguiente acción |
+|--------|--------------|-------------------|
+| `pending` | Video nuevo, sin procesar | Encolar para siguiente batch diario |
+| `processing` | Resumen en progreso | Esperar finalización (polling) |
+| `completed` | Resumen generado exitosamente | Ninguna (estado final) |
+| `failed` | Fallo tras 3 intentos | Revisión manual o descarte |
+
+#### Flujo de transición de estados
+
+```
+pending → processing → completed
+    │                 │
+    └───── (error) ──────┘
+            │
+            ▼
+    (reintentos < 3) → pending
+    (reintentos >= 3) → failed
+```
+
+### Componentes del sistema
+
+#### 1. Rate Limiter (Redis)
+
+**Archivo:** `src/services/rate_limiter.py` (futuro)
+
+**Responsabilidades:**
+- Mantener contador diario de llamadas a ApyHub
+- Verificar si se puede hacer una llamada nueva
+- Registrar llamadas exitosas
+- Reiniciar contador automáticamente cada día
+
+**Estructura de datos en Redis:**
+```python
+# Clave con fecha del día
+key = "apyhub:daily_calls:2025-10-29"
+
+# Valor: contador simple (integer)
+value = 7  # 7 llamadas realizadas hoy
+
+# TTL: 24 horas (expira automáticamente a medianoche)
+EXPIRE apyhub:daily_calls:2025-10-29 86400
+```
+
+**Métodos principales:**
+```python
+class ApyHubRateLimiter:
+    DAILY_LIMIT = 10
+
+    async def get_remaining_calls() -> int:
+        """Retorna llamadas disponibles hoy (0-10)."""
+
+    async def can_call_api() -> bool:
+        """True si quedan llamadas disponibles."""
+
+    async def record_call() -> int:
+        """Incrementa contador, retorna total usado hoy."""
+
+    async def reset_daily_counter():
+        """Reinicia contador (tarea programada)."""
+```
+
+#### 2. Modelo Video extendido
+
+**Campos adicionales necesarios:**
+
+```python
+class Video(Base):
+    # ... campos existentes ...
+
+    # === NUEVOS CAMPOS PARA SISTEMA DE COLAS ===
+    summary_status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="pending",
+        index=True,  # IMPORTANTE: índice para queries rápidas
+        comment="Estado: pending | processing | completed | failed"
+    )
+
+    summary_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Texto del resumen generado por ApyHub"
+    )
+
+    summary_attempts: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Número de intentos de resumen (max 3)"
+    )
+
+    summary_error: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Último error al intentar resumir"
+    )
+
+    summarized_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp de generación exitosa"
+    )
+```
+
+**Migración necesaria:**
+```sql
+-- Alembic auto-generará similar a esto:
+ALTER TABLE videos
+    ADD COLUMN summary_status VARCHAR(20) DEFAULT 'pending' NOT NULL,
+    ADD COLUMN summary_text TEXT,
+    ADD COLUMN summary_attempts INTEGER DEFAULT 0 NOT NULL,
+    ADD COLUMN summary_error TEXT,
+    ADD COLUMN summarized_at TIMESTAMPTZ;
+
+CREATE INDEX idx_videos_summary_status ON videos(summary_status);
+CREATE INDEX idx_videos_summary_pending ON videos(created_at)
+    WHERE summary_status='pending';  -- Partial index para eficiencia
+```
+
+#### 3. Tarea Celery diaria
+
+**Archivo:** `src/tasks/daily_summarization.py` (futuro)
+
+**Función principal:**
+```python
+@shared_task(name="daily_summarization")
+async def process_pending_summaries():
+    """
+    Procesa hasta 10 videos pendientes respetando rate limit.
+
+    Ejecutado por Celery Beat cada día a las 00:30 UTC.
+
+    Returns:
+        Dict con estadísticas: processed, success, failed, skipped
+    """
+```
+
+**Configuración Celery Beat:**
+```python
+# src/core/celery_app.py
+from celery.schedules import crontab
+
+app.conf.beat_schedule = {
+    'daily-summarization': {
+        'task': 'daily_summarization',
+        'schedule': crontab(hour=0, minute=30),  # 00:30 UTC diario
+        'options': {
+            'expires': 3600,  # Cancelar si no ejecuta en 1h
+        }
+    },
+}
+```
+
+### Política de priorización (futuro)
+
+**Fase 1 (MVP):** FIFO simple (más antiguos primero)
+```sql
+SELECT * FROM videos
+WHERE summary_status = 'pending'
+ORDER BY created_at ASC  -- Más antiguos primero
+LIMIT 10;
+```
+
+**Fase 2 (optimización):** Prioridad por popularidad del canal
+```sql
+SELECT v.* FROM videos v
+JOIN sources s ON v.source_id = s.id
+WHERE v.summary_status = 'pending'
+ORDER BY
+    s.subscriber_count DESC,  -- Canales grandes primero
+    v.view_count DESC,        -- Videos populares primero
+    v.created_at ASC          -- Desempate: más antiguos
+LIMIT 10;
+```
+
+### Manejo de errores y reintentos
+
+**Estrategia de reintentos:**
+
+1. **Intento 1:** Inmediato (al detectar video nuevo)
+2. **Intento 2:** Siguiente día (si falló el 1º)
+3. **Intento 3:** Siguiente día (si falló el 2º)
+4. **Después de 3 fallos:** `summary_status = 'failed'`
+
+**Tipos de errores:**
+
+| Error | Acción | Consume cuota |
+|-------|---------|---------------|
+| Timeout de red | Reintentar mañana | Sí |
+| Rate limit 429 | Detener batch, mañana | No |
+| Token inválido 401 | Alertar admin, pausar | Sí |
+| Texto muy largo 400 | Marcar 'failed', no reintentar | Sí |
+| Job no completa | Reintentar mañana | Sí |
+
+### Métricas y observabilidad
+
+**Métricas Prometheus añadir:**
+
+```python
+from prometheus_client import Counter, Gauge, Histogram
+
+# Contador de llamadas a ApyHub
+apyhub_calls_total = Counter(
+    'apyhub_api_calls_total',
+    'Total de llamadas a ApyHub API',
+    ['status']  # success, error, rate_limited
+)
+
+# Gauge de llamadas restantes hoy
+apyhub_calls_remaining = Gauge(
+    'apyhub_calls_remaining',
+    'Llamadas restantes a ApyHub hoy'
+)
+
+# Gauge de videos en cola
+videos_pending_summary = Gauge(
+    'videos_pending_summary_total',
+    'Videos esperando resumen'
+)
+
+# Histograma de duración de resumen
+summarization_duration = Histogram(
+    'summarization_duration_seconds',
+    'Tiempo de generación de resumen'
+)
+```
+
+**Dashboard Grafana sugerido:**
+
+- Panel 1: Llamadas ApyHub (usadas/restantes hoy)
+- Panel 2: Videos en cola (pending vs completed)
+- Panel 3: Tasa de éxito (% completed vs failed)
+- Panel 4: Tiempo promedio de resumen
+- Panel 5: Alertas (rate limit alcanzado, >50 videos pending)
+
+### Ventajas del diseño
+
+1. **Garantía de no exceder cuota:** Hard limit en código
+2. **Sin pérdida de datos:** Videos quedan en cola persistente (BD)
+3. **Reintentos inteligentes:** Máximo 3 intentos, luego descarte
+4. **Escalabilidad:** Cambiar `DAILY_LIMIT = 100` si upgradeas plan
+5. **Observabilidad:** Métricas claras de uso de cuota
+6. **Política justa:** FIFO garantiza procesamiento equitativo
+
+### Trade-offs aceptados
+
+1. **Latencia variable:** Videos pueden tardar 1-3 días si hay cola
+   - Mitigación: Priorizar canales importantes (Fase 2)
+
+2. **Complejidad añadida:** +3 componentes nuevos a mantener
+   - Mitigación: Tests exhaustivos, documentación clara
+
+3. **Dependencia crítica de Redis:** Si Redis cae, contador se pierde
+   - Mitigación: Redis con persistencia AOF activada
+
+### Timeline de implementación
+
+**Orden recomendado:**
+
+1. **Paso 15:** Implementar `ApyHubRateLimiter` (1 día)
+2. **Paso 12-13:** Ampliar modelo `Video` con campos de cola (1 día)
+3. **Paso 16-17:** Crear tarea Celery diaria (2 días)
+4. **Paso 18:** Tests de integración completos (1 día)
+5. **Paso 19:** Métricas y dashboard Grafana (1 día)
+
+**Total estimado:** ~6 días de desarrollo
+
+**Prioridad:** Alta (crítico antes de producción)
 
 ---
 
