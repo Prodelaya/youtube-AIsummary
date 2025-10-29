@@ -14,8 +14,6 @@ Características:
 - Sistema de prompts versionado y mantenible
 """
 
-from typing import Any
-
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 

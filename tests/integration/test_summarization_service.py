@@ -18,7 +18,6 @@ import pytest
 from src.core.config import settings
 from src.services.summarization_service import (
     DeepSeekAPIError,
-    InvalidResponseError,
     SummarizationResult,
     SummarizationService,
 )
