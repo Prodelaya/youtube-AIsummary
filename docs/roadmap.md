@@ -239,28 +239,30 @@ git commit -m "feat: add Source model with first migration"
 
 ## 🧩 FASE 2: PIPELINE CORE (1 semana)
 
-### Paso 8: Integración ApyHub (Resúmenes)
+### Paso 8: Integración DeepSeek (Resúmenes)
 **¿Qué hacer?**
 - Crear `src/services/summarization_service.py`
-- Implementar método `summarize_text()` que llama a ApyHub API
-- Implementar método `get_summary_status()` para consultar resultado del job
-- Usar **tenacity** para reintentos exponenciales (3 intentos máx.)
-- Manejo de errores: rate limit, timeout, respuestas inválidas
+- Implementar método `summarize_text()` que llama a DeepSeek API
+- Usar SDK de OpenAI (compatible con DeepSeek)
+- Implementar sistema de prompts en `src/services/prompts/`
+- Manejo de errores: timeout, respuestas inválidas
 
 **¿Por qué primero?**
 - Es el componente externo crítico del sistema
-- Si ApyHub está caído o cambia API, mejor descubrirlo YA
+- Si DeepSeek está caído o cambia API, mejor descubrirlo YA
 - Lo más rápido de validar (no requiere BD ni otros servicios)
+- API síncrona (más simple que ApyHub job-based)
 
 **Validación:**
 - Test de integración que llama a API real con texto de prueba
 - Resumen generado correctamente en español
-- Reintentos funcionan ante fallos temporales
+- Sistema de prompts funciona correctamente
 
 **Git:**
 ```bash
-git commit -m "feat: add ApyHub summarization service with retry logic"
-git commit -m "test: add ApyHub integration test"
+git commit -m "feat: add DeepSeek summarization service with OpenAI SDK"
+git commit -m "feat: add prompt engineering system"
+git commit -m "test: add DeepSeek integration test"
 ```
 **Nos da paso a:** Implementar descarga de audios.
 

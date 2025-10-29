@@ -12,7 +12,7 @@
 **Objetivo dual:**
 - **Portfolio profesional:** Demostrar backend Python moderno con IA funcional
 
-**Stack core:** FastAPI + PostgreSQL + Redis + Celery + Whisper (local) + ApyHub API
+**Stack core:** FastAPI + PostgreSQL + Redis + Celery + Whisper (local) + DeepSeek API
 **Deployment:** Servidor local HP EliteDesk 800 G2 con Cloudflare Tunnel
 **Presupuesto:** $0 (todo gratuito/local)
 
@@ -164,19 +164,19 @@
 
 **Comparativa resumenes:**
 
-| Servicio              | Coste            | Limite gratuito | Calidad         |
-| --------------------- | ---------------- | --------------- | --------------- |
-| **ApyHub**            | $0               | 10 llamadas/dia | ⭐⭐⭐⭐ Buena      |
-| OpenAI GPT-4          | $0.03/1K tokens  | $0              | ⭐⭐⭐⭐⭐ Excelente |
-| Claude API            | $0.015/1K tokens | $0              | ⭐⭐⭐⭐⭐ Excelente |
-| LangChain + local LLM | $0               | Ilimitado       | ⭐⭐⭐ Variable    |
+| Servicio              | Coste            | Limite | Calidad         |
+| --------------------- | ---------------- | ------ | --------------- |
+| **DeepSeek**          | $0.28/1M input   | Sin limite | ⭐⭐⭐⭐ Buena      |
+| OpenAI GPT-4          | $0.03/1K tokens  | Sin limite | ⭐⭐⭐⭐⭐ Excelente |
+| Claude API            | $0.015/1K tokens | Sin limite | ⭐⭐⭐⭐⭐ Excelente |
+| LangChain + local LLM | $0               | Ilimitado | ⭐⭐⭐ Variable    |
 
-**Decision:** ApyHub API
-- ✅ $0 coste con 10 llamadas/dia (suficiente para 5-10 videos/dia)
-- ✅ Sin setup complejo (API REST simple)
-- ✅ Calidad aceptable para MVP
-- ⚠️ Limite 10/dia requiere priorizacion de videos
-- 📋 Futuro: Migrar a GPT-4o-mini si se necesita mas volumen (~$0.15/1M tokens input)
+**Decision:** DeepSeek API
+- ✅ Coste predecible: ~$0.16-0.45/mes para 300 videos
+- ✅ Sin limites artificiales de uso
+- ✅ Compatible con SDK OpenAI (facil integracion)
+- ✅ Context caching automatico (reduce costos 80%)
+- ✅ JSON output nativo (estructurado)
 
 ---
 
@@ -213,7 +213,7 @@ graph TB
 
     subgraph "External Services"
         YT[YouTube]
-        APYHUB[ApyHub API<br/>Summarization]
+        DEEPSEEK[DeepSeek API<br/>Summarization]
         WHISPER[Whisper Local<br/>Transcription]
     end
 
@@ -232,7 +232,7 @@ graph TB
     WORKER1 --> WHISPER
     WORKER1 --> PG
 
-    WORKER2 --> APYHUB
+    WORKER2 --> DEEPSEEK
     WORKER2 --> PG
 
     style API fill:#4CAF50
@@ -241,7 +241,7 @@ graph TB
     style WORKER1 fill:#37B24D
     style WORKER2 fill:#37B24D
     style WHISPER fill:#FF6B6B
-    style APYHUB fill:#1E88E5
+    style DEEPSEEK fill:#1E88E5
 ```
 
 ### Descripcion de componentes
@@ -269,7 +269,7 @@ graph TB
 **5. External Services**
 - **YouTube:** API + yt-dlp para obtener metadatos y descargar audio
 - **Whisper:** Modelo local para transcripcion
-- **ApyHub:** API para generar resumenes
+- **DeepSeek:** LLM API para generar resumenes
 
 ---
 
@@ -1227,6 +1227,39 @@ Necesitamos decidir si conservarlas o eliminarlas después del resumen.
 **Path de migración:**
 Si en el futuro necesitamos optimizar espacio, implementar Estrategia 3
 (borrado diferido con retención de 30 días).
+
+---
+
+### ADR-009: Migración de ApyHub a DeepSeek
+
+**Contexto:**
+ApyHub limita a 5 llamadas/día en plan gratuito. Volumen esperado: 10 videos/día (300/mes).
+
+**Decisión:** DeepSeek API con modelo `deepseek-chat`
+
+**Razón:**
+- ApyHub insuficiente (5 llamadas vs 10 videos diarios)
+- DeepSeek: $0.28/1M tokens input + $0.42/1M output
+- Costo mensual: ~$0.16-0.45 (con context caching)
+- Sin límites artificiales de uso
+- Compatible OpenAI SDK (migración simple)
+
+**Trade-offs:**
+- ✅ Costo: $0.45/mes vs límite bloqueante
+- ✅ Escalabilidad: ilimitado vs 5/día
+- ✅ Simplicidad: API síncrona vs job polling
+- ⚠️ Requiere sistema de prompts (LLM genérico)
+
+**Consecuencias:**
+- ✅ Proyecto viable para caso de uso real
+- ✅ Código más simple (~150 líneas vs ~480)
+- ✅ Context caching reduce costos 80% tras primer resumen
+- 📋 Implementar prompt engineering para calidad óptima
+
+**Alternativas descartadas:**
+- ❌ Mantener ApyHub: Insuficiente para producción
+- ❌ GPT-4o-mini: Más caro ($0.15/1M tokens)
+- ❌ Claude API: Más caro ($0.015/1K tokens)
 
 ---
 
