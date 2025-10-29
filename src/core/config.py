@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     Attributes:
         DATABASE_URL: URL de conexión a PostgreSQL (validada automáticamente).
         REDIS_URL: URL de conexión a Redis (validada automáticamente).
-        APYHUB_TOKEN: Token de autenticación para ApyHub API.
+        DEEPSEEK_API_KEY: Token de autenticación para ApyHub API.
         API_HOST: Host donde escucha el servidor FastAPI.
         API_PORT: Puerto donde escucha el servidor FastAPI.
         API_WORKERS: Número de workers para uvicorn en producción.
@@ -47,9 +47,15 @@ class Settings(BaseSettings):
     )
 
     # ==================== API KEYS ====================
-    APYHUB_TOKEN: str = Field(
-        min_length=10,
-        description="Token de autenticación para ApyHub API (servicio de resúmenes)",
+    DEEPSEEK_API_KEY: str = Field(
+        min_length=20,
+        description="API Key de DeepSeek para generación de resúmenes con LLM",
+        examples=["sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"],
+    )
+
+    DEEPSEEK_BASE_URL: str = Field(
+        default="https://api.deepseek.com",
+        description="URL base de la API de DeepSeek (compatible con OpenAI SDK)",
     )
 
     # ==================== CONFIGURACIÓN API ====================
