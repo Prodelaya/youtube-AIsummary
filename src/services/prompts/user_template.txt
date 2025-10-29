@@ -1,0 +1,7 @@
+Transcripción del vídeo "{title}" (duración: {duration}):
+
+---
+{transcription}
+---
+
+Genera un resumen del vídeo siguiendo estrictamente las reglas del system prompt. Enfócate en los conceptos técnicos principales y su aplicación práctica.
