@@ -60,6 +60,7 @@ prometheus-client = "^0.21.0"
 
 # === DEV DEPENDENCIES ===
 # Solo se instalan en desarrollo con: poetry install --with dev
+openai = "^2.6.1"
 [tool.poetry.group.dev.dependencies]
 # Testing
 pytest = "^8.3.3"
