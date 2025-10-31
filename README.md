@@ -38,7 +38,7 @@ cp .env.example .env
 - **Database:** PostgreSQL
 - **Cache:** Redis
 - **Workers:** Celery
-- **IA:** Whisper (transcripción local) + ApyHub API (resúmenes)
+- **IA:** Whisper (transcripción local) + Deepseek (resúmenes)
 - **DevOps:** Docker, GitHub Actions
 
 ---
