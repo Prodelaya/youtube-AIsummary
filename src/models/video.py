@@ -20,6 +20,7 @@ from src.models.base import TimestampedUUIDBase
 # Import solo para type checking (no causa import circular)
 if TYPE_CHECKING:
     from src.models.source import Source
+    from src.models.transcription import Transcription
 
 
 class VideoStatus(str, enum.Enum):
@@ -136,6 +137,15 @@ class Video(TimestampedUUIDBase):
         "Source",
         back_populates="videos",
         lazy="joined",  # Carga eager de source al consultar video
+    )
+
+    # Uno-a-uno: Un video tiene una transcripción
+    transcription: Mapped["Transcription"] = relationship(
+        "Transcription",
+        back_populates="video",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        uselist=False,  # Forzar relación 1:1 (no lista)
     )
 
     # ==================== ÍNDICES ====================
