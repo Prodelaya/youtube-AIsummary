@@ -1,41 +1,42 @@
 # 🗺️ ROADMAP DETALLADO - IA MONITOR
-**Versión:** 1.0  
-**Actualizado:** Octubre 2025  
+**Versión:** 1.0
+**Actualizado:** Octubre 2025
 **Metodología:** Incremental con validación paso a paso
 
 ---
 
 ## 📖 ÍNDICE
 - Visión General
-- Fase 0: Planning & Setup
-- Fase 1: Infraestructura Base
-- Fase 2: Pipeline Core
-- Fase 3: API REST
-- Fase 4: Workers Async
-- Fase 5: Observabilidad
-- Fase 6: Testing & CI
-- Fase 7: Deployment
+- Fase 0: Planning & Setup (1 día)
+- Fase 1: Infraestructura Base (2-3 días)
+- Fase 2: Pipeline Core (1 semana)
+- Fase 3: API REST + Bot Telegram (5-6 días)
+- Fase 4: Workers Async (2-3 días)
+- Fase 5: Observabilidad (2 días)
+- Fase 6: Testing & CI (2 días)
+- Fase 7: Deployment (2-3 días)
 - Timeline Semanal
-
 ---
 
 ## 🎯 VISIÓN GENERAL
 
 ### Objetivo del Proyecto
-Crear un agregador inteligente que automáticamente:
+Crear un agregador inteligente con bot de Telegram multi-usuario que automáticamente:
 - Recopila contenidos sobre IA en desarrollo software (YouTube, RSS, podcasts)
 - Transcribe audios usando Whisper (local, gratuito)
-- Resume textos usando ApyHub API (10 llamadas/día gratis)
-- Clasifica y expone resúmenes vía API REST y Telegram
+- Resume textos usando DeepSeek API (bajo coste, sin límites)
+- Distribuye resúmenes personalizados vía Bot de Telegram interactivo
+- Cada usuario elige sus canales y gestiona su historial
 
 ### Doble Propósito
-- **Utilidad real:** Mantenerse informado sobre novedades en IA  
-- **Portfolio profesional:** Demostrar backend Python moderno con IA funcional
+- **Utilidad real:** Bot multi-usuario donde cada persona elige sus canales de interés
+- **Portfolio profesional:** Demostrar backend Python moderno con IA funcional y arquitectura multi-usuario
 
 ### Stack Tecnológico
-- **Backend:** FastAPI (async) + PostgreSQL + Redis  
-- **Workers:** Celery para tareas en background  
-- **IA:** Whisper (transcripción local) + ApyHub API (resúmenes)  
+- **Backend:** FastAPI (sync endpoints) + PostgreSQL + Redis
+- **Workers:** Celery para tareas en background (scraping, transcripción, distribución)
+- **Bot:** python-telegram-bot con inline keyboards y commands interactivos
+- **IA:** Whisper (transcripción local) + DeepSeek API (resúmenes)
 - **DevOps:** Docker, GitHub Actions, Prometheus + Grafana
 
 ---
@@ -45,7 +46,7 @@ Crear un agregador inteligente que automáticamente:
 ### Paso 1: Documento de Arquitectura (Project Designer)
 **¿Qué hacer?**
 - Crear `docs/architecture.md` usando el prompt Project Designer
-- Decisiones técnicas justificadas (Whisper local vs APIs de pago, ApyHub vs LangChain, Celery vs BackgroundTasks)
+- Decisiones técnicas justificadas (Whisper local vs APIs de pago, DeepSeek vs ApyHub/LangChain - ADR-009, Celery vs BackgroundTasks)
 - Diagrama Mermaid de arquitectura completa (componentes + flujos)
 - Estructura de directorios definitiva
 - Roadmap de features priorizadas por fases
@@ -54,7 +55,7 @@ Crear un agregador inteligente que automáticamente:
 - Define QUÉ construir y CÓMO antes de escribir una línea de código
 - Evita refactors masivos posteriores (ej: cambiar de MongoDB a PostgreSQL en semana 3)
 - Justifica decisiones técnicas ante reclutadores (portfolio = arquitectura pensada)
-- Detecta dependencias críticas temprano (ej: límite de 10 llamadas/día en ApyHub)
+- Detecta dependencias críticas temprano (ej: limitaciones de APIs externas que motivaron migración a DeepSeek)
 
 **Entregable:**
 - `docs/architecture.md` completo con diagramas
@@ -155,7 +156,7 @@ git commit -m "feat: add Docker Compose with Postgres and Redis"
 ### Paso 5: Config + Variables de Entorno
 **¿Qué hacer?**
 - Crear `src/core/config.py` usando Pydantic Settings
-- Validar variables obligatorias: `DATABASE_URL`, `REDIS_URL`, `APYHUB_TOKEN`
+- Validar variables obligatorias: `DATABASE_URL`, `REDIS_URL`, `DEEPSEEK_API_KEY`
 - `.env.example` con plantilla (este SÍ va a Git)
 - `.env` real (este NO va a Git, usuario debe crearlo copiando el example)
 
@@ -251,7 +252,7 @@ git commit -m "feat: add Source model with first migration"
 - Es el componente externo crítico del sistema
 - Si DeepSeek está caído o cambia API, mejor descubrirlo YA
 - Lo más rápido de validar (no requiere BD ni otros servicios)
-- API síncrona (más simple que ApyHub job-based)
+- API síncrona simple (SDK compatible con OpenAI)
 
 **Validación:**
 - Test de integración que llama a API real con texto de prueba
@@ -276,8 +277,8 @@ git commit -m "test: add DeepSeek integration test"
 - Configurar carpeta temporal `/tmp/ia-monitor/downloads`
 - Extraer mejor calidad de audio disponible
 
-**¿Por qué después de ApyHub?**
-- No depende de ApyHub (servicios aislados)
+**¿Por qué después de DeepSeek?**
+- No depende de DeepSeek (servicios aislados)
 - Genera archivos que el siguiente paso (transcripción) consumirá
 
 **Validación:**
@@ -322,325 +323,265 @@ git commit -m "test: add transcription test with sample audio"
 
 ---
 
-### Paso 11: Orquestador del Pipeline
+### Paso 11: Modelos de BD Completos (✅ COMPLETADO)
 **¿Qué hacer?**
-- Crear `src/services/content_processor.py`
-- Implementar `process_youtube_url()` que orquesta: **descarga → transcripción → resumen → guardar en BD**
-- Manejar limpieza de archivos temporales
-- Guardar transcripciones y resúmenes en BD vía repositories
-- Polling simple para esperar resultado de ApyHub (mejorar con Celery después)
-
-**¿Por qué orquestador?**
-- Conecta los 3 servicios aislados (downloader, transcriber, summarizer)
-- Un solo punto de entrada para el flujo completo
-- Fácil de testear (mock cada servicio individual)
-- Centraliza lógica de *error handling*
-
-**Validación:**
-- Test E2E: URL de YouTube → resumen guardado en BD
-- Pipeline completo tarda ~5-10 minutos (esperado para Whisper)
-- Archivos temporales eliminados correctamente
-
-**Git:**
-```bash
-git commit -m "feat: add ContentProcessor orchestrator for full pipeline"
-git commit -m "test: add end-to-end pipeline integration test"
-```
-**Nos da paso a:** Exponer funcionalidad vía API REST.
-
----
-
-## 🌐 FASE 3: API REST (3-4 días)
-
-### Paso 12: Modelos de BD Completos
-**¿Qué hacer?**
-- Crear modelo `Transcription` con campos: `id`, `source_id`, `text`, `audio_path`, `duration`, `language`
-- Crear modelo `Summary` con campos: `id`, `transcription_id`, `summary_text`, `metadata`, `tags`
-- Definir relaciones SQLAlchemy: `Source 1→N Transcriptions`, `Transcription 1→N Summaries`
+- Crear modelo `Transcription` con relación 1:1 a Video
+- Crear modelo `Summary` con relación 1:1 a Transcription
 - Generar y aplicar migraciones Alembic
+- Actualizar `Video` model con relación a `Transcription`
 
-**¿Por qué ahora?**
-- Necesitamos persistir resultados del pipeline
-- Relaciones bien definidas facilitan queries después
-- Migraciones versionan cambios en schema
-
-**Validación:**
-- Tablas `transcriptions` y `summaries` existen en BD
-- Relaciones funcionan (foreign keys correctas)
+**Estado:**
+- ✅ Modelos creados con tipado completo
+- ✅ Relaciones definidas (Video → Transcription → Summary)
+- ✅ Migración aplicada con índices GIN y full-text search
+- ✅ Exports actualizados en `__init__.py`
 
 **Git:**
 ```bash
-git commit -m "feat: add Transcription and Summary models with relationships"
-git commit -m "feat: add migration for transcriptions and summaries tables"
+# Ya commiteado:
+feat(models): add Transcription and Summary models
+feat(db): add migration for transcriptions and summaries tables
 ```
-**Nos da paso a:** Implementar capa de acceso a datos.
+**Nos da paso a:** Implementar Repository Pattern.
 
 ---
 
-### Paso 13: Repository Pattern
-**¿Qué hacer?**
-- Crear `src/repositories/base_repository.py` con operaciones CRUD genéricas
-- Implementar `SummaryRepository` extendiendo `BaseRepository`
-- Implementar `TranscriptionRepository` con métodos específicos
-- Métodos principales: `create`, `get_by_id`, `list_all`, `delete`
-- Métodos personalizados: `get_recent_summaries`, `get_by_source`
+## 🌐 FASE 3: API REST + BOT TELEGRAM MULTI-USUARIO (5-6 días)
 
-**¿Por qué Repository Pattern?**
-- Abstrae acceso a datos (cambiar de Postgres a otro DB = solo cambiar repos)
-- Queries complejas centralizadas
-- Fácil de testear con mocks
-- Reutilizable (un repo, muchos servicios)
+### Paso 12: Repository Pattern (📍 ACTUAL)
+**¿Qué hacer?**
+- Crear `src/repositories/base_repository.py` genérico con TypeVar[T]
+- Implementar CRUD síncrono: `create`, `get_by_id`, `list_all`, `update`, `delete`
+- Crear `SourceRepository` con métodos específicos
+- Crear `VideoRepository` con queries por estado
+- Crear `TranscriptionRepository` con búsqueda por video
+- Crear `SummaryRepository` con filtros y búsqueda
+- **NUEVO:** Crear `TelegramUserRepository` con queries de suscripciones
+
+**¿Por qué síncronos?** (ADR-011)
+- Celery workers son 99% del uso de BD (síncronos por diseño)
+- API REST: <10 req/día (uso ocasional)
+- Implementación más simple (2 días vs 4 días async)
+- SQLAlchemy ORM funciona mejor en modo sync
 
 **Validación:**
-- Tests unitarios de cada método del repository
+- Tests unitarios con mocks de Session
+- Tests de integración con BD real (fixtures pytest)
 - Operaciones CRUD funcionan correctamente
 
 **Git:**
 ```bash
-git commit -m "feat: add Repository pattern with base class"
-git commit -m "feat: add SummaryRepository and TranscriptionRepository"
-git commit -m "test: add repository unit tests"
+git commit -m "feat(repositories): add BaseRepository with generic CRUD"
+git commit -m "feat(repositories): add SourceRepository and VideoRepository"
+git commit -m "feat(repositories): add TranscriptionRepository and SummaryRepository"
+git commit -m "feat(repositories): add TelegramUserRepository"
+git commit -m "test(repositories): add unit and integration tests"
 ```
-**Nos da paso a:** Crear endpoints REST.
+**Nos da paso a:** Modelo TelegramUser para sistema multi-usuario.
 
 ---
 
-### Paso 14: Endpoints REST
+### Paso 13: Modelo TelegramUser + Suscripciones (ADR-010)
+**Contexto:** Implementación del sistema multi-usuario definido en ADR-010.
+Cada usuario gestiona sus propias suscripciones a canales.
+
 **¿Qué hacer?**
-- Crear **schemas Pydantic** en `src/api/schemas/` para request/response
-- Implementar rutas en `src/api/routes/summaries.py`:
-  - `GET /api/v1/summaries` — Listar resúmenes recientes
-  - `GET /api/v1/summaries/{id}` — Detalle de resumen específico
-- Implementar rutas en `src/api/routes/sources.py`:
-  - `POST /api/v1/sources` — Registrar fuente nueva (YouTube channel, RSS)
-  - `GET /api/v1/sources` — Listar fuentes activas
+- Crear `src/models/telegram_user.py` con campos: `telegram_id`, `username`, `first_name`, `active`
+- Crear tabla intermedia `user_source_subscriptions` (M:N)
+- Añadir relación M:N entre `TelegramUser` y `Source`
+- Actualizar `Summary` con campos: `sent_to_telegram`, `sent_at`, `telegram_message_ids`
+- Generar y aplicar migráncion Alembic
+
+**¿Por qué ahora?**
+- Base necesaria para bot multi-usuario
+- Cada usuario gestiona sus propias suscripciones
+- Tracking de mensajes enviados para reenvíos
+
+**Validación:**
+- Tabla `telegram_users` existe con índice en `telegram_id`
+- Tabla `user_source_subscriptions` con constraint UNIQUE(user_id, source_id)
+- Campos nuevos en `summaries` con valores por defecto
+
+**Git:**
+```bash
+git commit -m "feat(models): add TelegramUser model with M:N subscriptions"
+git commit -m "feat(models): add user_source_subscriptions table"
+git commit -m "feat(models): add Telegram tracking fields to Summary"
+git commit -m "feat(db): add migration for telegram users and subscriptions"
+```
+**Nos da paso a:** Endpoints API REST actualizados.
+
+---
+
+### Paso 14: Endpoints API REST (usuarios + suscripciones) [ADR-010]
+**Contexto:** Backend completo para bot multi-usuario (ADR-010).
+
+**¿Qué hacer?**
+- Crear schemas Pydantic en `src/api/schemas/` para usuarios y suscripciones
+- Implementar `src/api/routes/users.py`:
+  - `POST /api/v1/users` — Registrar usuario Telegram
+  - `GET /api/v1/users/{telegram_id}` — Obtener perfil + suscripciones
+  - `PATCH /api/v1/users/{telegram_id}` — Actualizar (pausar notificaciones)
+  - `POST /api/v1/users/{telegram_id}/subscribe/{source_id}` — Suscribirse
+  - `DELETE /api/v1/users/{telegram_id}/subscribe/{source_id}` — Desuscribirse
+- Implementar `src/api/routes/summaries.py`:
+  - `GET /api/v1/summaries?user_id={telegram_id}` — Filtrar por suscripciones usuario
+  - `GET /api/v1/summaries/recent?user_id={telegram_id}&limit=10` — Recientes del usuario
+  - `GET /api/v1/summaries/search?q=FastAPI&user_id={telegram_id}` — Búsqueda
+  - `POST /api/v1/summaries/{id}/resend` — Reenviar resumen
+- Actualizar `src/api/routes/sources.py`:
+  - `GET /api/v1/sources` — Listar canales disponibles
+  - `GET /api/v1/sources/{id}/summaries` — Resúmenes de un canal
 - Registrar routers en `main.py`
 
 **¿Por qué estos endpoints?**
-- Listar resúmenes = funcionalidad core visible
-- Gestión de fuentes = permite alimentar el sistema
-- Base para frontend o Telegram bot después
+- Backend completo para bot de Telegram
+- Gestión de suscripciones personalizada por usuario
+- Filtrado automático según preferencias
 
 **Validación:**
-- Swagger UI muestra todos los endpoints
-- Tests de integración para cada endpoint
-- Respuestas correctas con datos reales de BD
+- Swagger UI muestra todos los endpoints nuevos
+- Tests de integración con usuarios de prueba
+- Filtrado por suscripciones funciona correctamente
 
 **Git:**
 ```bash
-git commit -m "feat: add Pydantic schemas for API responses"
-git commit -m "feat: add summaries REST endpoints"
-git commit -m "feat: add sources REST endpoints"
-git commit -m "test: add API integration tests"
+git commit -m "feat(api): add user management endpoints"
+git commit -m "feat(api): add subscription management endpoints"
+git commit -m "feat(api): update summaries endpoints with user filtering"
+git commit -m "test(api): add integration tests for multi-user features"
 ```
-**Nos da paso a:** Procesar tareas pesadas en background.
+**Nos da paso a:** Implementar Bot de Telegram.
 
 ---
 
-## ⚡ FASE 4: RATE LIMITING & COLAS (6 días)
-
-**Objetivo:** Implementar sistema de colas con límite diario para respetar 10 llamadas/día de ApyHub.
-
-**Contexto crítico:**
-- ApyHub plan gratuito = 10 llamadas/día
-- Sin sistema de colas = videos se pierden si hay >10/día
-- Sistema de colas = videos pendientes se procesan al día siguiente
-
----
-
-### Paso 15: Rate Limiter con Redis
+### Paso 15: Bot de Telegram - Setup Básico
 **¿Qué hacer?**
-- Crear `src/services/rate_limiter.py`
-- Implementar clase `ApyHubRateLimiter` con Redis
-- Métodos:
-  - `get_remaining_calls()` → Consulta cuántas llamadas quedan hoy
-  - `can_call_api()` → True/False si se puede llamar
-  - `record_call()` → Incrementa contador tras llamada exitosa
-  - `reset_daily_counter()` → Reinicia a 0 (tarea programada)
-- Clave Redis: `apyhub:daily_calls:YYYY-MM-DD`
-- TTL automático: 24 horas
+- Instalar `python-telegram-bot` con Poetry
+- Crear `src/bot/telegram_bot.py` con configuración básica
+- Implementar command `/start` con mensaje de bienvenida
+- Implementar command `/help` con lista de comandos
+- Registrar usuario automáticamente en `/start` (vía API interna)
+- Configurar webhook o polling según entorno
 
-**¿Por qué este orden?**
-- Componente aislado, se puede testear independientemente
-- No requiere cambios en BD
-- Funcionalidad crítica: previene exceder cuota
+**¿Por qué primero?**
+- Valida que bot funciona antes de añadir complejidad
+- Configura infraestructura básica (token, permisos)
+- Primera interacción con usuarios
 
 **Validación:**
-- Tests unitarios con Redis mock
-- Test de integración con Redis real
-- Contador se incrementa correctamente
-- TTL expira a medianoche
+- Bot responde a `/start` en Telegram
+- Usuario creado en BD tras `/start`
+- `/help` lista comandos disponibles
 
 **Git:**
 ```bash
-git commit -m "feat: add ApyHub rate limiter with Redis"
-git commit -m "test: add rate limiter unit and integration tests"
+git commit -m "feat(bot): add telegram bot basic setup"
+git commit -m "feat(bot): add /start and /help commands"
+git commit -m "test(bot): add bot commands integration tests"
 ```
-**Nos da paso a:** Extender modelo Video con campos de cola.
+**Nos da paso a:** Commands interactivos de suscripciones.
 
 ---
 
-### Paso 16: Ampliar Modelo Video
+### Paso 16: Bot de Telegram - Suscripciones Interactivas
 **¿Qué hacer?**
-- Añadir campos a `src/models/video.py`:
-  - `summary_status`: 'pending' | 'processing' | 'completed' | 'failed'
-  - `summary_text`: Texto del resumen generado
-  - `summary_attempts`: Contador de intentos (máx 3)
-  - `summary_error`: Último error si falló
-  - `summarized_at`: Timestamp de generación exitosa
-- Crear índice en `summary_status` (queries rápidas)
-- Crear índice parcial en `created_at WHERE summary_status='pending'`
-- Generar migración Alembic
-- Aplicar migración: `alembic upgrade head`
+- Implementar command `/sources` con inline keyboard
+- Mostrar lista de canales con botones ✅/❌ (suscrito/no suscrito)
+- Implementar callback_query handler para toggle de suscripciones
+- Actualizar teclado dinámicamente tras cada toggle
+- Consumir API interna para obtener sources y gestionar suscripciones
 
-**¿Por qué ahora?**
-- Necesitamos persistir estado de cola en BD
-- Migraciones antes de lógica = evita inconsistencias
+**¿Por qué inline keyboards?**
+- UX superior (botones vs escribir comandos)
+- Feedback visual inmediato (✅/❌)
+- Reduce errores del usuario (no tipear nombres de canales)
 
 **Validación:**
-- Tabla `videos` tiene nuevos campos
-- Índices creados correctamente
-- Valores por defecto funcionan (`summary_status='pending'`)
+- `/sources` muestra teclado con canales disponibles
+- Click en botón actualiza suscripción en BD
+- Teclado se actualiza reflejando nuevo estado
 
 **Git:**
 ```bash
-git commit -m "feat: add summary queue fields to Video model"
-git commit -m "feat: add migration for video summary queue"
+git commit -m "feat(bot): add /sources command with inline keyboard"
+git commit -m "feat(bot): add subscription toggle callback handlers"
+git commit -m "test(bot): add subscription toggle tests"
 ```
-**Nos da paso a:** Crear tarea Celery para procesamiento diario.
+**Nos da paso a:** Commands de consulta de histórico.
 
 ---
 
-### Paso 17: Tarea Celery Diaria
+### Paso 17: Bot de Telegram - Historial y Búsqueda
 **¿Qué hacer?**
-- Crear `src/tasks/daily_summarization.py`
-- Implementar función `process_pending_summaries()`
-  - Obtener hasta 10 videos con `summary_status='pending'`
-  - Ordenar por `created_at ASC` (FIFO)
-  - Para cada video:
-    - Verificar `can_call_api()` del rate limiter
-    - Si OK: procesar resumen
-    - Si límite alcanzado: STOP (resto mañana)
-  - Actualizar estados en BD según resultado
-- Integrar con `SummarizationService` existente
-- Manejar reintentos (máximo 3, después → 'failed')
+- Implementar command `/recent` — Últimos 10 resúmenes de canales suscritos
+- Implementar command `/search <query>` — Buscar en histórico por keyword
+- Formatear mensajes con:
+  - 📹 Título del video
+  - 🔗 Link de YouTube
+  - ⏱️ Duración
+  - 🏷️ Tags (#FastAPI #Python)
+  - 📝 Resumen
+- Añadir botón inline "Reenviar" por resumen
+- Consumir API interna para queries filtradas
 
-**¿Por qué esta lógica?**
-- Procesa máximo 10/día automáticamente
-- Videos no procesados quedan en cola para mañana
-- Estado persistente en BD = resistente a caídas
+**¿Por qué estos commands?**
+- `/recent` = acceso rápido a últimas novedades
+- `/search` = recuperar información antigua fácilmente
+- Formato enriquecido = mensajes útiles y visualmente claros
 
 **Validación:**
-- Tarea ejecuta correctamente con 5 videos pending
-- Si hay 15 videos, solo procesa 10
-- Reintentos funcionan (fallos → pending, 3 intentos → failed)
-- Rate limiter registra llamadas correctamente
+- `/recent` muestra sólo resúmenes de canales suscritos
+- `/search FastAPI` encuentra resúmenes relevantes
+- Links de YouTube funcionan correctamente
+- Botón "Reenviar" reenvia el mensaje
 
 **Git:**
 ```bash
-git commit -m "feat: add daily summarization Celery task"
-git commit -m "test: add daily summarization task tests"
+git commit -m "feat(bot): add /recent command with formatted messages"
+git commit -m "feat(bot): add /search command with keyword filtering"
+git commit -m "test(bot): add history and search tests"
 ```
-**Nos da paso a:** Programar tarea con Celery Beat.
+**Nos da paso a:** Worker de distribución personalizada.
 
 ---
 
-### Paso 18: Celery Beat Scheduler
+### Paso 18: Worker de Distribución Personalizada (ADR-010)
 **¿Qué hacer?**
-- Configurar Celery Beat en `src/core/celery_app.py`
-- Añadir schedule:
-  ```python
-  'daily-summarization': {
-      'task': 'daily_summarization',
-      'schedule': crontab(hour=0, minute=30),  # 00:30 UTC
-      'options': {'expires': 3600}
-  }
-  ```
-- Crear script de inicio: `scripts/start_beat.sh`
-- Documentar en README cómo arrancar Beat
+- Crear `src/tasks/distribute_summaries.py`
+- Implementar tarea Celery `distribute_summary(summary_id: str)`
+- Lógica:
+  1. Obtener resumen de BD
+  2. Consultar usuarios suscritos al canal (M:N query)
+  3. Para cada usuario suscrito:
+     - Formatear mensaje con 📹 título, 🔗 link, 📝 resumen
+     - Enviar vía Bot API
+     - Registrar `telegram_message_id` en BD
+  4. Actualizar `summary.sent_to_telegram = True`
+- Manejo de errores: reintentar si falla envío
 
-**¿Por qué 00:30 UTC?**
-- Después de medianoche = contador Redis resetado
-- Hora tranquila = menos carga en servidor
-- Antes del amanecer = resúmenes listos por la mañana
+**¿Por qué worker separado?**
+- Envío a N usuarios puede tardar (rate limits de Telegram)
+- No bloquea pipeline de transcripción/resumen
+- Reintentos automáticos si usuario tiene bot bloqueado
 
 **Validación:**
-- Beat scheduler arranca sin errores
-- Tarea se programa correctamente
-- Ejecutar manualmente funciona
-- Logs muestran próxima ejecución programada
+- Resumen generado se envía solo a usuarios suscritos al canal
+- Campo `telegram_message_ids` se actualiza correctamente
+- Bot no envía duplicados
 
 **Git:**
 ```bash
-git commit -m "feat: add Celery Beat scheduler for daily tasks"
-git commit -m "docs: add Beat startup instructions to README"
+git commit -m "feat(worker): add personalized distribution to Telegram users"
+git commit -m "test(worker): add distribution tests with mock users"
 ```
-**Nos da paso a:** Añadir métricas para observabilidad.
+**Nos da paso a:** Sistema de rate limiting para API de resúmenes.
 
 ---
 
-### Paso 19: Métricas Prometheus
-**¿Qué hacer?**
-- Añadir métricas en `src/services/summarization_service.py`:
-  - `apyhub_calls_total` (Counter): Llamadas por status
-  - `apyhub_calls_remaining` (Gauge): Llamadas restantes hoy
-  - `videos_pending_summary` (Gauge): Videos en cola
-  - `summarization_duration_seconds` (Histogram): Tiempo de resumen
-- Instrumentar rate limiter
-- Instrumentar tarea diaria
-- Actualizar endpoint `/metrics`
+## ⚡ FASE 4: WORKERS ASYNC (2-3 días)
 
-**¿Por qué métricas?**
-- Monitorear uso de cuota en tiempo real
-- Detectar problemas antes de que se acumulen
-- Datos para optimizar sistema
-
-**Validación:**
-- Endpoint `/metrics` expone nuevas métricas
-- Métricas se actualizan tras procesar video
-- Prometheus scrapea correctamente
-
-**Git:**
-```bash
-git commit -m "feat: add Prometheus metrics for rate limiting"
-```
-**Nos da paso a:** Dashboard visual en Grafana.
-
----
-
-### Paso 20: Dashboard Grafana
-**¿Qué hacer?**
-- Crear dashboard "ApyHub Queue Management"
-- Paneles:
-  1. Llamadas ApyHub (usadas/restantes hoy)
-  2. Videos en cola (pending vs completed)
-  3. Tasa de éxito (% completed vs failed)
-  4. Tiempo promedio de resumen
-  5. Alertas (rate limit, >50 pending)
-- Exportar dashboard como JSON
-- Guardar en `docs/grafana-dashboards/`
-
-**¿Por qué dashboard dedicado?**
-- Visualización rápida de salud del sistema
-- Detectar cuellos de botella visualmente
-- Portfolio impresionante (no solo código, también ops)
-
-**Validación:**
-- Dashboard accesible en Grafana
-- Paneles muestran datos reales
-- Alertas se activan correctamente
-
-**Git:**
-```bash
-git commit -m "feat: add Grafana dashboard for queue management"
-```
-**Nos da paso a:** Workers asíncronos.
-
----
-
-## ⚡ FASE 5: WORKERS ASYNC (2-3 días)
-
-### Paso 21: Celery Setup
+### Paso 19: Celery Setup
 **¿Qué hacer?**
 - Configurar Celery en `src/core/celery_app.py` con Redis como broker
 - Crear tarea `src/tasks/process_content_task.py` que ejecuta el pipeline completo
@@ -667,7 +608,7 @@ git commit -m "feat: add process_content async task"
 
 ---
 
-### Paso 22: Jobs Programados (Celery Beat)
+### Paso 20: Jobs Programados (Celery Beat)
 **¿Qué hacer?**
 - Configurar Celery Beat scheduler
 - Crear tarea `sync_sources_task.py` que:
@@ -695,9 +636,9 @@ git commit -m "feat: add sync_sources periodic task"
 
 ---
 
-## 📊 FASE 6: OBSERVABILIDAD (2 días)
+## 📊 FASE 5: OBSERVABILIDAD (2 días)
 
-### Paso 23: Logging Estructurado
+### Paso 21: Logging Estructurado
 **¿Qué hacer?**
 - Configurar **structlog** para logs estructurados
 - Logs en formato JSON con campos: timestamp, level, message, context
@@ -723,14 +664,14 @@ git commit -m "feat: add structured logging with structlog"
 
 ---
 
-### Paso 24: Métricas (Prometheus)
+### Paso 22: Métricas (Prometheus)
 **¿Qué hacer?**
 - Instalar `prometheus-client` para Python
 - Exponer endpoint `/metrics` en FastAPI
 - Métricas custom:
   - `summaries_generated_total` (contador)
   - `transcription_duration_seconds` (histograma)
-  - `apyhub_api_calls_total` (contador)
+  - `deepseek_api_calls_total` (contador)
   - `pipeline_errors_total` (contador por tipo)
 - Configurar scraping de Prometheus en `docker-compose.yml`
 
@@ -753,7 +694,7 @@ git commit -m "feat: add Prometheus to Docker Compose"
 
 ---
 
-### Paso 25: Grafana Dashboard
+### Paso 23: Grafana Dashboard
 **¿Qué hacer?**
 - Agregar Grafana a `docker-compose.yml`
 - Configurar datasource Prometheus
@@ -761,7 +702,6 @@ git commit -m "feat: add Prometheus to Docker Compose"
   - Resúmenes generados (últimas 24h)
   - Duración promedio de transcripción
   - Rate de errores del pipeline
-  - Uso de API ApyHub (llamadas restantes del día)
 
 **¿Por qué Grafana?**
 - Visualización clara de salud del sistema
@@ -781,9 +721,9 @@ git commit -m "feat: add Grafana dashboard for system metrics"
 
 ---
 
-## ✅ FASE 7: TESTING & CI/CD (2 días)
+## ✅ FASE 6: TESTING & CI/CD (2 días)
 
-### Paso 26: Suite de Tests Completa
+### Paso 24: Suite de Tests Completa
 **¿Qué hacer?**
 - Tests unitarios en `tests/unit/` para servicios y repositories
 - Tests de integración en `tests/integration/` para API y BD
@@ -809,7 +749,7 @@ git commit -m "test: add comprehensive test suite with >80% coverage"
 
 ---
 
-### Paso 27: GitHub Actions (CI/CD)
+### Paso 25: GitHub Actions (CI/CD)
 **¿Qué hacer?**
 - Crear `.github/workflows/test.yml`:
   - Trigger en `push` y `pull_request`
@@ -839,9 +779,9 @@ git commit -m "ci: add GitHub Actions for tests and linting"
 
 ---
 
-## 🚀 FASE 8: DEPLOYMENT (2-3 días)
+## 🚀 FASE 7: DEPLOYMENT (2-3 días)
 
-### Paso 28: Dockerfile Optimizado
+### Paso 26: Dockerfile Optimizado
 **¿Qué hacer?**
 - Crear Dockerfile multi-stage (builder + runtime)
 - Stage 1: Instalar dependencias con Poetry
@@ -867,7 +807,7 @@ git commit -m "feat: add optimized multi-stage Dockerfile"
 
 ---
 
-### Paso 29: Docker Compose Producción
+### Paso 27: Docker Compose Producción
 **¿Qué hacer?**
 - Crear `docker-compose.prod.yml` con todos los servicios:
   - API (FastAPI)
@@ -898,7 +838,7 @@ git commit -m "feat: add production Docker Compose configuration"
 
 ---
 
-### Paso 30: Scripts de Deployment
+### Paso 28: Scripts de Deployment
 **¿Qué hacer?**
 - Crear `scripts/deploy.sh` que:
   - Pull últimos cambios de Git
@@ -928,7 +868,7 @@ git commit -m "feat: add deployment and backup scripts"
 
 ---
 
-### Paso 31: CD Automático (GitHub Actions)
+### Paso 29: CD Automático (GitHub Actions)
 **¿Qué hacer?**
 - Crear `.github/workflows/deploy.yml`:
   - Trigger solo en push a `main`
@@ -955,7 +895,7 @@ git commit -m "ci: add continuous deployment workflow"
 
 ---
 
-### Paso 32: Documentación Final
+### Paso 30: Documentación Final
 **¿Qué hacer?**
 - README completo con:
   - Descripción del proyecto y valor
@@ -987,39 +927,38 @@ git commit -m "docs: finalize ADRs for key technical decisions"
 - **Lunes:** Architecture doc + Git setup + Poetry
 - **Martes:** Docker Compose + Config + FastAPI base
 - **Miércoles:** ORM + Migraciones + Source model
-- **Jueves:** ApyHub integration + Tests
+- **Jueves:** **DeepSeek** integration + Tests  ← CORREGIDO
 - **Viernes:** Downloader service + Whisper setup
 
-### Semana 2: Pipeline & API
+### Semana 2: Pipeline, API & Bot Telegram
 - **Lunes:** Transcription service + Pipeline orchestrator
-- **Martes:** Modelos BD completos + Repositories
-- **Miércoles:** API REST endpoints + Schemas
-- **Jueves:** Tests de integración API
-- **Viernes:** Celery setup + Worker tasks
+- **Martes:** Modelos BD completos + Repositories síncronos (ADR-011)
+- **Miércoles:** Modelo TelegramUser + Suscripciones (ADR-010)
+- **Jueves:** API REST endpoints usuarios + suscripciones
+- **Viernes:** Bot Telegram - Setup básico + /start
 
-### Semana 3: Rate Limiting & Colas
-- **Lunes:** Rate Limiter con Redis (Paso 15)
-- **Martes:** Ampliar modelo Video + Migración (Paso 16)
-- **Miércoles:** Tarea Celery diaria + Celery Beat (Pasos 17-18)
-- **Jueves:** Métricas Prometheus (Paso 19)
-- **Viernes:** Dashboard Grafana + Tests (Paso 20)
+### Semana 3: Bot Telegram & Pipeline Completo
+- **Lunes:** Bot - Suscripciones interactivas con inline keyboards
+- **Martes:** Bot - Historial y búsqueda (/recent, /search)
+- **Miércoles:** Worker de distribución personalizada (ADR-010)
+- **Jueves:** Celery workers + Jobs programados
+- **Viernes:** Logging estructurado
 
-### Semana 4: Workers & Observabilidad
-- **Lunes:** Celery workers + Jobs programados (Pasos 21-22)
-- **Martes:** Logging estructurado (Paso 23)
-- **Miércoles:** Métricas Prometheus + Grafana (Pasos 24-25)
-- **Jueves:** Suite de tests completa + CI (Pasos 26-27)
-- **Viernes:** Dockerfile + Docker Compose prod (Pasos 28-29)
+### Semana 4: Observabilidad & Testing
+- **Lunes:** Métricas Prometheus + Monitoreo de costos DeepSeek
+- **Martes:** Dashboard Grafana completo
+- **Miércoles:** Suite de tests completa
+- **Jueves:** CI con GitHub Actions
+- **Viernes:** Dockerfile optimizado
 
 ### Semana 5: Deployment & Docs
-- **Lunes:** Scripts de deployment + Backups (Paso 30)
-- **Martes:** CD automático + Validación (Paso 31)
-- **Miércoles:** Documentación final + ADRs (Paso 32)
-- **Jueves:** Optimizaciones + Pulido
-- **Viernes:** Demo video + Publicación
+- **Lunes:** Dockerfile + Docker Compose prod
+- **Martes:** Scripts de deployment + Backups
+- **Miércoles:** CD automático + Validación
+- **Jueves:** Documentación final + ADRs
+- **Viernes:** Optimizaciones + Demo video
 
-**Total:** ~5 semanas trabajando 3-4h/día (añadida 1 semana para rate limiting)
-
+**Total:** ~5 semanas trabajando 3-4h/día
 ---
 
 ## ✅ REGLAS DE ORO
@@ -1039,7 +978,7 @@ git commit -m "docs: finalize ADRs for key technical decisions"
 ### 4. Branch Strategy
 ```text
 main              ← Solo código funcional + tests
-  ├─ feat/apyhub-integration
+  ├─ feat/Deepseek-integration
   ├─ feat/whisper-transcription
   └─ feat/celery-workers
 ```

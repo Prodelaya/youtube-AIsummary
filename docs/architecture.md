@@ -8,13 +8,15 @@
 
 ## RESUMEN EJECUTIVO
 
-**Proyecto:** Agregador inteligente de contenido sobre IA en desarrollo software
+**Proyecto:** Agregador inteligente de contenido sobre IA en desarrollo software con bot de Telegram multi-usuario
 **Objetivo dual:**
-- **Portfolio profesional:** Demostrar backend Python moderno con IA funcional
+- **Utilidad real:** Bot de Telegram interactivo donde cada usuario elige sus canales
+- **Portfolio profesional:** Demostrar backend Python moderno con IA funcional y arquitectura multi-usuario
 
-**Stack core:** FastAPI + PostgreSQL + Redis + Celery + Whisper (local) + DeepSeek API
+**Stack core:** FastAPI + PostgreSQL + Redis + Celery + Whisper (local) + DeepSeek API + Telegram Bot (python-telegram-bot)
 **Deployment:** Servidor local HP EliteDesk 800 G2 con Cloudflare Tunnel
 **Presupuesto:** $0 (todo gratuito/local)
+**Usuarios:** Multi-usuario con preferencias individuales de suscripción a canales
 
 ---
 
@@ -25,10 +27,9 @@
 3. [Arquitectura del Sistema](#arquitectura-del-sistema)
 4. [Flujos de Procesamiento](#flujos-de-procesamiento)
 5. [Modelo de Datos](#modelo-de-datos)
-6. [Rate Limiting y Sistema de Colas](#rate-limiting-y-sistema-de-colas)
-7. [Estructura de Directorios](#estructura-de-directorios)
-8. [Plan de Escalabilidad](#plan-de-escalabilidad)
-9. [ADRs (Decisiones Arquitectonicas)](#adrs)
+6. [Estructura de Directorios](#estructura-de-directorios)
+7. [Plan de Escalabilidad](#plan-de-escalabilidad)
+8. [ADRs (Decisiones Arquitectonicas)](#adrs)
 
 ---
 
@@ -118,7 +119,6 @@
 
 **Decision:** Redis
 - ✅ Doble proposito: cache + broker Celery (un servicio, dos funciones)
-- ✅ Rate limiting de ApyHub API (10 llamadas/dia)
 - ✅ Cache de metadatos de videos
 - ✅ Pub/Sub para notificaciones en tiempo real (futuro)
 
@@ -142,7 +142,7 @@
 - ✅ Monitoring con Flower (observabilidad)
 - ✅ Escalable (multiples workers en paralelo)
 
-### 5. IA: Whisper (local) + ApyHub API
+### 5. IA: Whisper (local) + DeepSeek API
 
 **Comparativa transcripcion:**
 
@@ -164,12 +164,12 @@
 
 **Comparativa resumenes:**
 
-| Servicio              | Coste            | Limite | Calidad         |
-| --------------------- | ---------------- | ------ | --------------- |
+| Servicio              | Coste            | Limite     | Calidad         |
+| --------------------- | ---------------- | ---------- | --------------- |
 | **DeepSeek**          | $0.28/1M input   | Sin limite | ⭐⭐⭐⭐ Buena      |
 | OpenAI GPT-4          | $0.03/1K tokens  | Sin limite | ⭐⭐⭐⭐⭐ Excelente |
 | Claude API            | $0.015/1K tokens | Sin limite | ⭐⭐⭐⭐⭐ Excelente |
-| LangChain + local LLM | $0               | Ilimitado | ⭐⭐⭐ Variable    |
+| LangChain + local LLM | $0               | Ilimitado  | ⭐⭐⭐ Variable    |
 
 **Decision:** DeepSeek API
 - ✅ Coste predecible: ~$0.16-0.45/mes para 300 videos
@@ -186,13 +186,18 @@
 
 ```mermaid
 graph TB
-    subgraph "Cliente"
-        USER[Usuario/Frontend]
-        TGBOT[Telegram Bot]
+    subgraph "Usuarios Telegram"
+        USER1[Usuario 1]
+        USER2[Usuario 2]
+        USERN[Usuario N]
+    end
+
+    subgraph "Bot Layer"
+        TGBOT[Telegram Bot<br/>python-telegram-bot]
     end
 
     subgraph "API Layer"
-        API[FastAPI<br/>API REST]
+        API[FastAPI API REST<br/>/users /sources /summaries]
     end
 
     subgraph "Application Layer"
@@ -201,30 +206,33 @@ graph TB
     end
 
     subgraph "Data Layer"
-        PG[(PostgreSQL<br/>8GB RAM)]
+        PG[(PostgreSQL<br/>Users + Subscriptions)]
         REDIS[(Redis<br/>Cache + Broker)]
     end
 
     subgraph "Worker Layer"
-        WORKER1[Celery Worker 1<br/>Transcription]
-        WORKER2[Celery Worker 2<br/>Summarization]
-        BEAT[Celery Beat<br/>Scheduler]
+        WORKER1[Worker: Scraping<br/>+ Transcription]
+        WORKER2[Worker: Summarization<br/>+ Distribution]
+        BEAT[Celery Beat<br/>Scheduler 24h]
     end
 
     subgraph "External Services"
-        YT[YouTube]
-        DEEPSEEK[DeepSeek API<br/>Summarization]
-        WHISPER[Whisper Local<br/>Transcription]
+        YT[YouTube<br/>yt-dlp]
+        DEEPSEEK[DeepSeek API<br/>Resumenes]
+        WHISPER[Whisper Local<br/>Transcripcion]
     end
 
-    USER --> API
-    TGBOT --> API
+    USER1 -.->|/start /sources /recent| TGBOT
+    USER2 -.->|Toggle suscripciones| TGBOT
+    USERN -.->|/search| TGBOT
+
+    TGBOT <-->|API interna| API
     API --> SERVICES
     SERVICES --> REPOS
     REPOS --> PG
     SERVICES --> REDIS
 
-    BEAT --> REDIS
+    BEAT -->|Cada 24h| REDIS
     REDIS --> WORKER1
     REDIS --> WORKER2
 
@@ -234,7 +242,9 @@ graph TB
 
     WORKER2 --> DEEPSEEK
     WORKER2 --> PG
+    WORKER2 -.->|Envio personalizado| TGBOT
 
+    style TGBOT fill:#0088cc
     style API fill:#4CAF50
     style PG fill:#336791
     style REDIS fill:#DC382D
@@ -246,27 +256,34 @@ graph TB
 
 ### Descripcion de componentes
 
-**1. API Layer (FastAPI)**
-- Endpoints REST para consultar resumenes
-- Endpoints para gestionar fuentes (canales YouTube)
-- Autenticacion JWT (futuro)
-- Documentacion auto-generada (Swagger)
-- CORS configurado para frontend
+**1. Bot Layer (Telegram Bot)**
+- Bot interactivo multi-usuario con python-telegram-bot
+- Commands: /start, /sources, /recent, /search, /help
+- Inline keyboards para toggle de suscripciones
+- Envío personalizado de resúmenes según preferencias de usuario
+- Consumidor de API REST interna
 
-**2. Application Layer**
-- **Services:** Logica de negocio (orquestacion de workers, validaciones)
+**2. API Layer (FastAPI)**
+- Endpoints REST para consultar resumenes filtrados por usuario
+- Endpoints para gestionar fuentes (canales YouTube)
+- Endpoints para gestionar usuarios y suscripciones
+- Documentacion auto-generada (Swagger)
+- CORS configurado para frontend (opcional futuro)
+
+**3. Application Layer**
+- **Services:** Logica de negocio (orquestacion de workers, validaciones, distribucion)
 - **Repositories:** Abstraccion de acceso a datos (patron Repository)
 
-**3. Data Layer**
-- **PostgreSQL:** Datos estructurados (sources, videos, transcriptions, summaries)
+**4. Data Layer**
+- **PostgreSQL:** Datos estructurados (users, sources, videos, transcriptions, summaries, subscriptions)
 - **Redis:** Cache de metadatos + broker de Celery + rate limiting
 
-**4. Worker Layer**
-- **Celery Worker 1:** Descarga videos, transcripcion con Whisper
-- **Celery Worker 2:** Resumenes con ApyHub, clasificacion
-- **Celery Beat:** Scheduler para scraping periodico (cada 6h)
+**5. Worker Layer**
+- **Worker 1:** Scraping canales, descarga audio, transcripcion con Whisper
+- **Worker 2:** Resumenes con DeepSeek, distribucion personalizada a usuarios suscritos
+- **Celery Beat:** Scheduler para scraping periodico (cada 24h)
 
-**5. External Services**
+**6. External Services**
 - **YouTube:** API + yt-dlp para obtener metadatos y descargar audio
 - **Whisper:** Modelo local para transcripcion
 - **DeepSeek:** LLM API para generar resumenes
@@ -328,7 +345,7 @@ sequenceDiagram
     participant YT as YouTube
     participant WHISPER as Whisper
     participant W2 as Worker 2
-    participant APYHUB as ApyHub API
+    participant DEEPSEEK as DeepSeek API
     participant DB as PostgreSQL
 
     REDIS->>W1: process_video_task(video_id)
@@ -352,19 +369,11 @@ sequenceDiagram
     REDIS->>W2: summarize_task(transcription_id)
     W2->>DB: SELECT text FROM transcriptions WHERE id
 
-    Note over W2: FASE 4: Rate limiting check
-    W2->>REDIS: GET apyhub_calls_today
-
-    alt Limite no alcanzado (<10 llamadas)
-        W2->>APYHUB: POST /ai-summarize<br/>{text: transcription}
-        APYHUB-->>W2: {summary, keywords}
-        W2->>REDIS: INCR apyhub_calls_today<br/>EXPIRE 86400
-        W2->>DB: INSERT INTO summaries<br/>(transcription_id, summary, keywords)
-        W2->>DB: UPDATE videos SET status='completed'
-    else Limite alcanzado (>=10 llamadas)
-        W2->>DB: UPDATE videos SET status='pending_summary'
-        W2->>W2: Reencolar para manana
-    end
+    Note over W2: FASE 4: Generar resumen
+    W2->>DEEPSEEK: POST /chat/completions<br/>{messages: [transcription]}
+    DEEPSEEK-->>W2: {summary, keywords, cost}
+    W2->>DB: INSERT INTO summaries<br/>(transcription_id, summary, keywords)
+    W2->>DB: UPDATE videos SET status='completed'
 ```
 
 ### Flujo 4: Consulta API (usuario)
@@ -398,10 +407,28 @@ sequenceDiagram
 
 ```mermaid
 erDiagram
+    TELEGRAM_USERS ||--o{ USER_SOURCE_SUBSCRIPTIONS : subscribes
+    SOURCES ||--o{ USER_SOURCE_SUBSCRIPTIONS : has_subscribers
     SOURCES ||--o{ VIDEOS : has
     VIDEOS ||--o| TRANSCRIPTIONS : has
     TRANSCRIPTIONS ||--o| SUMMARIES : has
     VIDEOS ||--o{ TAGS : has
+
+    TELEGRAM_USERS {
+        uuid id PK
+        bigint telegram_id UK
+        string username
+        string first_name
+        boolean active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    USER_SOURCE_SUBSCRIPTIONS {
+        uuid user_id FK
+        uuid source_id FK
+        timestamp subscribed_at
+    }
 
     SOURCES {
         uuid id PK
@@ -443,7 +470,10 @@ erDiagram
         uuid transcription_id FK
         text summary
         string[] keywords
-        string sentiment
+        string category
+        boolean sent_to_telegram
+        timestamp sent_at
+        jsonb telegram_message_ids
         jsonb metadata
         timestamp created_at
     }
@@ -457,385 +487,81 @@ erDiagram
 
 ### Descripcion de tablas
 
-**1. sources**
+**1. telegram_users**
+- Usuarios del bot de Telegram (multi-usuario)
+- `telegram_id`: ID único de Telegram (bigint, indexado)
+- `username`: @username de Telegram (opcional)
+- `first_name`: Nombre del usuario en Telegram
+- `active`: Si el usuario tiene notificaciones activas (puede pausar)
+- **Relación M:N con sources** via user_source_subscriptions
+
+**2. user_source_subscriptions**
+- Tabla intermedia para relación M:N (usuarios ↔ sources)
+- Cada usuario puede suscribirse a múltiples canales
+- Cada canal puede tener múltiples suscriptores
+- `subscribed_at`: Timestamp de cuándo se suscribió
+
+**3. sources**
 - Fuentes de contenido (canales YouTube)
 - `source_type`: 'youtube' (futuro: 'rss', 'podcast')
 - `active`: Permite desactivar fuentes sin borrarlas
 - `metadata`: Datos extra (subscriber_count, thumbnail_url, etc.)
 
-**2. videos**
+**4. videos**
 - Videos individuales obtenidos de las fuentes
 - `youtube_id`: ID unico de YouTube (para evitar duplicados)
-- `status`: 'pending' → 'downloading' → 'downloaded' → 'transcribing' → 'transcribed' → 'summarizing' → 'completed' | 'failed' | 'pending_summary'
+- `title`: Título del video (para mostrar en Telegram)
+- `url`: Link directo al video de YouTube (para enviar en mensajes)
+- `status`: 'pending' → 'downloading' → 'downloaded' → 'transcribing' → 'transcribed' → 'summarizing' → 'completed' | 'failed'
 - `duration_seconds`: Para estimar tiempo de procesamiento
 - `metadata`: Datos extra (view_count, like_count, thumbnail_url, etc.)
 
-**3. transcriptions**
+**5. transcriptions**
 - Transcripciones generadas por Whisper
 - `model_used`: 'whisper-base' | 'whisper-small' (para tracking)
 - `segments`: JSON con timestamps (futuro: busqueda temporal)
 
-**4. summaries**
-- Resumenes generados por ApyHub
+**6. summaries**
+- Resumenes generados por DeepSeek
 - `keywords`: Array de palabras clave extraidas
-- `sentiment`: 'positive' | 'neutral' | 'negative' (futuro)
-- `metadata`: Datos extra del API (confidence, etc.)
+- `category`: 'framework' | 'language' | 'tool' | 'concept'
+- `sent_to_telegram`: Flag de si ya fue enviado
+- `sent_at`: Timestamp de envío a Telegram
+- `telegram_message_ids`: JSON mapeando user_id → message_id (para reenvíos)
+- `metadata`: Datos extra del API (tokens, cost, etc.)
 
-**5. tags**
+**7. tags**
 - Etiquetas para clasificacion (relacion N:M con videos)
 - `category`: 'framework' | 'language' | 'tool' | 'concept'
 
 ### Indices principales
 
 ```sql
+-- Telegram users (queries frecuentes)
+CREATE UNIQUE INDEX idx_telegram_users_telegram_id ON telegram_users(telegram_id);
+CREATE INDEX idx_telegram_users_active ON telegram_users(active);
+
+-- Subscriptions (M:N queries)
+CREATE INDEX idx_subscriptions_user_id ON user_source_subscriptions(user_id);
+CREATE INDEX idx_subscriptions_source_id ON user_source_subscriptions(source_id);
+CREATE UNIQUE INDEX idx_subscriptions_unique ON user_source_subscriptions(user_id, source_id);
+
 -- Performance critico
 CREATE INDEX idx_videos_source_id ON videos(source_id);
 CREATE INDEX idx_videos_status ON videos(status);
 CREATE INDEX idx_videos_published_at ON videos(published_at DESC);
 CREATE INDEX idx_transcriptions_video_id ON transcriptions(video_id);
 CREATE INDEX idx_summaries_transcription_id ON summaries(transcription_id);
+CREATE INDEX idx_summaries_sent_to_telegram ON summaries(sent_to_telegram);
 
 -- Full-text search
 CREATE INDEX idx_summaries_summary_fts ON summaries USING gin(to_tsvector('spanish', summary));
 CREATE INDEX idx_videos_title_fts ON videos USING gin(to_tsvector('spanish', title));
 
--- Rate limiting (futuro)
-CREATE INDEX idx_videos_summary_status ON videos(summary_status);  -- Para cola de procesamiento
-CREATE INDEX idx_videos_summary_pending ON videos(created_at) WHERE summary_status='pending';  -- Partial index
+-- Compound indexes para queries complejas
+CREATE INDEX idx_videos_source_status ON videos(source_id, status);
+CREATE INDEX idx_summaries_category ON summaries(category) WHERE category IS NOT NULL;
 ```
-
----
-
-## RATE LIMITING Y SISTEMA DE COLAS
-
-### Contexto del problema
-
-**Limitación crítica:** ApyHub API plan gratuito = **10 llamadas/día**
-
-**Volumen esperado:** 5-20 videos nuevos por día
-
-**Riesgo sin sistema de colas:**
-- Día con 15 videos nuevos → Solo 10 se resumen, 5 se pierden
-- Errores en API → Reintentos desperdician cuota
-- Sin priorización → Videos importantes podrían quedar sin resumir
-
-### Diseño de solución
-
-#### Arquitectura del sistema de colas
-
-```mermaid
-sequenceDiagram
-    participant BEAT as Celery Beat<br/>(00:30 UTC)
-    participant REDIS as Redis<br/>Rate Limiter
-    participant WORKER as Celery Worker
-    participant DB as PostgreSQL
-    participant APYHUB as ApyHub API
-
-    Note over BEAT: Tarea programada diaria
-    BEAT->>REDIS: RESET apyhub:daily_calls:2025-10-29
-    REDIS-->>BEAT: OK (contador = 0)
-
-    BEAT->>DB: SELECT * FROM videos<br/>WHERE summary_status='pending'<br/>ORDER BY created_at ASC LIMIT 10
-    DB-->>BEAT: [video_1, video_2, ..., video_10]
-
-    loop Para cada video (max 10)
-        BEAT->>REDIS: GET apyhub:daily_calls:2025-10-29
-        REDIS-->>BEAT: current_count
-
-        alt current_count < 10
-            BEAT->>WORKER: Encolar process_summary_task(video_id)
-            WORKER->>DB: UPDATE videos SET summary_status='processing'
-            WORKER->>APYHUB: POST /content/summarize
-            APYHUB-->>WORKER: {job_id, status_url}
-
-            Note over WORKER: Polling job status
-            WORKER->>APYHUB: GET /job/status/{job_id}
-            APYHUB-->>WORKER: {status: 'completed', result: {...}}
-
-            WORKER->>DB: UPDATE videos SET<br/>summary_status='completed',<br/>summary_text='...',<br/>summarized_at=NOW()
-            WORKER->>REDIS: INCR apyhub:daily_calls:2025-10-29
-            REDIS-->>WORKER: new_count
-        else current_count >= 10
-            Note over BEAT: Límite alcanzado, detener<br/>Videos restantes quedan 'pending'
-            BEAT->>BEAT: BREAK loop
-        end
-    end
-
-    Note over BEAT: Fin de procesamiento diario<br/>Videos no procesados se intentarán mañana
-```
-
-#### Tabla de estados de resumen
-
-| Estado       | Descripción                   | Siguiente acción                    |
-| ------------ | ----------------------------- | ----------------------------------- |
-| `pending`    | Video nuevo, sin procesar     | Encolar para siguiente batch diario |
-| `processing` | Resumen en progreso           | Esperar finalización (polling)      |
-| `completed`  | Resumen generado exitosamente | Ninguna (estado final)              |
-| `failed`     | Fallo tras 3 intentos         | Revisión manual o descarte          |
-
-#### Flujo de transición de estados
-
-```
-pending → processing → completed
-    │                 │
-    └───── (error) ──────┘
-            │
-            ▼
-    (reintentos < 3) → pending
-    (reintentos >= 3) → failed
-```
-
-### Componentes del sistema
-
-#### 1. Rate Limiter (Redis)
-
-**Archivo:** `src/services/rate_limiter.py` (futuro)
-
-**Responsabilidades:**
-- Mantener contador diario de llamadas a ApyHub
-- Verificar si se puede hacer una llamada nueva
-- Registrar llamadas exitosas
-- Reiniciar contador automáticamente cada día
-
-**Estructura de datos en Redis:**
-```python
-# Clave con fecha del día
-key = "apyhub:daily_calls:2025-10-29"
-
-# Valor: contador simple (integer)
-value = 7  # 7 llamadas realizadas hoy
-
-# TTL: 24 horas (expira automáticamente a medianoche)
-EXPIRE apyhub:daily_calls:2025-10-29 86400
-```
-
-**Métodos principales:**
-```python
-class ApyHubRateLimiter:
-    DAILY_LIMIT = 10
-
-    async def get_remaining_calls() -> int:
-        """Retorna llamadas disponibles hoy (0-10)."""
-
-    async def can_call_api() -> bool:
-        """True si quedan llamadas disponibles."""
-
-    async def record_call() -> int:
-        """Incrementa contador, retorna total usado hoy."""
-
-    async def reset_daily_counter():
-        """Reinicia contador (tarea programada)."""
-```
-
-#### 2. Modelo Video extendido
-
-**Campos adicionales necesarios:**
-
-```python
-class Video(Base):
-    # ... campos existentes ...
-
-    # === NUEVOS CAMPOS PARA SISTEMA DE COLAS ===
-    summary_status: Mapped[str] = mapped_column(
-        String(20),
-        nullable=False,
-        default="pending",
-        index=True,  # IMPORTANTE: índice para queries rápidas
-        comment="Estado: pending | processing | completed | failed"
-    )
-
-    summary_text: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        comment="Texto del resumen generado por ApyHub"
-    )
-
-    summary_attempts: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=0,
-        comment="Número de intentos de resumen (max 3)"
-    )
-
-    summary_error: Mapped[str | None] = mapped_column(
-        Text,
-        nullable=True,
-        comment="Último error al intentar resumir"
-    )
-
-    summarized_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True,
-        comment="Timestamp de generación exitosa"
-    )
-```
-
-**Migración necesaria:**
-```sql
--- Alembic auto-generará similar a esto:
-ALTER TABLE videos
-    ADD COLUMN summary_status VARCHAR(20) DEFAULT 'pending' NOT NULL,
-    ADD COLUMN summary_text TEXT,
-    ADD COLUMN summary_attempts INTEGER DEFAULT 0 NOT NULL,
-    ADD COLUMN summary_error TEXT,
-    ADD COLUMN summarized_at TIMESTAMPTZ;
-
-CREATE INDEX idx_videos_summary_status ON videos(summary_status);
-CREATE INDEX idx_videos_summary_pending ON videos(created_at)
-    WHERE summary_status='pending';  -- Partial index para eficiencia
-```
-
-#### 3. Tarea Celery diaria
-
-**Archivo:** `src/tasks/daily_summarization.py` (futuro)
-
-**Función principal:**
-```python
-@shared_task(name="daily_summarization")
-async def process_pending_summaries():
-    """
-    Procesa hasta 10 videos pendientes respetando rate limit.
-
-    Ejecutado por Celery Beat cada día a las 00:30 UTC.
-
-    Returns:
-        Dict con estadísticas: processed, success, failed, skipped
-    """
-```
-
-**Configuración Celery Beat:**
-```python
-# src/core/celery_app.py
-from celery.schedules import crontab
-
-app.conf.beat_schedule = {
-    'daily-summarization': {
-        'task': 'daily_summarization',
-        'schedule': crontab(hour=0, minute=30),  # 00:30 UTC diario
-        'options': {
-            'expires': 3600,  # Cancelar si no ejecuta en 1h
-        }
-    },
-}
-```
-
-### Política de priorización (futuro)
-
-**Fase 1 (MVP):** FIFO simple (más antiguos primero)
-```sql
-SELECT * FROM videos
-WHERE summary_status = 'pending'
-ORDER BY created_at ASC  -- Más antiguos primero
-LIMIT 10;
-```
-
-**Fase 2 (optimización):** Prioridad por popularidad del canal
-```sql
-SELECT v.* FROM videos v
-JOIN sources s ON v.source_id = s.id
-WHERE v.summary_status = 'pending'
-ORDER BY
-    s.subscriber_count DESC,  -- Canales grandes primero
-    v.view_count DESC,        -- Videos populares primero
-    v.created_at ASC          -- Desempate: más antiguos
-LIMIT 10;
-```
-
-### Manejo de errores y reintentos
-
-**Estrategia de reintentos:**
-
-1. **Intento 1:** Inmediato (al detectar video nuevo)
-2. **Intento 2:** Siguiente día (si falló el 1º)
-3. **Intento 3:** Siguiente día (si falló el 2º)
-4. **Después de 3 fallos:** `summary_status = 'failed'`
-
-**Tipos de errores:**
-
-| Error               | Acción                         | Consume cuota |
-| ------------------- | ------------------------------ | ------------- |
-| Timeout de red      | Reintentar mañana              | Sí            |
-| Rate limit 429      | Detener batch, mañana          | No            |
-| Token inválido 401  | Alertar admin, pausar          | Sí            |
-| Texto muy largo 400 | Marcar 'failed', no reintentar | Sí            |
-| Job no completa     | Reintentar mañana              | Sí            |
-
-### Métricas y observabilidad
-
-**Métricas Prometheus añadir:**
-
-```python
-from prometheus_client import Counter, Gauge, Histogram
-
-# Contador de llamadas a ApyHub
-apyhub_calls_total = Counter(
-    'apyhub_api_calls_total',
-    'Total de llamadas a ApyHub API',
-    ['status']  # success, error, rate_limited
-)
-
-# Gauge de llamadas restantes hoy
-apyhub_calls_remaining = Gauge(
-    'apyhub_calls_remaining',
-    'Llamadas restantes a ApyHub hoy'
-)
-
-# Gauge de videos en cola
-videos_pending_summary = Gauge(
-    'videos_pending_summary_total',
-    'Videos esperando resumen'
-)
-
-# Histograma de duración de resumen
-summarization_duration = Histogram(
-    'summarization_duration_seconds',
-    'Tiempo de generación de resumen'
-)
-```
-
-**Dashboard Grafana sugerido:**
-
-- Panel 1: Llamadas ApyHub (usadas/restantes hoy)
-- Panel 2: Videos en cola (pending vs completed)
-- Panel 3: Tasa de éxito (% completed vs failed)
-- Panel 4: Tiempo promedio de resumen
-- Panel 5: Alertas (rate limit alcanzado, >50 videos pending)
-
-### Ventajas del diseño
-
-1. **Garantía de no exceder cuota:** Hard limit en código
-2. **Sin pérdida de datos:** Videos quedan en cola persistente (BD)
-3. **Reintentos inteligentes:** Máximo 3 intentos, luego descarte
-4. **Escalabilidad:** Cambiar `DAILY_LIMIT = 100` si upgradeas plan
-5. **Observabilidad:** Métricas claras de uso de cuota
-6. **Política justa:** FIFO garantiza procesamiento equitativo
-
-### Trade-offs aceptados
-
-1. **Latencia variable:** Videos pueden tardar 1-3 días si hay cola
-   - Mitigación: Priorizar canales importantes (Fase 2)
-
-2. **Complejidad añadida:** +3 componentes nuevos a mantener
-   - Mitigación: Tests exhaustivos, documentación clara
-
-3. **Dependencia crítica de Redis:** Si Redis cae, contador se pierde
-   - Mitigación: Redis con persistencia AOF activada
-
-### Timeline de implementación
-
-**Orden recomendado:**
-
-1. **Paso 15:** Implementar `ApyHubRateLimiter` (1 día)
-2. **Paso 12-13:** Ampliar modelo `Video` con campos de cola (1 día)
-3. **Paso 16-17:** Crear tarea Celery diaria (2 días)
-4. **Paso 18:** Tests de integración completos (1 día)
-5. **Paso 19:** Métricas y dashboard Grafana (1 día)
-
-**Total estimado:** ~6 días de desarrollo
-
-**Prioridad:** Alta (crítico antes de producción)
-
----
 
 ## ESTRUCTURA DE DIRECTORIOS
 
@@ -904,7 +630,7 @@ youtube-AIsummary/
 │   │   ├── __init__.py
 │   │   ├── youtube_service.py      # yt-dlp wrapper
 │   │   ├── whisper_service.py      # Transcription
-│   │   ├── apyhub_service.py       # Summarization
+│   │   ├── summarization_service.py # DeepSeek summarization
 │   │   └── cache_service.py        # Redis cache
 │   │
 │   ├── tasks/                      # Celery tasks
@@ -912,11 +638,10 @@ youtube-AIsummary/
 │   │   ├── sync_sources.py         # Scraping periodico
 │   │   ├── process_video.py        # Pipeline completo
 │   │   ├── transcribe.py           # Whisper task
-│   │   └── summarize.py            # ApyHub task
+│   │   └── summarize.py            # DeepSeek task
 │   │
 │   └── utils/                      # Utilidades
 │       ├── __init__.py
-│       ├── rate_limiter.py         # ApyHub rate limit
 │       └── validators.py           # Validaciones custom
 │
 ├── tests/
@@ -1087,28 +812,24 @@ Necesitamos transcribir audio de videos. Opciones: Whisper local, AssemblyAI, De
 
 ---
 
-### ADR-003: Limite ApyHub 10 llamadas/dia
+### ADR-003: Sistema de resúmenes con DeepSeek (histórico)
 
-**Contexto:**
-ApyHub API gratuita tiene limite 10 llamadas/dia. Volumen esperado: 5-20 videos/dia.
+**Contexto histórico:**
+Originalmente se evaluó ApyHub API (límite 5 llamadas/día) pero resultó insuficiente para volumen esperado (10 videos/día).
 
-**Decision:** Priorizar videos por popularidad + reencolar fallidos
+**Decisión final:** Migrar a DeepSeek API (ADR-009)
+- DeepSeek: $0.28/1M tokens, sin límites artificiales
+- Presupuesto: $10 (suficiente para ~2-5 años)
+- No requiere sistema de rate limiting complejo
 
-**Estrategia:**
-1. Videos de canales con >100K suscriptores → Prioridad alta
-2. Videos con >10K vistas → Prioridad media
-3. Resto → Prioridad baja
-4. Si se alcanza limite, reencolar para el dia siguiente (Celery countdown=86400)
-
-**Alternativas consideradas:**
-- ❌ LLM local (Llama 3.1): Requiere GPU (no disponible)
-- ❌ OpenAI GPT-4o-mini: $0.15/1M tokens (~$0.05/video, $1.50/mes para 30 videos)
-- ⭐ **Futuro:** Migrar a GPT-4o-mini si volumen >10 videos/dia consistente
+**Alternativas descartadas:**
+- ❌ ApyHub: Insuficiente (5 llamadas/día)
+- ❌ OpenAI GPT-4o-mini: Más caro ($0.15/1M tokens)
 
 **Consecuencias:**
-- ✅ MVP funcional con limite gratuito
-- ⚠️ Algunos videos tardaran 1-2 dias en resumirse
-- ✅ Path claro de upgrade: ApyHub → GPT-4o-mini (~$2/mes)
+- ✅ Arquitectura simplificada (sin sistema de colas complejas)
+- ✅ Escalabilidad real sin bloqueantes
+- ✅ Ver ADR-009 para detalles de implementación
 
 ---
 
@@ -1263,12 +984,107 @@ ApyHub limita a 5 llamadas/día en plan gratuito. Volumen esperado: 10 videos/d�
 
 ---
 
+### ADR-010: Bot de Telegram interactivo vs Canal broadcast
+
+**Contexto:**
+Necesitamos distribuir resúmenes a usuarios. Opciones: Canal Telegram unidireccional vs Bot interactivo multi-usuario.
+
+**Decisión:** Bot interactivo multi-usuario con suscripciones personalizables
+
+**Razón:**
+- ✅ Cada usuario elige sus canales de interés (personalización)
+- ✅ Comandos interactivos (/recent, /search, /sources)
+- ✅ Inline keyboards para toggle de suscripciones (UX mejorada)
+- ✅ API REST justificada (backend del bot)
+- ✅ Multi-usuario real = portfolio profesional robusto
+- ✅ Escalable (1 usuario → 100 usuarios sin cambios)
+- ✅ Histórico accesible bajo demanda
+
+**Trade-offs:**
+- ✅ Funcionalidad: Multi-usuario vs broadcast simple
+- ⚠️ Complejidad: +2 días desarrollo (modelo TelegramUser + endpoints)
+- ⚠️ BD: +2 tablas (telegram_users, user_source_subscriptions)
+- ✅ UX: Interactivo vs pasivo (mejor experiencia usuario)
+
+**Consecuencias:**
+- ✅ Proyecto útil para múltiples personas (no solo el desarrollador)
+- ✅ Arquitectura escalable y profesional
+- ✅ API REST con propósito claro (no "por si acaso")
+- 📝 Requiere bot commands completos + inline keyboards
+- 📝 Worker de distribución personalizada por suscripciones
+
+**Formato de mensajes Telegram:**
+```
+📹 Título: "FastAPI async mistakes you're making"
+🔗 Link: https://youtube.com/watch?v=abc123
+⏱️ Duración: 15:32
+🏷️ Tags: #FastAPI #Python #async
+
+📝 Resumen:
+[Texto del resumen generado por DeepSeek]
+
+💬 /reenviar_abc123
+```
+
+---
+
+### ADR-011: Repositories síncronos vs asíncronos
+
+**Contexto:**
+Necesitamos implementar Repository Pattern. Principal uso: Celery workers (síncronos), API REST (ocasional).
+
+**Decisión:** Repositories SÍNCRONOS con `Session`
+
+**Razón:**
+- ✅ Celery workers son 99% del uso de BD (síncronos por diseño)
+- ✅ API REST: <10 req/día (uso ocasional, no requiere async)
+- ✅ Implementación más simple y rápida (2 días vs 4 días)
+- ✅ SQLAlchemy ORM funciona mejor en modo sync
+- ✅ Tests más simples (fixtures síncronos)
+- ✅ Sin migración de `database.py` a `AsyncSession`
+- ✅ Menos riesgo de bugs (stack maduro)
+
+**Trade-offs:**
+- ✅ Tiempo: 2 días vs 4 días async
+- ✅ Complejidad: Baja vs Alta
+- ⚠️ Throughput: ~1000 req/s vs ~2000 req/s (irrelevante para <10 req/día)
+- ✅ Beneficio async: 0% para este caso de uso
+
+**Consecuencias:**
+- ✅ Desarrollo rápido y sin complicaciones
+- ✅ Compatible con Celery workers existentes
+- ✅ API endpoints usan `def` en lugar de `async def` (aceptable)
+- 📝 Path de migración: Si carga API crece a >500 req/s, migrar a async
+
+**Ejemplo de uso:**
+```python
+# Worker Celery (principal uso)
+@shared_task
+def distribute_summary(summary_id: str):
+    db = SessionLocal()
+    try:
+        summary_repo = SummaryRepository(db)
+        user_repo = TelegramUserRepository(db)
+        # ... lógica
+    finally:
+        db.close()
+
+# Endpoint API (uso ocasional)
+@router.get("/summaries")
+def get_summaries(db: Session = Depends(get_db)):
+    repo = SummaryRepository(db)
+    return repo.list_all(limit=20)
+```
+
+---
+
 ## METRICAS Y OBSERVABILIDAD
 
 **Prometheus metrics:**
 - `videos_processed_total`: Counter de videos procesados
 - `transcription_duration_seconds`: Histogram de tiempo de transcripcion
-- `apyhub_calls_remaining`: Gauge de llamadas disponibles
+- `deepseek_api_calls_total`: Counter de llamadas a DeepSeek
+- `deepseek_cost_usd`: Gauge de costo acumulado ($)
 - `celery_task_duration_seconds`: Histogram por tipo de tarea
 - `api_request_duration_seconds`: Histogram de latencia API
 
@@ -1281,7 +1097,7 @@ ApyHub limita a 5 llamadas/día en plan gratuito. Volumen esperado: 10 videos/d�
 **Alertas criticas:**
 - RAM >85% por 5 min
 - Disco <20GB libre
-- ApyHub rate limit alcanzado
+- Costo DeepSeek >$1/día (anomalía)
 - Tasa error Celery >10%
 
 ---
@@ -1348,7 +1164,7 @@ Ver [docs/roadmap.md](roadmap.md) para roadmap detallado con pasos incrementales
 - FastAPI docs: https://fastapi.tiangolo.com
 - Celery docs: https://docs.celeryq.dev
 - Whisper repo: https://github.com/openai/whisper
-- ApyHub API docs: https://apyhub.com/docs
+- DeepSeek API docs: https://api-docs.deepseek.com/
 - PostgreSQL docs: https://www.postgresql.org/docs
 
 ---
