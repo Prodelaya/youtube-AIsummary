@@ -6,6 +6,7 @@ Contienen el texto resumido, keywords extraídas, categorización y
 metadata sobre el proceso de generación (tokens usados, tiempo, etc.).
 """
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -40,6 +41,9 @@ class Summary(TimestampedUUIDBase):
         output_tokens: Tokens del resumen generado
         processing_time_ms: Tiempo de procesamiento en milisegundos
         extra_metadata: Metadata adicional en formato JSON (opcional)
+        sent_to_telegram: Si el resumen fue enviado al bot de Telegram
+        sent_at: Timestamp de cuándo se envió a Telegram
+        telegram_message_ids: IDs de mensajes de Telegram (formato JSONB)
         created_at: Timestamp de creación (de TimestampedUUIDBase)
         updated_at: Timestamp última modificación (de TimestampedUUIDBase)
         transcription: Relación al modelo Transcription (uno-a-uno)
@@ -123,6 +127,25 @@ class Summary(TimestampedUUIDBase):
         comment="Metadata adicional del proceso de generación (temperatura, etc.)",
     )
 
+    # ==================== CAMPOS PARA BOT DE TELEGRAM ====================
+
+    sent_to_telegram: Mapped[bool] = mapped_column(
+        nullable=False,
+        default=False,
+        comment="Si el resumen ya fue enviado al bot de Telegram",
+    )
+
+    sent_at: Mapped[datetime | None] = mapped_column(
+        nullable=True,
+        comment="Timestamp de cuándo se envió a Telegram",
+    )
+
+    telegram_message_ids: Mapped[dict | None] = mapped_column(
+        JSONB,
+        nullable=True,
+        comment="IDs de mensajes de Telegram donde se envió (formato: {chat_id: message_id})",
+    )
+
     # ==================== RELACIONES ====================
 
     # Uno-a-uno: Un resumen pertenece a una transcripción
@@ -136,6 +159,7 @@ class Summary(TimestampedUUIDBase):
     __table_args__ = (
         Index("ix_summaries_transcription_id", "transcription_id"),
         Index("ix_summaries_category", "category"),
+        Index("ix_summaries_sent_to_telegram", "sent_to_telegram"),
         # NOTE: Índices GIN y full-text search se crean en la migración
         # debido a sintaxis específica de PostgreSQL que Pylance no reconoce
     )
@@ -172,6 +196,9 @@ class Summary(TimestampedUUIDBase):
             "output_tokens": self.output_tokens,
             "processing_time_ms": self.processing_time_ms,
             "extra_metadata": self.extra_metadata or {},
+            "sent_to_telegram": self.sent_to_telegram,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
+            "telegram_message_ids": self.telegram_message_ids or {},
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
