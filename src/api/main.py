@@ -21,6 +21,9 @@ from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+# Importar routers
+from src.api.routes import stats, summaries, transcriptions, videos
+
 # Local (módulos propios)
 from src.api.schemas.errors import ErrorResponse, ValidationErrorResponse
 from src.core.config import settings
@@ -36,9 +39,6 @@ from src.services.video_processing_service import (
     VideoNotFoundError,
     VideoProcessingError,
 )
-
-# Importar routers
-from src.api.routes import stats, summaries, transcriptions, videos
 
 
 @asynccontextmanager
@@ -401,33 +401,90 @@ def create_app() -> FastAPI:
         }
 
     @app.get("/health", tags=["Health"])
-    def health_check() -> dict[str, str]:
+    def health_check() -> JSONResponse:
         """
-        Health check endpoint para monitoreo.
+        Health check endpoint mejorado con verificacion de servicios.
 
-        Verifica que la aplicación está activa y responde correctamente.
-        Útil para:
-        - Load balancers (verificar si la instancia está viva)
+        Verifica la conectividad con servicios criticos:
+        - PostgreSQL: Ejecuta query simple para verificar conexion
+        - Redis: Verifica conectividad con ping
+
+        Util para:
+        - Load balancers (verificar si la instancia esta viva)
         - Kubernetes liveness/readiness probes
         - Monitoreo con Prometheus/Grafana
         - Scripts de deployment
 
         Returns:
-            dict: Estado de la aplicación.
+            JSONResponse: Estado de servicios con HTTP 200 (healthy) o 503 (unhealthy).
 
         Examples:
-            GET /health
+            GET /health (todo OK)
             {
-                "status": "ok",
-                "environment": "development"
+                "status": "healthy",
+                "environment": "development",
+                "services": {
+                    "database": "healthy",
+                    "redis": "healthy"
+                },
+                "version": "0.1.0"
+            }
+
+            GET /health (Redis down)
+            {
+                "status": "unhealthy",
+                "environment": "development",
+                "services": {
+                    "database": "healthy",
+                    "redis": "unhealthy"
+                },
+                "version": "0.1.0"
             }
         """
-        # TODO: Verificar conexión a BD y Redis
-        # TODO: Retornar 503 Service Unavailable si algún servicio crítico falla
-        return {
-            "status": "ok",
+        import redis
+
+        from src.core.database import SessionLocal
+
+        services_status = {}
+        overall_status = "healthy"
+
+        # Verificar PostgreSQL
+        try:
+            from sqlalchemy import text
+
+            db = SessionLocal()
+            db.execute(text("SELECT 1"))
+            db.close()
+            services_status["database"] = "healthy"
+        except Exception:
+            services_status["database"] = "unhealthy"
+            overall_status = "unhealthy"
+
+        # Verificar Redis
+        try:
+            redis_client = redis.from_url(settings.REDIS_URL)
+            redis_client.ping()
+            redis_client.close()
+            services_status["redis"] = "healthy"
+        except Exception:
+            services_status["redis"] = "unhealthy"
+            overall_status = "unhealthy"
+
+        response_data = {
+            "status": overall_status,
             "environment": settings.ENVIRONMENT,
+            "services": services_status,
+            "version": "0.1.0",
         }
+
+        # Retornar 503 si algun servicio critico esta caido
+        status_code = (
+            status.HTTP_200_OK
+            if overall_status == "healthy"
+            else status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+        return JSONResponse(status_code=status_code, content=response_data)
 
     # ==================== PROMETHEUS METRICS ====================
     # Montar app de métricas en /metrics
