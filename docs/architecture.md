@@ -1078,6 +1078,120 @@ def get_summaries(db: Session = Depends(get_db)):
 
 ---
 
+### ADR-012: Orquestador del Pipeline (VideoProcessingService)
+
+**Contexto:**
+Necesitamos coordinar el flujo completo: URL → Metadata → Download → Transcribe → Summarize → Cleanup. Decisiones clave: arquitectura sync/async, gestión de estados, manejo de errores, persistencia incremental.
+
+**Decisión:** Orquestador 100% async con commits intermedios y gestión inteligente de archivos
+
+**Razón:**
+
+**1. Arquitectura 100% Async (vs Sync o Híbrida)**
+- ✅ Preparado para Celery async tasks (roadmap paso 15)
+- ✅ No bloquea event loop en FastAPI endpoints
+- ✅ Mejor performance con I/O intensivo (descarga, API calls)
+- ✅ Integración natural con servicios async (DeepSeek API)
+- ⚠️ Servicios sync (yt-dlp, Whisper) ya son async en capa de servicio
+
+**2. Commits Intermedios (vs Transacción única)**
+- ✅ Preserva trabajo costoso (transcripción = 5-8 min)
+- ✅ Si falla resumen, transcripción queda guardada → retry barato
+- ✅ Mejor observabilidad (estados intermedios visibles en BD)
+- ⚠️ No es atómico (puede quedar en estado intermedio si crash)
+- ✅ Trade-off aceptable: costo de re-transcripción >> inconsistencia
+
+**3. Máquina de Estados Completa**
+```
+pending → downloading → downloaded → transcribing → transcribed →
+summarizing → completed
+
+En cada paso puede ir a 'failed' si hay error
+```
+- ✅ Estados granulares para debugging
+- ✅ Restart solo desde 'failed' (safe)
+- ✅ No se puede reprocesar 'completed' (previene duplicados)
+- ✅ Transiciones registradas en logs estructurados
+
+**4. Gestión Inteligente de Archivos MP3**
+- ✅ Borrar al completar con éxito → libera espacio rápido
+- ✅ Borrar en error de descarga/red → no acumula basura
+- ✅ **Mantener en error de transcripción** → debugging (Whisper puede tardar 8 min)
+- ✅ Borrar en error de resumen → transcripción ya guardada en BD
+- ✅ Cleanup en finally block → garantiza limpieza cuando corresponde
+
+**5. Logging Estructurado con Contexto**
+```python
+logger.info(
+    "video_processing_started",
+    extra={
+        "video_id": str(video.id),
+        "youtube_id": video.youtube_id,
+        "url": video.url,
+        "status": video.status.value,
+    }
+)
+```
+- ✅ Contexto completo en cada log (video_id siempre presente)
+- ✅ Métricas en cada fase (file_size, duration, tokens_used)
+- ✅ Formato estructurado → fácil parseo con ELK/Loki
+- ✅ Niveles apropiados (INFO para pasos, ERROR para fallos)
+
+**Trade-offs:**
+
+| Aspecto | Elegido | Alternativa | Por qué |
+|---------|---------|-------------|---------|
+| **Async** | 100% async | Sync con asyncio.run() | Preparado para Celery, mejor integración |
+| **Commits** | Intermedios | Transacción única | Preserva trabajo costoso (transcripción) |
+| **Estados** | 7 estados granulares | 3 estados simples | Mejor observabilidad y debugging |
+| **Archivos** | Borrar condicional | Siempre borrar / Nunca borrar | Balance espacio/debugging |
+| **Retry** | Manual desde 'failed' | Automático en servicio | Usuario decide cuándo reintentar |
+
+**Consecuencias:**
+
+✅ **Positivas:**
+- Pipeline robusto con manejo completo de errores
+- Progreso incremental preservado en BD
+- Archivos temporales gestionados eficientemente
+- Logs estructurados para observabilidad
+- 93% coverage con 17 tests (11 unit + 6 integration)
+- Preparado para Celery tasks
+
+⚠️ **Negativas/Trade-offs:**
+- Más complejo que orquestador sync simple
+- Estados intermedios pueden quedar huérfanos si crash del sistema
+- Necesita limpieza manual de archivos antiguos en /tmp
+
+📝 **Implementación:**
+- Archivo: `src/services/video_processing_service.py` (115 líneas)
+- Método principal: `async def process_video(session, video_id) -> Video`
+- Métodos privados: `_download_audio()`, `_transcribe_audio()`, `_create_summary()`, `_cleanup_audio_file()`
+- Excepciones: `VideoNotFoundError`, `InvalidVideoStateError` (heredan de `VideoProcessingError`)
+
+**Flujo implementado:**
+```python
+1. Validar video existe y status in {PENDING, FAILED}
+2. Download: PENDING → DOWNLOADING → DOWNLOADED (commit)
+3. Transcribe: → TRANSCRIBING → crear Transcription → TRANSCRIBED (commit)
+4. Summarize: → SUMMARIZING → crear Summary → COMPLETED (commit)
+5. Cleanup: borrar MP3 si corresponde
+6. Error: → FAILED (commit), cleanup condicional, reraise
+```
+
+**Métricas de calidad:**
+- Tests: 17/17 passing (11 unit + 6 integration)
+- Coverage: 93% del servicio
+- Integración BD: Validada con transacciones reales
+- Error handling: Testeos de fallo en cada fase
+
+**Path de migración futura:**
+- ✅ Añadir retry automático con exponential backoff (Paso 15)
+- ✅ Integrar con Celery async tasks (Paso 14)
+- ✅ Dashboard de monitoreo de pipeline (Paso 16)
+- ✅ Limpieza automática de archivos antiguos (cron job)
+
+---
+
 ## METRICAS Y OBSERVABILIDAD
 
 **Prometheus metrics:**
