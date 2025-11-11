@@ -130,6 +130,13 @@ class Video(TimestampedUUIDBase):
         comment="Metadatos adicionales (vistas, likes, thumbnail, etc.)",
     )
 
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        default=None,
+        comment="Soft delete timestamp - NULL = activo, datetime = borrado",
+    )
+
     # ==================== RELACIONES ====================
 
     # Muchos-a-uno: Muchos videos pertenecen a una fuente
@@ -208,3 +215,8 @@ class Video(TimestampedUUIDBase):
             VideoStatus.TRANSCRIBING,
             VideoStatus.SUMMARIZING,
         }
+
+    @property
+    def is_deleted(self) -> bool:
+        """Verificar si el video fue soft-deleted."""
+        return self.deleted_at is not None
