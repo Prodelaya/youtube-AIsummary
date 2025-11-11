@@ -37,8 +37,8 @@ from src.services.video_processing_service import (
     VideoProcessingError,
 )
 
-# Importar routers cuando existan
-# from src.api.routes import health, sources, summaries
+# Importar routers
+from src.api.routes import videos
 
 
 @asynccontextmanager
@@ -435,10 +435,11 @@ def create_app() -> FastAPI:
     app.mount("/metrics", metrics_app)
 
     # ==================== ROUTERS ====================
-    # TODO: Incluir routers cuando estén implementados
-    # app.include_router(health.router, prefix="/api/v1", tags=["Health"])
-    # app.include_router(sources.router, prefix="/api/v1", tags=["Sources"])
-    # app.include_router(summaries.router, prefix="/api/v1", tags=["Summaries"])
+    app.include_router(videos.router, prefix="/api/v1")
+    # TODO: Incluir routers restantes
+    # app.include_router(transcriptions.router, prefix="/api/v1")
+    # app.include_router(summaries.router, prefix="/api/v1")
+    # app.include_router(stats.router, prefix="/api/v1")
 
     return app
 

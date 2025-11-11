@@ -141,3 +141,165 @@ class VideoRepository(BaseRepository[Video]):
         return (
             self.session.query(Video.id).filter(Video.youtube_id == youtube_id).first() is not None
         )
+
+    def list_paginated(
+        self,
+        limit: int = 20,
+        cursor: UUID | None = None,
+        status: VideoStatus | None = None,
+        source_id: UUID | None = None,
+        include_deleted: bool = False,
+    ) -> list[Video]:
+        """
+        Lista videos con paginacion cursor-based.
+
+        Args:
+            limit: Numero maximo de videos a retornar.
+            cursor: UUID del ultimo video (para paginacion).
+            status: Filtrar por estado (opcional).
+            source_id: Filtrar por fuente (opcional).
+            include_deleted: Incluir videos soft-deleted.
+
+        Returns:
+            Lista de videos ordenados por created_at DESC.
+
+        Example:
+            # Primera pagina
+            videos = repo.list_paginated(limit=20)
+
+            # Segunda pagina
+            last_id = videos[-1].id
+            next_videos = repo.list_paginated(limit=20, cursor=last_id)
+        """
+        from uuid import UUID
+
+        query = self.session.query(Video)
+
+        # Filtro de soft delete
+        if not include_deleted:
+            query = query.filter(Video.deleted_at.is_(None))
+
+        # Filtro de status
+        if status:
+            query = query.filter(Video.status == status)
+
+        # Filtro de source
+        if source_id:
+            query = query.filter(Video.source_id == source_id)
+
+        # Paginacion cursor-based
+        if cursor:
+            # Obtener created_at del cursor
+            cursor_video = self.session.query(Video).filter(Video.id == cursor).first()
+            if cursor_video:
+                query = query.filter(Video.created_at < cursor_video.created_at)
+
+        # Ordenar y limitar
+        query = query.order_by(Video.created_at.desc()).limit(limit)
+
+        return query.all()
+
+    def create_video(
+        self,
+        source_id: UUID,
+        youtube_id: str,
+        title: str,
+        url: str,
+        duration_seconds: int | None = None,
+        metadata: dict | None = None,
+        status: VideoStatus = VideoStatus.PENDING,
+    ) -> Video:
+        """
+        Crea un nuevo video con parametros individuales.
+
+        Args:
+            source_id: UUID de la fuente.
+            youtube_id: ID de YouTube.
+            title: Titulo del video.
+            url: URL completa.
+            duration_seconds: Duracion en segundos (opcional).
+            metadata: Metadata adicional (opcional).
+            status: Estado inicial (default PENDING).
+
+        Returns:
+            Video creado y persistido.
+
+        Example:
+            video = repo.create_video(
+                source_id=source.id,
+                youtube_id="dQw4w9WgXcQ",
+                title="Never Gonna Give You Up",
+                url="https://youtube.com/watch?v=dQw4w9WgXcQ"
+            )
+        """
+        video = Video(
+            source_id=source_id,
+            youtube_id=youtube_id,
+            title=title,
+            url=url,
+            duration_seconds=duration_seconds,
+            extra_metadata=metadata or {},
+            status=status,
+        )
+        return self.create(video)
+
+    def update_video(self, video_id: UUID, **kwargs) -> Video:
+        """
+        Actualiza campos de un video.
+
+        Args:
+            video_id: UUID del video a actualizar.
+            **kwargs: Campos a actualizar (title, duration_seconds, etc.).
+
+        Returns:
+            Video actualizado.
+
+        Raises:
+            ValueError: Si el video no existe.
+
+        Example:
+            video = repo.update_video(
+                video_id,
+                title="New Title",
+                duration_seconds=300
+            )
+        """
+        video = self.get_by_id(video_id)
+        if not video:
+            raise ValueError(f"Video {video_id} not found")
+
+        for key, value in kwargs.items():
+            if hasattr(video, key):
+                setattr(video, key, value)
+
+        self.session.commit()
+        self.session.refresh(video)
+        return video
+
+    def soft_delete(self, video_id: UUID) -> Video:
+        """
+        Soft delete de un video (establece deleted_at).
+
+        Args:
+            video_id: UUID del video a eliminar.
+
+        Returns:
+            Video con deleted_at establecido.
+
+        Raises:
+            ValueError: Si el video no existe.
+
+        Example:
+            video = repo.soft_delete(video_id)
+            assert video.is_deleted is True
+        """
+        from datetime import datetime, timezone
+
+        video = self.get_by_id(video_id)
+        if not video:
+            raise ValueError(f"Video {video_id} not found")
+
+        video.deleted_at = datetime.now(timezone.utc)
+        self.session.commit()
+        self.session.refresh(video)
+        return video
