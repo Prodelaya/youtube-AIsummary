@@ -23,7 +23,11 @@ class Settings(BaseSettings):
     Attributes:
         DATABASE_URL: URL de conexión a PostgreSQL (validada automáticamente).
         REDIS_URL: URL de conexión a Redis (validada automáticamente).
-        DEEPSEEK_API_KEY: Token de autenticación para ApyHub API.
+        DEEPSEEK_API_KEY: Token de autenticación para DeepSeek API.
+        DEEPSEEK_BASE_URL: URL base de la API de DeepSeek (compatible con OpenAI SDK).
+        DEEPSEEK_MODEL: Modelo de DeepSeek a utilizar para generación de resúmenes.
+        DEEPSEEK_MAX_TOKENS: Límite máximo de tokens para la respuesta del modelo.
+        DEEPSEEK_TEMPERATURE: Temperatura del modelo (creatividad de las respuestas).
         API_HOST: Host donde escucha el servidor FastAPI.
         API_PORT: Puerto donde escucha el servidor FastAPI.
         API_WORKERS: Número de workers para uvicorn en producción.
@@ -56,6 +60,25 @@ class Settings(BaseSettings):
     DEEPSEEK_BASE_URL: str = Field(
         default="https://api.deepseek.com",
         description="URL base de la API de DeepSeek (compatible con OpenAI SDK)",
+    )
+
+    DEEPSEEK_MODEL: str = Field(
+        default="deepseek-chat",
+        description="Modelo de DeepSeek a utilizar para generación de resúmenes",
+    )
+
+    DEEPSEEK_MAX_TOKENS: int = Field(
+        default=500,
+        ge=50,
+        le=4096,
+        description="Límite máximo de tokens para la respuesta del modelo (resumen)",
+    )
+
+    DEEPSEEK_TEMPERATURE: float = Field(
+        default=0.7,
+        ge=0.0,
+        le=2.0,
+        description="Temperatura del modelo (0.0 = determinista, 2.0 = muy creativo)",
     )
 
     # ==================== CONFIGURACIÓN API ====================

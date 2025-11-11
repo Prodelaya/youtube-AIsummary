@@ -5,21 +5,27 @@ Estos tests realizan llamadas REALES a la API de DeepSeek.
 IMPORTANTE: Cada test consume tokens de tu cuenta de DeepSeek.
 
 Ejecutar con:
-    pytest tests/integration/test_summarization_service.py -v
-
-Skip si no hay token:
-    pytest tests/integration/test_summarization_service.py -v -m "not integration"
+    pytest tests/integration/test_summarization_service.py -v -s
 """
 
 import asyncio
+from uuid import uuid4
 
 import pytest
 
 from src.core.config import settings
+from src.core.database import get_db
+from src.models import Summary, Transcription, Video
+from src.repositories.exceptions import AlreadyExistsError, NotFoundError
+from src.repositories.summary_repository import SummaryRepository
+from src.repositories.transcription_repository import TranscriptionRepository
+from src.repositories.video_repository import VideoRepository
 from src.services.summarization_service import (
     DeepSeekAPIError,
     SummarizationResult,
     SummarizationService,
+    categorize_summary,
+    extract_keywords,
 )
 
 # Texto de prueba: transcripción simulada sobre IA y desarrollo
@@ -278,6 +284,257 @@ async def test_cache_tokens_reported(skip_if_no_token):
         if result.cached_tokens > 0:
             savings = (result.cached_tokens / result.tokens_used) * 100
             print(f"   Ahorro por cache: {savings:.1f}%")
+
+
+# ==================== TESTS DEL MÉTODO generate_summary() ====================
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_generate_summary_with_database(skip_if_no_token):
+    """
+    Test: Proceso completo de generación de resumen con BD.
+
+    Verifica que generate_summary() crea correctamente:
+    - Resumen en BD
+    - Keywords extraídas
+    - Categorización automática
+    - Métricas de tokens
+    """
+    # Crear sesión de BD de prueba
+    session = next(get_db())
+
+    try:
+        # Crear video y transcripción de prueba
+        video_repo = VideoRepository(session)
+        transcription_repo = TranscriptionRepository(session)
+
+        video = Video(
+            youtube_id=f"test_video_{uuid4().hex[:8]}",
+            title=SAMPLE_TITLE,
+            url="https://www.youtube.com/watch?v=test123",
+            duration=765,  # 12:45 en segundos
+            channel_name="Test Channel",
+        )
+        created_video = video_repo.create(video)
+        session.commit()
+
+        transcription = Transcription(
+            video_id=created_video.id,
+            transcription=SAMPLE_TRANSCRIPTION,
+            language="es",
+            word_count=len(SAMPLE_TRANSCRIPTION.split()),
+            processing_time_ms=5000,
+        )
+        created_transcription = transcription_repo.create(transcription)
+        session.commit()
+
+        # Generar resumen usando el servicio
+        async with SummarizationService() as service:
+            summary = await service.generate_summary(session, created_transcription.id)
+
+        # Verificar que el resumen fue creado correctamente
+        assert summary is not None
+        assert summary.transcription_id == created_transcription.id
+        assert summary.summary_text is not None
+        assert len(summary.summary_text) > 0
+
+        # Verificar keywords extraídas
+        assert summary.keywords is not None
+        assert len(summary.keywords) > 0
+        print(f"\n✅ Keywords extraídas: {summary.keywords}")
+
+        # Verificar categorización
+        assert summary.category is not None
+        assert summary.category in ["framework", "language", "tool", "concept"]
+        print(f"✅ Categoría asignada: {summary.category}")
+
+        # Verificar métricas
+        assert summary.tokens_used is not None
+        assert summary.tokens_used > 0
+        assert summary.processing_time_ms is not None
+        assert summary.processing_time_ms > 0
+
+        # Verificar que se guardó en BD
+        summary_repo = SummaryRepository(session)
+        retrieved_summary = summary_repo.get_by_transcription_id(created_transcription.id)
+        assert retrieved_summary is not None
+        assert retrieved_summary.id == summary.id
+
+        print(f"\n✅ Resumen guardado en BD:")
+        print(f"   ID: {summary.id}")
+        print(f"   Keywords: {summary.keywords}")
+        print(f"   Categoría: {summary.category}")
+        print(f"   Tokens: {summary.tokens_used}")
+        print(f"   Tiempo: {summary.processing_time_ms}ms")
+        print(f"   Resumen: {summary.summary_text[:100]}...")
+
+    finally:
+        # Cleanup: eliminar datos de prueba
+        session.rollback()
+        session.close()
+
+
+@pytest.mark.asyncio
+async def test_generate_summary_transcription_not_found():
+    """
+    Test: Error cuando la transcripción no existe.
+    """
+    session = next(get_db())
+
+    try:
+        async with SummarizationService() as service:
+            fake_id = uuid4()
+
+            with pytest.raises(NotFoundError) as exc_info:
+                await service.generate_summary(session, fake_id)
+
+            error = exc_info.value
+            assert error.resource_type == "Transcription"
+            assert error.resource_id == fake_id
+
+            print(f"\n✅ Error NotFoundError lanzado correctamente: {error}")
+
+    finally:
+        session.rollback()
+        session.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_generate_summary_duplicate_error(skip_if_no_token):
+    """
+    Test: Error cuando ya existe un resumen para la transcripción.
+    """
+    session = next(get_db())
+
+    try:
+        # Crear video y transcripción de prueba
+        video_repo = VideoRepository(session)
+        transcription_repo = TranscriptionRepository(session)
+
+        video = Video(
+            youtube_id=f"test_duplicate_{uuid4().hex[:8]}",
+            title="Test Duplicate",
+            url="https://www.youtube.com/watch?v=test456",
+            duration=300,
+            channel_name="Test Channel",
+        )
+        created_video = video_repo.create(video)
+        session.commit()
+
+        transcription = Transcription(
+            video_id=created_video.id,
+            transcription=SAMPLE_TRANSCRIPTION[:200],  # Texto corto para ahorrar tokens
+            language="es",
+            word_count=50,
+            processing_time_ms=3000,
+        )
+        created_transcription = transcription_repo.create(transcription)
+        session.commit()
+
+        # Generar primer resumen
+        async with SummarizationService() as service:
+            summary1 = await service.generate_summary(session, created_transcription.id)
+            assert summary1 is not None
+
+            # Intentar generar segundo resumen (debería fallar)
+            with pytest.raises(AlreadyExistsError) as exc_info:
+                await service.generate_summary(session, created_transcription.id)
+
+            error = exc_info.value
+            assert error.resource_type == "Summary"
+            assert error.field_name == "transcription_id"
+
+            print(f"\n✅ Error AlreadyExistsError lanzado correctamente: {error}")
+
+    finally:
+        session.rollback()
+        session.close()
+
+
+# ==================== TESTS DE FUNCIONES HELPER ====================
+
+
+def test_extract_keywords():
+    """
+    Test: Extracción de keywords del resumen.
+    """
+    sample = "Este vídeo explica FastAPI y Python para crear APIs REST con TypeScript y Docker."
+
+    keywords = extract_keywords(sample, max_keywords=5)
+
+    assert keywords is not None
+    assert len(keywords) <= 5
+    assert "FastAPI" in keywords or "Python" in keywords
+
+    print(f"\n✅ Keywords extraídas: {keywords}")
+
+
+def test_extract_keywords_with_acronyms():
+    """
+    Test: Extracción de acrónimos (API, LLM, etc.)
+    """
+    sample = "Los modelos LLM como GPT y BERT usan la API REST para comunicarse con sistemas externos."
+
+    keywords = extract_keywords(sample)
+
+    # Debe detectar acrónimos
+    assert any(kw in keywords for kw in ["LLM", "GPT", "BERT", "API", "REST"])
+
+    print(f"\n✅ Acrónimos detectados: {keywords}")
+
+
+def test_categorize_summary_framework():
+    """
+    Test: Categorización correcta de frameworks.
+    """
+    summary = "FastAPI es un framework moderno para Python que facilita crear APIs."
+    keywords = ["FastAPI", "Python", "APIs"]
+
+    category = categorize_summary(summary, keywords)
+
+    assert category == "framework"
+    print(f"\n✅ Categoría detectada: {category}")
+
+
+def test_categorize_summary_language():
+    """
+    Test: Categorización correcta de lenguajes.
+    """
+    summary = "Python es un lenguaje de programación versátil usado para desarrollo web."
+    keywords = ["Python"]
+
+    category = categorize_summary(summary, keywords)
+
+    assert category == "language"
+    print(f"\n✅ Categoría detectada: {category}")
+
+
+def test_categorize_summary_tool():
+    """
+    Test: Categorización correcta de herramientas.
+    """
+    summary = "Docker permite empaquetar aplicaciones en contenedores portables."
+    keywords = ["Docker"]
+
+    category = categorize_summary(summary, keywords)
+
+    assert category == "tool"
+    print(f"\n✅ Categoría detectada: {category}")
+
+
+def test_categorize_summary_concept_default():
+    """
+    Test: Categoría 'concept' por defecto si no coincide con nada.
+    """
+    summary = "Este vídeo habla sobre conceptos generales de arquitectura de software."
+    keywords = ["arquitectura", "software"]
+
+    category = categorize_summary(summary, keywords)
+
+    assert category == "concept"
+    print(f"\n✅ Categoría por defecto: {category}")
 
 
 # ==================== HELPER PARA PRUEBAS MANUALES ====================

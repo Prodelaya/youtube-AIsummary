@@ -14,22 +14,25 @@ Características:
 - Sistema de prompts versionado y mantenible
 """
 
+import time
+from uuid import UUID
+
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from src.core.config import settings
+from src.models import Summary, Transcription, Video
+from src.repositories.exceptions import AlreadyExistsError, NotFoundError
+from src.repositories.summary_repository import SummaryRepository
+from src.repositories.transcription_repository import TranscriptionRepository
 from src.services.prompts import format_user_prompt, load_prompt
 
 # ==================== CONSTANTES ====================
-# Modelo de DeepSeek a usar
-MODEL_NAME = "deepseek-chat"
-
 # Timeouts de red (en segundos)
 REQUEST_TIMEOUT = 60  # Timeout para la llamada a la API
 
-# Parámetros del modelo
-DEFAULT_MAX_TOKENS = 500  # Suficiente para resumen de ~250 palabras
-DEFAULT_TEMPERATURE = 0.3  # Baja para respuestas consistentes
+# Parámetros adicionales del modelo
 DEFAULT_TOP_P = 0.9  # Nucleus sampling
 
 
@@ -132,8 +135,8 @@ class SummarizationService:
         title: str,
         duration: str,
         transcription: str,
-        max_tokens: int = DEFAULT_MAX_TOKENS,
-        temperature: float = DEFAULT_TEMPERATURE,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
     ) -> SummarizationResult:
         """
         Genera un resumen de una transcripción de vídeo.
@@ -145,8 +148,8 @@ class SummarizationService:
             title: Título del vídeo.
             duration: Duración formateada (ej: "15:30").
             transcription: Texto de la transcripción completa.
-            max_tokens: Máximo de tokens a generar (default: 500).
-            temperature: Temperatura del modelo (0-2, default: 0.3).
+            max_tokens: Máximo de tokens a generar (default: de settings.DEEPSEEK_MAX_TOKENS).
+            temperature: Temperatura del modelo (0-2, default: de settings.DEEPSEEK_TEMPERATURE).
 
         Returns:
             SummarizationResult con el resumen generado y metadatos.
@@ -165,6 +168,10 @@ class SummarizationService:
             ...     print(result.summary)
             'Este vídeo presenta los conceptos fundamentales de FastAPI...'
         """
+        # Usar valores de settings si no se proporcionan
+        max_tokens = max_tokens or settings.DEEPSEEK_MAX_TOKENS
+        temperature = temperature if temperature is not None else settings.DEEPSEEK_TEMPERATURE
+
         # Generar user prompt con datos del vídeo
         user_prompt = format_user_prompt(
             title=title,
@@ -175,7 +182,7 @@ class SummarizationService:
         try:
             # Llamada a DeepSeek API
             response = await self._client.chat.completions.create(
-                model=MODEL_NAME,
+                model=settings.DEEPSEEK_MODEL,
                 messages=[
                     {"role": "system", "content": self._system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -205,7 +212,7 @@ class SummarizationService:
                 original_length=len(transcription),
                 summary_length=len(summary_text),
                 language="Spanish",
-                model_used=MODEL_NAME,
+                model_used=settings.DEEPSEEK_MODEL,
                 tokens_used=usage.total_tokens,
                 cached_tokens=getattr(usage, "prompt_cache_hit_tokens", 0),
             )
@@ -220,3 +227,235 @@ class SummarizationService:
                 ) from error
             else:
                 raise SummarizationError(f"Error inesperado: {error}") from error
+
+    async def generate_summary(self, session: Session, transcription_id: UUID) -> Summary:
+        """
+        Genera un resumen completo a partir de una transcripción y lo persiste en BD.
+
+        Este método orquesta todo el proceso:
+        1. Valida que la transcripción existe
+        2. Verifica que no existe resumen previo (evita duplicados)
+        3. Obtiene metadata del vídeo (título, duración)
+        4. Llama a DeepSeek API para generar el resumen
+        5. Extrae keywords automáticamente
+        6. Categoriza el contenido
+        7. Calcula métricas y guarda en BD
+
+        Args:
+            session: Sesión de SQLAlchemy para acceso a BD.
+            transcription_id: UUID de la transcripción a resumir.
+
+        Returns:
+            Summary: Objeto Summary persistido en BD con todos los campos poblados.
+
+        Raises:
+            NotFoundError: Si la transcripción no existe.
+            AlreadyExistsError: Si ya existe un resumen para esa transcripción.
+            DeepSeekAPIError: Si falla la llamada a DeepSeek API.
+            SummarizationError: Otros errores inesperados.
+
+        Example:
+            >>> async with SummarizationService() as service:
+            ...     summary = await service.generate_summary(session, transcription_id)
+            ...     print(f"Resumen generado: {summary.summary_text[:100]}...")
+        """
+        # Inicializar repositorios
+        transcription_repo = TranscriptionRepository(session)
+        summary_repo = SummaryRepository(session)
+
+        # 1. Validar que transcripción existe
+        transcription = transcription_repo.get_by_id(transcription_id)
+        if not transcription:
+            raise NotFoundError("Transcription", transcription_id)
+
+        # 2. Verificar que no existe resumen previo (evitar duplicados)
+        existing_summary = summary_repo.get_by_transcription_id(transcription_id)
+        if existing_summary:
+            raise AlreadyExistsError("Summary", "transcription_id", transcription_id)
+
+        # 3. Obtener metadata del vídeo (eager loading via relationship)
+        video: Video = transcription.video  # type: ignore
+        if not video:
+            raise SummarizationError(
+                f"Transcription {transcription_id} no tiene video asociado (integridad de BD violada)"
+            )
+
+        # Formatear duración para el prompt (de segundos a MM:SS)
+        duration_str = f"{video.duration // 60}:{video.duration % 60:02d}"
+
+        # 4. Llamar a DeepSeek API
+        start_time = time.time()
+
+        result = await self.get_summary_result(
+            title=video.title,
+            duration=duration_str,
+            transcription=transcription.transcription,
+        )
+
+        processing_time_ms = int((time.time() - start_time) * 1000)
+
+        # 5. Extraer keywords automáticamente
+        keywords = extract_keywords(result.summary)
+
+        # 6. Categorizar contenido
+        category = categorize_summary(result.summary, keywords)
+
+        # 7. Crear objeto Summary y persistir
+        summary = Summary(
+            transcription_id=transcription_id,
+            summary_text=result.summary,
+            keywords=keywords,
+            category=category,
+            model_used=result.model_used,
+            tokens_used=result.tokens_used,
+            input_tokens=result.tokens_used - result.cached_tokens,  # Aproximación
+            output_tokens=result.cached_tokens,  # Aproximación
+            processing_time_ms=processing_time_ms,
+            extra_metadata={
+                "original_length": result.original_length,
+                "summary_length": result.summary_length,
+                "language": result.language,
+                "cached_tokens": result.cached_tokens,
+            },
+        )
+
+        # Guardar en BD
+        created_summary = summary_repo.create(summary)
+        session.commit()
+
+        return created_summary
+
+
+# ==================== FUNCIONES HELPER ====================
+
+
+def extract_keywords(summary_text: str, max_keywords: int = 8) -> list[str]:
+    """
+    Extrae keywords del texto del resumen.
+
+    Usa heurísticas simples para identificar términos técnicos relevantes:
+    - Palabras capitalizadas (nombres propios, frameworks)
+    - Palabras con guiones o caracteres especiales (TypeScript, FastAPI)
+    - Términos técnicos comunes
+
+    Args:
+        summary_text: Texto del resumen generado.
+        max_keywords: Número máximo de keywords a extraer (default: 8).
+
+    Returns:
+        Lista de keywords únicas extraídas del texto.
+
+    Example:
+        >>> summary = "Este vídeo explica FastAPI y Python para crear APIs REST..."
+        >>> extract_keywords(summary)
+        ['FastAPI', 'Python', 'APIs REST']
+    """
+    import re
+
+    # Patrones para identificar keywords
+    # Palabras capitalizadas (ej: Python, FastAPI, Docker)
+    capitalized = re.findall(r"\b[A-Z][a-z]+(?:[A-Z][a-z]+)*\b", summary_text)
+
+    # Palabras con guiones o caracteres especiales (ej: TypeScript, yt-dlp)
+    special = re.findall(r"\b\w+[-_]\w+\b", summary_text)
+
+    # Acronyms y siglas (ej: API, REST, LLM)
+    acronyms = re.findall(r"\b[A-Z]{2,}\b", summary_text)
+
+    # Combinar todos los keywords encontrados
+    all_keywords = capitalized + special + acronyms
+
+    # Eliminar duplicados preservando orden
+    seen = set()
+    unique_keywords = []
+    for kw in all_keywords:
+        kw_lower = kw.lower()
+        if kw_lower not in seen:
+            seen.add(kw_lower)
+            unique_keywords.append(kw)
+
+    # Limitar al máximo especificado
+    return unique_keywords[:max_keywords]
+
+
+def categorize_summary(summary_text: str, keywords: list[str]) -> str:
+    """
+    Categoriza un resumen basándose en su contenido.
+
+    Categorías disponibles:
+    - "framework": Frameworks web/backend (FastAPI, Django, React, Vue)
+    - "language": Lenguajes de programación (Python, JavaScript, Rust)
+    - "tool": Herramientas de desarrollo (Docker, Git, VS Code)
+    - "concept": Conceptos generales de IA/ML/desarrollo
+
+    Args:
+        summary_text: Texto del resumen.
+        keywords: Lista de keywords extraídas.
+
+    Returns:
+        Categoría asignada (string).
+
+    Example:
+        >>> categorize_summary("FastAPI es un framework...", ["FastAPI", "Python"])
+        'framework'
+    """
+    text_lower = summary_text.lower()
+    keywords_lower = [k.lower() for k in keywords]
+
+    # Diccionario de patrones para cada categoría
+    patterns = {
+        "framework": [
+            "fastapi",
+            "django",
+            "flask",
+            "react",
+            "vue",
+            "angular",
+            "nextjs",
+            "express",
+            "spring",
+            "laravel",
+        ],
+        "language": [
+            "python",
+            "javascript",
+            "typescript",
+            "rust",
+            "go",
+            "java",
+            "c++",
+            "kotlin",
+            "swift",
+        ],
+        "tool": [
+            "docker",
+            "kubernetes",
+            "git",
+            "github",
+            "vscode",
+            "vim",
+            "redis",
+            "postgresql",
+            "nginx",
+        ],
+    }
+
+    # Contar coincidencias por categoría
+    scores = {category: 0 for category in patterns}
+
+    for category, terms in patterns.items():
+        for term in terms:
+            # Buscar en texto y keywords
+            if term in text_lower:
+                scores[category] += 2  # Mayor peso en texto
+            if term in keywords_lower:
+                scores[category] += 3  # Mayor peso en keywords
+
+    # Obtener categoría con mayor score
+    max_score = max(scores.values())
+
+    if max_score > 0:
+        return max(scores, key=scores.get)  # type: ignore
+
+    # Default: concept
+    return "concept"
