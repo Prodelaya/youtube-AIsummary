@@ -91,3 +91,41 @@ class TranscriptionRepository(BaseRepository[Transcription]):
             print(f"Total en español: {len(spanish_transcriptions)}")
         """
         return self.session.query(Transcription).filter(Transcription.language == language).all()
+
+    def list_paginated(
+        self,
+        limit: int = 20,
+        cursor: UUID | None = None,
+    ) -> list[Transcription]:
+        """
+        Lista transcripciones con paginacion cursor-based.
+
+        Args:
+            limit: Numero maximo de transcripciones a retornar.
+            cursor: UUID de la ultima transcripcion (para paginacion).
+
+        Returns:
+            Lista de transcripciones ordenadas por created_at DESC.
+
+        Example:
+            # Primera pagina
+            transcriptions = repo.list_paginated(limit=20)
+
+            # Segunda pagina
+            last_id = transcriptions[-1].id
+            next_transcriptions = repo.list_paginated(limit=20, cursor=last_id)
+        """
+        query = self.session.query(Transcription)
+
+        # Paginacion cursor-based
+        if cursor:
+            cursor_transcription = (
+                self.session.query(Transcription).filter(Transcription.id == cursor).first()
+            )
+            if cursor_transcription:
+                query = query.filter(Transcription.created_at < cursor_transcription.created_at)
+
+        # Ordenar y limitar
+        query = query.order_by(Transcription.created_at.desc()).limit(limit)
+
+        return query.all()

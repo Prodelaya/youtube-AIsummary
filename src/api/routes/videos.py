@@ -18,8 +18,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.api.dependencies import DBSession, VideoRepo
+from src.api.dependencies import DBSession, TranscriptionRepo, VideoRepo
 from src.api.schemas.common import CursorInfo, MessageResponse
+from src.api.schemas.transcriptions import TranscriptionResponse
 from src.api.schemas.videos import (
     ProcessVideoResponse,
     VideoCreateRequest,
@@ -454,3 +455,51 @@ def get_video_stats(
         summary_key_points_count=summary_key_points_count,
         processing_time_seconds=processing_time_seconds,
     )
+
+
+@router.get(
+    "/{video_id}/transcription",
+    response_model=TranscriptionResponse,
+    summary="Get video transcription",
+    description="Get the transcription for a specific video.",
+)
+def get_video_transcription(
+    video_id: UUID,
+    video_repo: VideoRepo,
+    transcription_repo: TranscriptionRepo,
+) -> TranscriptionResponse:
+    """
+    Obtener transcripcion de un video especifico.
+
+    Este endpoint es un atajo para acceder a la transcripcion
+    directamente desde el ID del video.
+
+    Args:
+        video_id: UUID del video.
+        video_repo: Repositorio de videos (inyectado).
+        transcription_repo: Repositorio de transcripciones (inyectado).
+
+    Returns:
+        TranscriptionResponse: Transcripcion del video.
+
+    Raises:
+        VideoNotFoundError: Si el video no existe.
+        HTTPException 404: Si el video no tiene transcripcion.
+
+    Example:
+        GET /api/v1/videos/123e4567-e89b-12d3-a456-426614174000/transcription
+    """
+    # Verificar que el video existe
+    video = video_repo.get_by_id(video_id)
+    if not video:
+        raise VideoNotFoundError(f"Video {video_id} not found")
+
+    # Buscar transcripcion por video_id
+    transcription = transcription_repo.get_by_video_id(video_id)
+    if not transcription:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Video {video_id} does not have a transcription yet",
+        )
+
+    return TranscriptionResponse.model_validate(transcription)
