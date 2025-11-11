@@ -87,3 +87,4 @@ temp/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+.claude/settings.local.json
