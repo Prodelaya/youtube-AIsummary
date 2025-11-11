@@ -22,7 +22,20 @@ from prometheus_client import make_asgi_app
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Local (módulos propios)
+from src.api.schemas.errors import ErrorResponse, ValidationErrorResponse
 from src.core.config import settings
+from src.services.downloader_service import (
+    DownloadError,
+    InvalidURLError,
+    VideoNotAvailableError,
+)
+from src.services.summarization_service import SummarizationError
+from src.services.transcription_service import TranscriptionError
+from src.services.video_processing_service import (
+    InvalidVideoStateError,
+    VideoNotFoundError,
+    VideoProcessingError,
+)
 
 # Importar routers cuando existan
 # from src.api.routes import health, sources, summaries
@@ -156,6 +169,126 @@ def create_app() -> FastAPI:
 
     # ==================== MANEJADORES DE ERRORES ====================
 
+    # 1. Excepciones de dominio: VideoNotFoundError
+    @app.exception_handler(VideoNotFoundError)
+    async def video_not_found_handler(request: Request, exc: VideoNotFoundError) -> JSONResponse:
+        """Maneja VideoNotFoundError como 404 Not Found."""
+        error = ErrorResponse(
+            detail=str(exc),
+            error_code="VIDEO_NOT_FOUND",
+            metadata={"path": str(request.url)},
+        )
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=error.model_dump(),
+        )
+
+    # 2. Excepciones de dominio: InvalidVideoStateError
+    @app.exception_handler(InvalidVideoStateError)
+    async def invalid_video_state_handler(
+        request: Request, exc: InvalidVideoStateError
+    ) -> JSONResponse:
+        """Maneja InvalidVideoStateError como 409 Conflict."""
+        error = ErrorResponse(
+            detail=str(exc),
+            error_code="INVALID_VIDEO_STATE",
+            metadata={"path": str(request.url)},
+        )
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content=error.model_dump(),
+        )
+
+    # 3. Excepciones de servicios: InvalidURLError, VideoNotAvailableError
+    @app.exception_handler(InvalidURLError)
+    async def invalid_url_handler(request: Request, exc: InvalidURLError) -> JSONResponse:
+        """Maneja InvalidURLError como 400 Bad Request."""
+        error = ErrorResponse(
+            detail=str(exc),
+            error_code="INVALID_URL",
+            metadata={"path": str(request.url)},
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content=error.model_dump(),
+        )
+
+    @app.exception_handler(VideoNotAvailableError)
+    async def video_not_available_handler(
+        request: Request, exc: VideoNotAvailableError
+    ) -> JSONResponse:
+        """Maneja VideoNotAvailableError como 404 Not Found."""
+        error = ErrorResponse(
+            detail=str(exc),
+            error_code="VIDEO_NOT_AVAILABLE",
+            metadata={"path": str(request.url)},
+        )
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=error.model_dump(),
+        )
+
+    # 4. Excepciones de servicios: DownloadError, TranscriptionError, SummarizationError
+    @app.exception_handler(DownloadError)
+    async def download_error_handler(request: Request, exc: DownloadError) -> JSONResponse:
+        """Maneja DownloadError como 500 Internal Server Error."""
+        error = ErrorResponse(
+            detail=f"Failed to download video: {str(exc)}",
+            error_code="DOWNLOAD_ERROR",
+            metadata={"path": str(request.url)},
+        )
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=error.model_dump(),
+        )
+
+    @app.exception_handler(TranscriptionError)
+    async def transcription_error_handler(
+        request: Request, exc: TranscriptionError
+    ) -> JSONResponse:
+        """Maneja TranscriptionError como 500 Internal Server Error."""
+        error = ErrorResponse(
+            detail=f"Failed to transcribe audio: {str(exc)}",
+            error_code="TRANSCRIPTION_ERROR",
+            metadata={"path": str(request.url)},
+        )
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=error.model_dump(),
+        )
+
+    @app.exception_handler(SummarizationError)
+    async def summarization_error_handler(
+        request: Request, exc: SummarizationError
+    ) -> JSONResponse:
+        """Maneja SummarizationError como 500 Internal Server Error."""
+        error = ErrorResponse(
+            detail=f"Failed to generate summary: {str(exc)}",
+            error_code="SUMMARIZATION_ERROR",
+            metadata={"path": str(request.url)},
+        )
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=error.model_dump(),
+        )
+
+    # 5. Excepciones genéricas de procesamiento
+    @app.exception_handler(VideoProcessingError)
+    async def video_processing_error_handler(
+        request: Request, exc: VideoProcessingError
+    ) -> JSONResponse:
+        """Maneja VideoProcessingError como 500 Internal Server Error."""
+        error = ErrorResponse(
+            detail=str(exc),
+            error_code="VIDEO_PROCESSING_ERROR",
+            metadata={"path": str(request.url)},
+        )
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=error.model_dump(),
+        )
+
+    # 6. Excepciones HTTP estándar
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         """
@@ -166,29 +299,19 @@ def create_app() -> FastAPI:
             exc: Excepción HTTP capturada.
 
         Returns:
-            JSONResponse: Respuesta JSON estandarizada con detalles del error.
-
-        Examples:
-            Error 404:
-            {
-                "error": {
-                    "code": 404,
-                    "message": "Not Found",
-                    "detail": "Video no encontrado"
-                }
-            }
+            JSONResponse: Respuesta JSON estandarizada con ErrorResponse schema.
         """
+        error = ErrorResponse(
+            detail=exc.detail,
+            error_code=f"HTTP_{exc.status_code}",
+            metadata={"path": str(request.url)},
+        )
         return JSONResponse(
             status_code=exc.status_code,
-            content={
-                "error": {
-                    "code": exc.status_code,
-                    "message": exc.detail,
-                    "path": str(request.url),
-                }
-            },
+            content=error.model_dump(),
         )
 
+    # 7. Errores de validación Pydantic
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         request: Request, exc: RequestValidationError
@@ -201,35 +324,27 @@ def create_app() -> FastAPI:
             exc: Excepción de validación capturada.
 
         Returns:
-            JSONResponse: Respuesta JSON con detalles de campos inválidos.
-
-        Examples:
-            Request inválido:
-            {
-                "error": {
-                    "code": 422,
-                    "message": "Validation Error",
-                    "details": [
-                        {
-                            "field": "email",
-                            "message": "invalid email format",
-                            "type": "value_error.email"
-                        }
-                    ]
-                }
-            }
+            JSONResponse: Respuesta JSON con ValidationErrorResponse schema.
         """
+        # Convertir errores de Pydantic a ErrorDetail
+        from src.api.schemas.errors import ErrorDetail
+
+        error_details = [
+            ErrorDetail(
+                loc=list(err["loc"]),
+                msg=err["msg"],
+                type=err["type"],
+            )
+            for err in exc.errors()
+        ]
+
+        validation_error = ValidationErrorResponse(detail=error_details)
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            content={
-                "error": {
-                    "code": 422,
-                    "message": "Validation Error",
-                    "details": exc.errors(),
-                }
-            },
+            content=validation_error.model_dump(),
         )
 
+    # 8. Excepciones no capturadas (catch-all)
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
         """
@@ -246,29 +361,18 @@ def create_app() -> FastAPI:
             - En producción, NO expone detalles internos (seguridad).
             - En desarrollo, muestra traceback completo para debugging.
             - Todos los errores se loguean para análisis posterior.
-
-        Examples:
-            Error genérico en producción:
-            {
-                "error": {
-                    "code": 500,
-                    "message": "Internal Server Error"
-                }
-            }
         """
         # TODO: Loguear error con structlog
         # logger.error("Unhandled exception", exc_info=exc, request=request)
 
+        error = ErrorResponse(
+            detail="Internal Server Error" if settings.is_production else str(exc),
+            error_code="INTERNAL_SERVER_ERROR",
+            metadata={"path": str(request.url)} if settings.is_development else None,
+        )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            content={
-                "error": {
-                    "code": 500,
-                    "message": "Internal Server Error",
-                    # Solo mostrar detalles en desarrollo
-                    "detail": str(exc) if settings.is_development else None,
-                }
-            },
+            content=error.model_dump(),
         )
 
     # ==================== ENDPOINTS BASE ====================
