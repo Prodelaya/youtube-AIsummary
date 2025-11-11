@@ -181,3 +181,136 @@ class SummaryRepository(BaseRepository[Summary]):
         summary.sent_to_telegram = True
         summary.sent_at = func.now()
         self.session.commit()
+
+    def list_paginated(
+        self,
+        limit: int = 20,
+        cursor: UUID | None = None,
+    ) -> list[Summary]:
+        """
+        Lista resumenes con paginacion cursor-based.
+
+        Args:
+            limit: Numero maximo de resumenes a retornar.
+            cursor: UUID del ultimo resumen (para paginacion).
+
+        Returns:
+            Lista de resumenes ordenados por created_at DESC.
+
+        Example:
+            # Primera pagina
+            summaries = repo.list_paginated(limit=20)
+
+            # Segunda pagina
+            last_id = summaries[-1].id
+            next_summaries = repo.list_paginated(limit=20, cursor=last_id)
+        """
+        query = self.session.query(Summary)
+
+        # Paginacion cursor-based
+        if cursor:
+            cursor_summary = self.session.query(Summary).filter(Summary.id == cursor).first()
+            if cursor_summary:
+                query = query.filter(Summary.created_at < cursor_summary.created_at)
+
+        # Ordenar y limitar
+        query = query.order_by(Summary.created_at.desc()).limit(limit)
+
+        return query.all()
+
+    def get_by_video_id(self, video_id: UUID) -> Summary | None:
+        """
+        Busca el resumen de un video especifico.
+
+        Navega a traves de la relacion video -> transcription -> summary.
+
+        Args:
+            video_id: UUID del video.
+
+        Returns:
+            Summary si existe, None si el video no tiene resumen.
+
+        Example:
+            summary = repo.get_by_video_id(video_id)
+            if summary:
+                return summary.summary_text
+        """
+        from src.models import Transcription
+
+        # Join con Transcription para filtrar por video_id
+        return (
+            self.session.query(Summary)
+            .join(Transcription, Summary.transcription_id == Transcription.id)
+            .filter(Transcription.video_id == video_id)
+            .first()
+        )
+
+    def search_full_text(
+        self,
+        query: str,
+        limit: int = 20,
+        cursor: UUID | None = None,
+    ) -> list[dict]:
+        """
+        Busqueda full-text avanzada con ranking de relevancia.
+
+        Busca en title, summary_text, key_points y topics.
+        Retorna resultados ordenados por relevancia con score.
+
+        Args:
+            query: Terminos de busqueda.
+            limit: Numero maximo de resultados.
+            cursor: UUID del ultimo resultado (para paginacion).
+
+        Returns:
+            Lista de diccionarios con 'summary' y 'relevance_score'.
+
+        Example:
+            results = repo.search_full_text("machine learning", limit=20)
+            for result in results:
+                print(f"Score: {result['relevance_score']}")
+                print(f"Title: {result['summary'].title}")
+        """
+        from sqlalchemy import cast, String
+
+        # Crear vector de busqueda concatenando multiples campos
+        search_vector = func.to_tsvector(
+            "english",
+            func.coalesce(Summary.title, "")
+            + " "
+            + func.coalesce(Summary.summary_text, "")
+            + " "
+            + func.coalesce(cast(Summary.key_points, String), "")
+            + " "
+            + func.coalesce(cast(Summary.topics, String), ""),
+        )
+
+        # Query de busqueda
+        search_query = func.plainto_tsquery("english", query)
+
+        # Calcular ranking de relevancia
+        rank = func.ts_rank(search_vector, search_query).label("relevance_score")
+
+        query_obj = (
+            self.session.query(Summary, rank)
+            .filter(search_vector.op("@@")(search_query))
+            .order_by(rank.desc())
+        )
+
+        # Paginacion cursor-based
+        if cursor:
+            cursor_summary = self.session.query(Summary).filter(Summary.id == cursor).first()
+            if cursor_summary:
+                # Calcular rank del cursor
+                cursor_rank = (
+                    self.session.query(rank)
+                    .filter(Summary.id == cursor)
+                    .filter(search_vector.op("@@")(search_query))
+                    .scalar()
+                )
+                if cursor_rank:
+                    query_obj = query_obj.filter(rank < cursor_rank)
+
+        results = query_obj.limit(limit).all()
+
+        return [{"summary": summary, "relevance_score": float(score), "id": summary.id} for summary, score in results]

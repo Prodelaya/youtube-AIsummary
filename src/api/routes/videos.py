@@ -18,8 +18,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.api.dependencies import DBSession, TranscriptionRepo, VideoRepo
+from src.api.dependencies import DBSession, SummaryRepo, TranscriptionRepo, VideoRepo
 from src.api.schemas.common import CursorInfo, MessageResponse
+from src.api.schemas.summaries import SummaryResponse
 from src.api.schemas.transcriptions import TranscriptionResponse
 from src.api.schemas.videos import (
     ProcessVideoResponse,
@@ -503,3 +504,51 @@ def get_video_transcription(
         )
 
     return TranscriptionResponse.model_validate(transcription)
+
+
+@router.get(
+    "/{video_id}/summary",
+    response_model=SummaryResponse,
+    summary="Get video summary",
+    description="Get the AI-generated summary for a specific video.",
+)
+def get_video_summary(
+    video_id: UUID,
+    video_repo: VideoRepo,
+    summary_repo: SummaryRepo,
+) -> SummaryResponse:
+    """
+    Obtener resumen de un video especifico.
+
+    Este endpoint es un atajo para acceder al resumen
+    directamente desde el ID del video.
+
+    Args:
+        video_id: UUID del video.
+        video_repo: Repositorio de videos (inyectado).
+        summary_repo: Repositorio de resumenes (inyectado).
+
+    Returns:
+        SummaryResponse: Resumen del video.
+
+    Raises:
+        VideoNotFoundError: Si el video no existe.
+        HTTPException 404: Si el video no tiene resumen.
+
+    Example:
+        GET /api/v1/videos/123e4567-e89b-12d3-a456-426614174000/summary
+    """
+    # Verificar que el video existe
+    video = video_repo.get_by_id(video_id)
+    if not video:
+        raise VideoNotFoundError(f"Video {video_id} not found")
+
+    # Buscar resumen por video_id
+    summary = summary_repo.get_by_video_id(video_id)
+    if not summary:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Video {video_id} does not have a summary yet",
+        )
+
+    return SummaryResponse.model_validate(summary)

@@ -38,7 +38,7 @@ from src.services.video_processing_service import (
 )
 
 # Importar routers
-from src.api.routes import transcriptions, videos
+from src.api.routes import summaries, transcriptions, videos
 
 
 @asynccontextmanager
@@ -437,8 +437,8 @@ def create_app() -> FastAPI:
     # ==================== ROUTERS ====================
     app.include_router(videos.router, prefix="/api/v1")
     app.include_router(transcriptions.router, prefix="/api/v1")
-    # TODO: Incluir routers restantes
-    # app.include_router(summaries.router, prefix="/api/v1")
+    app.include_router(summaries.router, prefix="/api/v1")
+    # TODO: Incluir router de stats
     # app.include_router(stats.router, prefix="/api/v1")
 
     return app
