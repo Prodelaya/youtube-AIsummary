@@ -15,6 +15,7 @@ from src.models.base import TimestampedUUIDBase
 
 # Import solo para type checking (no causa import circular)
 if TYPE_CHECKING:
+    from src.models.telegram_user import TelegramUser
     from src.models.video import Video
 
 
@@ -92,6 +93,15 @@ class Source(TimestampedUUIDBase):
         back_populates="source",
         cascade="all, delete-orphan",
         lazy="selectin",  # Carga eager de videos al consultar source
+    )
+
+    # Muchos-a-muchos: Una fuente puede tener muchos usuarios suscritos
+    # La tabla intermedia user_source_subscriptions maneja la relación M:N
+    users: Mapped[list["TelegramUser"]] = relationship(
+        "TelegramUser",
+        secondary="user_source_subscriptions",
+        back_populates="sources",
+        lazy="selectin",  # Carga eager de usuarios suscritos
     )
 
     # ==================== ÍNDICES ====================

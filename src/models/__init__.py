@@ -13,6 +13,7 @@ Uso:
 from src.models.base import Base, TimestampedUUIDBase, TimestampMixin, UUIDMixin
 from src.models.source import Source
 from src.models.summary import Summary
+from src.models.telegram_user import TelegramUser
 from src.models.transcription import Transcription
 from src.models.video import Video, VideoStatus
 
@@ -28,6 +29,7 @@ __all__ = [
     "Video",
     "Transcription",
     "Summary",
+    "TelegramUser",
     # Enums
     "VideoStatus",
 ]
