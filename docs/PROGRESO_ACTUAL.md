@@ -73,23 +73,65 @@ El proyecto ha completado **3 semanas completas** de desarrollo, con las siguien
 
 ---
 
-## 📍 EN PROGRESO (Paso 15)
+## ✅ COMPLETADO RECIENTEMENTE
 
-### 🤖 Bot de Telegram - Setup Básico
+### 🤖 Paso 15: Bot de Telegram - Setup Básico (✅ COMPLETADO)
+
+**Implementación:**
+- ✅ Instalado `python-telegram-bot v22.5` con Poetry
+- ✅ Creado `src/bot/telegram_bot.py` con configuración principal
+- ✅ Implementado command `/start` con registro automático de usuarios
+- ✅ Implementado command `/help` con lista de comandos
+- ✅ Configurado polling mode para desarrollo
+- ✅ Error handler global con logging estructurado
+- ✅ 6 tests unitarios (todos pasan ✅)
+
+**Archivos creados:**
+```
+src/bot/
+├── __init__.py
+├── telegram_bot.py          (154 líneas)
+└── handlers/
+    ├── __init__.py
+    ├── start.py              (136 líneas)
+    └── help.py               (49 líneas)
+
+tests/bot/
+├── __init__.py
+├── conftest.py              (127 líneas)
+└── test_handlers.py         (6 tests ✅)
+```
+
+**Funcionalidad validada:**
+- ✅ Bot funciona en Telegram (@yt_IAinformer_bot)
+- ✅ `/start` registra usuarios automáticamente en BD
+- ✅ `/help` muestra lista completa de comandos
+- ✅ Manejo de usuarios sin username
+- ✅ Idempotencia (ejecutar `/start` 2 veces no duplica)
+
+**Decisiones técnicas:**
+- Uso de `asyncio.to_thread()` para ejecutar repositories síncronos desde handlers async
+- Polling mode (desarrollo), preparado para webhook (producción)
+- Logging estructurado con niveles apropiados
+
+---
+
+## 📍 SIGUIENTE PASO (Paso 16)
+
+### 🤖 Bot de Telegram - Suscripciones Interactivas
 
 **¿Qué falta?**
-- [ ] Instalar `python-telegram-bot` con Poetry
-- [ ] Crear `src/bot/telegram_bot.py` con configuración básica
-- [ ] Implementar command `/start` con registro automático
-- [ ] Implementar command `/help` con lista de comandos
-- [ ] Configurar webhook o polling según entorno
+- [ ] Implementar command `/sources` con inline keyboards
+- [ ] Mostrar lista de canales disponibles
+- [ ] Botones interactivos ✅/❌ (suscrito/no suscrito)
+- [ ] Toggle de suscripciones en tiempo real
+- [ ] Actualización dinámica del teclado
 
 **Próximos pasos:**
-1. Paso 16: Suscripciones interactivas con inline keyboards
-2. Paso 17: Historial y búsqueda (`/recent`, `/search`)
-3. Paso 18: Worker de distribución personalizada
-4. Paso 19: Celery setup + workers asíncronos
-5. Paso 20: Jobs programados con Celery Beat
+1. Paso 17: Historial y búsqueda (`/recent`, `/search`)
+2. Paso 18: Worker de distribución personalizada
+3. Paso 19: Celery setup + workers asíncronos
+4. Paso 20: Jobs programados con Celery Beat
 
 ---
 
@@ -104,6 +146,9 @@ src/
 ├── api/
 │   ├── routes/    4 routers con 18 endpoints totales
 │   └── schemas/   Schemas Pydantic v2 para request/response
+├── bot/           Bot de Telegram (3 archivos, ~340 líneas)
+│   ├── telegram_bot.py
+│   └── handlers/  2 handlers (/start, /help)
 └── core/          Config, Database, Celery setup
 ```
 
@@ -115,6 +160,7 @@ src/
 
 ### Tests
 - ✅ Tests API (suite completa con pytest)
+- ✅ Tests bot de Telegram (6 tests unitarios)
 - ⏳ Tests unitarios de servicios (pendiente)
 - ⏳ Tests de integración (pendiente)
 - 🎯 **Objetivo:** >80% de cobertura

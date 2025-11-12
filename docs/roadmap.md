@@ -454,13 +454,13 @@ test(api): add comprehensive API test suite
 
 ---
 
-### Paso 15: Bot de Telegram - Setup Básico (📍 ACTUAL)
+### Paso 15: Bot de Telegram - Setup Básico (✅ COMPLETADO)
 **¿Qué hacer?**
 - Instalar `python-telegram-bot` con Poetry
 - Crear `src/bot/telegram_bot.py` con configuración básica
 - Implementar command `/start` con mensaje de bienvenida
 - Implementar command `/help` con lista de comandos
-- Registrar usuario automáticamente en `/start` (vía API interna)
+- Registrar usuario automáticamente en `/start` (vía TelegramUserRepository)
 - Configurar webhook o polling según entorno
 
 **¿Por qué primero?**
@@ -468,16 +468,35 @@ test(api): add comprehensive API test suite
 - Configura infraestructura básica (token, permisos)
 - Primera interacción con usuarios
 
-**Validación:**
-- Bot responde a `/start` en Telegram
-- Usuario creado en BD tras `/start`
-- `/help` lista comandos disponibles
+**Estado:**
+- ✅ `python-telegram-bot v22.5` instalado
+- ✅ Bot principal configurado en modo polling
+- ✅ Handler `/start` con registro automático de usuarios
+- ✅ Handler `/help` con lista de comandos
+- ✅ Error handler global con logging estructurado
+- ✅ 6 tests unitarios (todos pasan)
+- ✅ Bot validado en Telegram (@yt_IAinformer_bot)
+
+**Archivos creados:**
+- `src/bot/__init__.py`
+- `src/bot/telegram_bot.py` (154 líneas)
+- `src/bot/handlers/start.py` (136 líneas)
+- `src/bot/handlers/help.py` (49 líneas)
+- `tests/bot/conftest.py` (127 líneas)
+- `tests/bot/test_handlers.py` (6 tests)
+
+**Decisiones técnicas:**
+- Uso de `asyncio.to_thread()` para bridge async/sync (handlers → repositories)
+- Polling mode para desarrollo, infraestructura lista para webhook
+- Registro idempotente de usuarios (ejecutar `/start` 2 veces no duplica)
 
 **Git:**
 ```bash
-git commit -m "feat(bot): add telegram bot basic setup"
-git commit -m "feat(bot): add /start and /help commands"
-git commit -m "test(bot): add bot commands integration tests"
+git commit -m "feat(bot): add telegram bot basic setup with polling mode"
+git commit -m "feat(bot): add /start handler with automatic user registration"
+git commit -m "feat(bot): add /help handler with command list"
+git commit -m "test(bot): add comprehensive handler tests (6 tests)"
+git commit -m "chore: add python-telegram-bot dependency"
 ```
 **Nos da paso a:** Commands interactivos de suscripciones.
 
@@ -944,8 +963,8 @@ git commit -m "docs: finalize ADRs for key technical decisions"
 - **Viernes:** Refinamiento y documentación API ✅
 
 ### 📍 Semana 4: Bot Telegram Multi-Usuario (EN PROGRESO)
-- **Lunes:** Bot - Setup básico + /start + /help ← 📍 AQUÍ ESTAMOS
-- **Martes:** Bot - Suscripciones interactivas con inline keyboards
+- **Lunes:** Bot - Setup básico + /start + /help ✅
+- **Martes:** Bot - Suscripciones interactivas con inline keyboards ← 📍 AQUÍ ESTAMOS
 - **Miércoles:** Bot - Historial y búsqueda (/recent, /search)
 - **Jueves:** Worker de distribución personalizada (ADR-010)
 - **Viernes:** Logging estructurado
