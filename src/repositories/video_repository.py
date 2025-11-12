@@ -5,6 +5,7 @@ Extiende BaseRepository con métodos específicos para filtrar
 videos por estado (enum VideoStatus) y por source.
 """
 
+from datetime import UTC
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -171,7 +172,6 @@ class VideoRepository(BaseRepository[Video]):
             last_id = videos[-1].id
             next_videos = repo.list_paginated(limit=20, cursor=last_id)
         """
-        from uuid import UUID
 
         query = self.session.query(Video)
 
@@ -293,13 +293,13 @@ class VideoRepository(BaseRepository[Video]):
             video = repo.soft_delete(video_id)
             assert video.is_deleted is True
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         video = self.get_by_id(video_id)
         if not video:
             raise ValueError(f"Video {video_id} not found")
 
-        video.deleted_at = datetime.now(timezone.utc)
+        video.deleted_at = datetime.now(UTC)
         self.session.commit()
         self.session.refresh(video)
         return video

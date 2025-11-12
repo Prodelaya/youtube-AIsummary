@@ -151,32 +151,32 @@ def create_app() -> FastAPI:
         openapi_tags=[
             {
                 "name": "Videos",
-                "description": "Gestión de videos de YouTube. Incluye operaciones CRUD, procesamiento asíncrono y consulta de transcripciones/resúmenes."
+                "description": "Gestión de videos de YouTube. Incluye operaciones CRUD, procesamiento asíncrono y consulta de transcripciones/resúmenes.",
             },
             {
                 "name": "Transcriptions",
-                "description": "Acceso a transcripciones generadas por Whisper. Solo lectura - las transcripciones se crean automáticamente al procesar videos."
+                "description": "Acceso a transcripciones generadas por Whisper. Solo lectura - las transcripciones se crean automáticamente al procesar videos.",
             },
             {
                 "name": "Summaries",
-                "description": "Gestión de resúmenes generados por IA. Incluye búsqueda full-text con ranking de relevancia usando PostgreSQL."
+                "description": "Gestión de resúmenes generados por IA. Incluye búsqueda full-text con ranking de relevancia usando PostgreSQL.",
             },
             {
                 "name": "Stats",
-                "description": "Estadísticas y métricas del sistema. Contadores de videos por estado, tiempos de procesamiento y palabras transcritas."
+                "description": "Estadísticas y métricas del sistema. Contadores de videos por estado, tiempos de procesamiento y palabras transcritas.",
             },
             {
                 "name": "Health",
-                "description": "Health checks y status de servicios. Verifica conectividad con PostgreSQL y Redis."
-            }
+                "description": "Health checks y status de servicios. Verifica conectividad con PostgreSQL y Redis.",
+            },
         ],
         contact={
             "name": "Pablo (prodelaya)",
-            "url": "https://github.com/prodelaya/youtube-AIsummary"
+            "url": "https://github.com/prodelaya/youtube-AIsummary",
         },
         license_info={
             "name": "MIT",
-        }
+        },
     )
 
     # ==================== MIDDLEWARES ====================
