@@ -327,36 +327,38 @@ git commit -m "test: add transcription test with sample audio"
 **¿Qué hacer?**
 - Crear modelo `Transcription` con relación 1:1 a Video
 - Crear modelo `Summary` con relación 1:1 a Transcription
+- Crear modelo `TelegramUser` con relación M:N a Source
 - Generar y aplicar migraciones Alembic
 - Actualizar `Video` model con relación a `Transcription`
 
 **Estado:**
-- ✅ Modelos creados con tipado completo
+- ✅ Modelos creados con tipado completo: Source, Video, Transcription, Summary, TelegramUser
 - ✅ Relaciones definidas (Video → Transcription → Summary)
+- ✅ Tabla intermedia `user_source_subscriptions` para suscripciones
 - ✅ Migración aplicada con índices GIN y full-text search
+- ✅ Campos de tracking en Summary para Telegram
 - ✅ Exports actualizados en `__init__.py`
 
 **Git:**
 ```bash
 # Ya commiteado:
 feat(models): add Transcription and Summary models
-feat(db): add migration for transcriptions and summaries tables
+feat(models): add TelegramUser model with M:N subscriptions
+feat(db): add migration for all tables with relationships
 ```
 **Nos da paso a:** Implementar Repository Pattern.
 
 ---
 
-## 🌐 FASE 3: API REST + BOT TELEGRAM MULTI-USUARIO (5-6 días)
-
-### Paso 12: Repository Pattern (📍 ACTUAL)
+### Paso 12: Repository Pattern (✅ COMPLETADO)
 **¿Qué hacer?**
 - Crear `src/repositories/base_repository.py` genérico con TypeVar[T]
 - Implementar CRUD síncrono: `create`, `get_by_id`, `list_all`, `update`, `delete`
 - Crear `SourceRepository` con métodos específicos
 - Crear `VideoRepository` con queries por estado
 - Crear `TranscriptionRepository` con búsqueda por video
-- Crear `SummaryRepository` con filtros y búsqueda
-- **NUEVO:** Crear `TelegramUserRepository` con queries de suscripciones
+- Crear `SummaryRepository` con filtros y búsqueda full-text
+- Crear `TelegramUserRepository` con queries de suscripciones
 
 **¿Por qué síncronos?** (ADR-011)
 - Celery workers son 99% del uso de BD (síncronos por diseño)
@@ -364,98 +366,95 @@ feat(db): add migration for transcriptions and summaries tables
 - Implementación más simple (2 días vs 4 días async)
 - SQLAlchemy ORM funciona mejor en modo sync
 
-**Validación:**
-- Tests unitarios con mocks de Session
-- Tests de integración con BD real (fixtures pytest)
-- Operaciones CRUD funcionan correctamente
+**Estado:**
+- ✅ BaseRepository genérico con TypeVar[T]
+- ✅ 5 repositories especializados implementados
+- ✅ Métodos de búsqueda avanzada (full-text, filtros, paginación)
+- ✅ Exception handling personalizado
 
 **Git:**
 ```bash
-git commit -m "feat(repositories): add BaseRepository with generic CRUD"
-git commit -m "feat(repositories): add SourceRepository and VideoRepository"
-git commit -m "feat(repositories): add TranscriptionRepository and SummaryRepository"
-git commit -m "feat(repositories): add TelegramUserRepository"
-git commit -m "test(repositories): add unit and integration tests"
+# Ya commiteado:
+feat(repositories): add BaseRepository with generic CRUD
+feat(repositories): add SourceRepository and VideoRepository
+feat(repositories): add TranscriptionRepository and SummaryRepository
+feat(repositories): add TelegramUserRepository
 ```
-**Nos da paso a:** Modelo TelegramUser para sistema multi-usuario.
+**Nos da paso a:** Servicios de negocio y API REST.
 
 ---
 
-### Paso 13: Modelo TelegramUser + Suscripciones (ADR-010)
-**Contexto:** Implementación del sistema multi-usuario definido en ADR-010.
-Cada usuario gestiona sus propias suscripciones a canales.
+### Paso 13: Servicios de Negocio (✅ COMPLETADO)
+**¿Qué hacer?**
+- Implementar `VideoProcessingService` como orquestador del pipeline
+- Integrar descarga, transcripción y resumen en flujo unificado
+- Manejo de errores con excepciones personalizadas
+- Tracking de estado de procesamiento
+
+**Estado:**
+- ✅ `DownloaderService` - descarga de audio con yt-dlp
+- ✅ `TranscriptionService` - transcripción con Whisper
+- ✅ `SummarizationService` - resúmenes con DeepSeek API
+- ✅ `VideoProcessingService` - orquestador del pipeline completo
+
+**Git:**
+```bash
+# Ya commiteado:
+feat(services): add video processing orchestrator
+feat(services): integrate downloader, transcription and summarization
+```
+**Nos da paso a:** Implementar API REST completa.
+
+---
+
+## 🌐 FASE 3: API REST + BOT TELEGRAM MULTI-USUARIO (5-6 días)
+
+### Paso 14: API REST Completa (✅ COMPLETADO)
+**Contexto:** Backend completo con 18 endpoints para gestión de videos, transcripciones, resúmenes y estadísticas.
 
 **¿Qué hacer?**
-- Crear `src/models/telegram_user.py` con campos: `telegram_id`, `username`, `first_name`, `active`
-- Crear tabla intermedia `user_source_subscriptions` (M:N)
-- Añadir relación M:N entre `TelegramUser` y `Source`
-- Actualizar `Summary` con campos: `sent_to_telegram`, `sent_at`, `telegram_message_ids`
-- Generar y aplicar migráncion Alembic
+- Crear schemas Pydantic v2 en `src/api/schemas/`
+- Implementar `src/api/routes/videos.py` (10 endpoints):
+  - CRUD completo de videos
+  - Procesamiento asíncrono (encolar, reintentar)
+  - Estadísticas por video
+- Implementar `src/api/routes/transcriptions.py` (2 endpoints):
+  - Listado paginado
+  - Detalle de transcripción
+- Implementar `src/api/routes/summaries.py` (4 endpoints):
+  - Listado paginado con cursor
+  - Detalle de resumen
+  - Búsqueda full-text con ranking
+  - Soft delete
+- Implementar `src/api/routes/stats.py` (2 endpoints):
+  - Estadísticas globales del sistema
+  - Estadísticas por fuente
+- Configurar dependency injection para repos
+- Exception handlers globales
+- Metadata OpenAPI enriquecida
 
-**¿Por qué ahora?**
-- Base necesaria para bot multi-usuario
-- Cada usuario gestiona sus propias suscripciones
-- Tracking de mensajes enviados para reenvíos
-
-**Validación:**
-- Tabla `telegram_users` existe con índice en `telegram_id`
-- Tabla `user_source_subscriptions` con constraint UNIQUE(user_id, source_id)
-- Campos nuevos en `summaries` con valores por defecto
-
-**Git:**
-```bash
-git commit -m "feat(models): add TelegramUser model with M:N subscriptions"
-git commit -m "feat(models): add user_source_subscriptions table"
-git commit -m "feat(models): add Telegram tracking fields to Summary"
-git commit -m "feat(db): add migration for telegram users and subscriptions"
-```
-**Nos da paso a:** Endpoints API REST actualizados.
-
----
-
-### Paso 14: Endpoints API REST (usuarios + suscripciones) [ADR-010]
-**Contexto:** Backend completo para bot multi-usuario (ADR-010).
-
-**¿Qué hacer?**
-- Crear schemas Pydantic en `src/api/schemas/` para usuarios y suscripciones
-- Implementar `src/api/routes/users.py`:
-  - `POST /api/v1/users` — Registrar usuario Telegram
-  - `GET /api/v1/users/{telegram_id}` — Obtener perfil + suscripciones
-  - `PATCH /api/v1/users/{telegram_id}` — Actualizar (pausar notificaciones)
-  - `POST /api/v1/users/{telegram_id}/subscribe/{source_id}` — Suscribirse
-  - `DELETE /api/v1/users/{telegram_id}/subscribe/{source_id}` — Desuscribirse
-- Implementar `src/api/routes/summaries.py`:
-  - `GET /api/v1/summaries?user_id={telegram_id}` — Filtrar por suscripciones usuario
-  - `GET /api/v1/summaries/recent?user_id={telegram_id}&limit=10` — Recientes del usuario
-  - `GET /api/v1/summaries/search?q=FastAPI&user_id={telegram_id}` — Búsqueda
-  - `POST /api/v1/summaries/{id}/resend` — Reenviar resumen
-- Actualizar `src/api/routes/sources.py`:
-  - `GET /api/v1/sources` — Listar canales disponibles
-  - `GET /api/v1/sources/{id}/summaries` — Resúmenes de un canal
-- Registrar routers en `main.py`
-
-**¿Por qué estos endpoints?**
-- Backend completo para bot de Telegram
-- Gestión de suscripciones personalizada por usuario
-- Filtrado automático según preferencias
-
-**Validación:**
-- Swagger UI muestra todos los endpoints nuevos
-- Tests de integración con usuarios de prueba
-- Filtrado por suscripciones funciona correctamente
+**Estado:**
+- ✅ **18 endpoints implementados y documentados**
+- ✅ Schemas Pydantic v2 con validación
+- ✅ Paginación cursor-based
+- ✅ Exception handlers globales
+- ✅ OpenAPI docs con ejemplos y descripciones
+- ✅ Dependency injection para repositories
 
 **Git:**
 ```bash
-git commit -m "feat(api): add user management endpoints"
-git commit -m "feat(api): add subscription management endpoints"
-git commit -m "feat(api): update summaries endpoints with user filtering"
-git commit -m "test(api): add integration tests for multi-user features"
+# Ya commiteado:
+feat(api): add videos endpoints with CRUD and processing
+feat(api): add transcriptions endpoints
+feat(api): add summaries endpoints with full-text search
+feat(api): add stats endpoints
+test(api): add comprehensive API test suite
 ```
-**Nos da paso a:** Implementar Bot de Telegram.
+**Nos da paso a:** Implementar Bot de Telegram multi-usuario.
 
 ---
 
-### Paso 15: Bot de Telegram - Setup Básico
+### Paso 15: Bot de Telegram - Setup Básico (📍 ACTUAL)
 **¿Qué hacer?**
 - Instalar `python-telegram-bot` con Poetry
 - Crear `src/bot/telegram_bot.py` con configuración básica
@@ -923,35 +922,42 @@ git commit -m "docs: finalize ADRs for key technical decisions"
 
 ## 📅 TIMELINE SEMANAL
 
-### Semana 1: Fundación
-- **Lunes:** Architecture doc + Git setup + Poetry
-- **Martes:** Docker Compose + Config + FastAPI base
-- **Miércoles:** ORM + Migraciones + Source model
-- **Jueves:** **DeepSeek** integration + Tests  ← CORREGIDO
-- **Viernes:** Downloader service + Whisper setup
+### ✅ Semana 1: Fundación (COMPLETADA)
+- **Lunes:** Architecture doc + Git setup + Poetry ✅
+- **Martes:** Docker Compose + Config + FastAPI base ✅
+- **Miércoles:** ORM + Migraciones + Source model ✅
+- **Jueves:** DeepSeek integration + Tests ✅
+- **Viernes:** Downloader service + Whisper setup ✅
 
-### Semana 2: Pipeline, API & Bot Telegram
-- **Lunes:** Transcription service + Pipeline orchestrator
-- **Martes:** Modelos BD completos + Repositories síncronos (ADR-011)
-- **Miércoles:** Modelo TelegramUser + Suscripciones (ADR-010)
-- **Jueves:** API REST endpoints usuarios + suscripciones
-- **Viernes:** Bot Telegram - Setup básico + /start
+### ✅ Semana 2: Pipeline Completo + Modelos (COMPLETADA)
+- **Lunes:** Transcription service + Pipeline orchestrator ✅
+- **Martes:** Modelos BD completos (Video, Transcription, Summary, TelegramUser) ✅
+- **Miércoles:** Repository Pattern completo (Base + 5 especializados) ✅
+- **Jueves:** Servicios de negocio (VideoProcessingService) ✅
+- **Viernes:** Schemas Pydantic v2 + API base ✅
 
-### Semana 3: Bot Telegram & Pipeline Completo
-- **Lunes:** Bot - Suscripciones interactivas con inline keyboards
-- **Martes:** Bot - Historial y búsqueda (/recent, /search)
-- **Miércoles:** Worker de distribución personalizada (ADR-010)
-- **Jueves:** Celery workers + Jobs programados
+### ✅ Semana 3: API REST Completa (COMPLETADA)
+- **Lunes:** Endpoints Videos (10 endpoints CRUD + processing) ✅
+- **Martes:** Endpoints Transcriptions y Summaries (6 endpoints) ✅
+- **Miércoles:** Endpoints Stats (2 endpoints) + Exception handlers ✅
+- **Jueves:** OpenAPI metadata + Tests API ✅
+- **Viernes:** Refinamiento y documentación API ✅
+
+### 📍 Semana 4: Bot Telegram Multi-Usuario (EN PROGRESO)
+- **Lunes:** Bot - Setup básico + /start + /help ← 📍 AQUÍ ESTAMOS
+- **Martes:** Bot - Suscripciones interactivas con inline keyboards
+- **Miércoles:** Bot - Historial y búsqueda (/recent, /search)
+- **Jueves:** Worker de distribución personalizada (ADR-010)
 - **Viernes:** Logging estructurado
 
-### Semana 4: Observabilidad & Testing
+### Semana 5: Observabilidad & Testing
 - **Lunes:** Métricas Prometheus + Monitoreo de costos DeepSeek
 - **Martes:** Dashboard Grafana completo
-- **Miércoles:** Suite de tests completa
+- **Miércoles:** Suite de tests completa (>80% coverage)
 - **Jueves:** CI con GitHub Actions
 - **Viernes:** Dockerfile optimizado
 
-### Semana 5: Deployment & Docs
+### Semana 6: Deployment & Docs
 - **Lunes:** Dockerfile + Docker Compose prod
 - **Martes:** Scripts de deployment + Backups
 - **Miércoles:** CD automático + Validación
