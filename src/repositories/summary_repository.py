@@ -271,7 +271,7 @@ class SummaryRepository(BaseRepository[Summary]):
                 print(f"Score: {result['relevance_score']}")
                 print(f"Title: {result['summary'].title}")
         """
-        from sqlalchemy import cast, String
+        from sqlalchemy import String, cast
 
         # Crear vector de busqueda concatenando multiples campos
         search_vector = func.to_tsvector(
@@ -313,4 +313,7 @@ class SummaryRepository(BaseRepository[Summary]):
 
         results = query_obj.limit(limit).all()
 
-        return [{"summary": summary, "relevance_score": float(score), "id": summary.id} for summary, score in results]
+        return [
+            {"summary": summary, "relevance_score": float(score), "id": summary.id}
+            for summary, score in results
+        ]
