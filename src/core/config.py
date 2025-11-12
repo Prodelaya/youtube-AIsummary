@@ -81,6 +81,13 @@ class Settings(BaseSettings):
         description="Temperatura del modelo (0.0 = determinista, 2.0 = muy creativo)",
     )
 
+    # ==================== TELEGRAM BOT ====================
+    TELEGRAM_BOT_TOKEN: str = Field(
+        min_length=30,
+        description="Token del bot de Telegram obtenido desde @BotFather",
+        examples=["123456789:ABCdefGHIjklMNOpqrsTUVwxyz"],
+    )
+
     # ==================== CONFIGURACIÓN API ====================
     API_HOST: str = Field(
         default="0.0.0.0",
