@@ -34,6 +34,34 @@ router = APIRouter(prefix="/transcriptions", tags=["Transcriptions"])
     response_model=TranscriptionListResponse,
     summary="List transcriptions",
     description="List all transcriptions with cursor-based pagination.",
+    responses={
+        200: {
+            "description": "List of transcriptions with pagination",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "data": [
+                            {
+                                "id": "123e4567-e89b-12d3-a456-426614174000",
+                                "video_id": "987fcdeb-51a2-43f7-9876-543210987654",
+                                "text": "Welcome to this tutorial on FastAPI. Today we will cover...",
+                                "language": "en",
+                                "model_used": "whisper-large-v3",
+                                "duration_seconds": 212.5,
+                                "confidence_score": 0.95,
+                                "created_at": "2025-01-15T11:30:00Z"
+                            }
+                        ],
+                        "cursor": {
+                            "has_next": True,
+                            "next_cursor": "123e4567-e89b-12d3-a456-426614174000",
+                            "count": 1
+                        }
+                    }
+                }
+            }
+        }
+    }
 )
 def list_transcriptions(
     transcription_repo: TranscriptionRepo,
