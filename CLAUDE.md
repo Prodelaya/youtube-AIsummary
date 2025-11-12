@@ -191,27 +191,6 @@ B) Ejecución automática si el usuario lo autoriza.
 
 ---
 
-## ✅ Estado actual
-
-### Paso 9: Descarga de Audio (yt-dlp)
-**¿Qué hacer?**
-- Crear `src/services/downloader_service.py`
-- Implementar `download_audio()` que descarga audio de YouTube en MP3
-- Implementar `get_video_metadata()` para obtener info sin descargar
-- Configurar carpeta temporal `/tmp/ia-monitor/downloads`
-- Extraer mejor calidad de audio disponible
-
-**¿Por qué después de ApyHub?**
-- No depende de ApyHub (servicios aislados)
-- Genera archivos que el siguiente paso (transcripción) consumirá
-
-**Validación:**
-- Descargar video test de 30 segundos funciona
-- Archivo MP3 generado existe y pesa >10KB
-- Metadata extraída correctamente (título, duración, autor)
-
----
-
 ## 🧾 Control de cumplimiento
 
 Para verificar que Claude respeta las reglas:
