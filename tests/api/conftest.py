@@ -9,7 +9,6 @@ Proporciona fixtures comunes para tests de endpoints:
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.api.dependencies import get_db
