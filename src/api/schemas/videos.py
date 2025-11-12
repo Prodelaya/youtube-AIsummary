@@ -95,7 +95,9 @@ class VideoResponse(BaseModel):
         None, description="Fecha de publicacion en YouTube"
     )
     metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Metadata adicional"
+        default_factory=dict,
+        description="Metadata adicional",
+        validation_alias="extra_metadata"
     )
     created_at: datetime = Field(..., description="Fecha de creacion en BD")
     updated_at: datetime = Field(..., description="Fecha de ultima actualizacion")
@@ -105,6 +107,7 @@ class VideoResponse(BaseModel):
 
     class Config:
         from_attributes = True  # Permite crear desde ORM models
+        populate_by_name = True  # Allow both 'metadata' and 'extra_metadata'
         json_schema_extra = {
             "example": {
                 "id": "123e4567-e89b-12d3-a456-426614174000",
