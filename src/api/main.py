@@ -27,6 +27,7 @@ from src.api.routes import stats, summaries, transcriptions, videos
 # Local (módulos propios)
 from src.api.schemas.errors import ErrorResponse, ValidationErrorResponse
 from src.core.config import settings
+from src.repositories.exceptions import NotFoundError
 from src.services.downloader_service import (
     DownloadError,
     InvalidURLError,
@@ -147,6 +148,35 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
         debug=settings.DEBUG,
+        openapi_tags=[
+            {
+                "name": "Videos",
+                "description": "Gestión de videos de YouTube. Incluye operaciones CRUD, procesamiento asíncrono y consulta de transcripciones/resúmenes."
+            },
+            {
+                "name": "Transcriptions",
+                "description": "Acceso a transcripciones generadas por Whisper. Solo lectura - las transcripciones se crean automáticamente al procesar videos."
+            },
+            {
+                "name": "Summaries",
+                "description": "Gestión de resúmenes generados por IA. Incluye búsqueda full-text con ranking de relevancia usando PostgreSQL."
+            },
+            {
+                "name": "Stats",
+                "description": "Estadísticas y métricas del sistema. Contadores de videos por estado, tiempos de procesamiento y palabras transcritas."
+            },
+            {
+                "name": "Health",
+                "description": "Health checks y status de servicios. Verifica conectividad con PostgreSQL y Redis."
+            }
+        ],
+        contact={
+            "name": "Pablo (prodelaya)",
+            "url": "https://github.com/prodelaya/youtube-AIsummary"
+        },
+        license_info={
+            "name": "MIT",
+        }
     )
 
     # ==================== MIDDLEWARES ====================
@@ -169,7 +199,25 @@ def create_app() -> FastAPI:
 
     # ==================== MANEJADORES DE ERRORES ====================
 
-    # 1. Excepciones de dominio: VideoNotFoundError
+    # 1. Excepciones de repositorio: NotFoundError (recursos no encontrados)
+    @app.exception_handler(NotFoundError)
+    async def not_found_handler(request: Request, exc: NotFoundError) -> JSONResponse:
+        """Maneja NotFoundError de repositorio como 404 Not Found."""
+        error = ErrorResponse(
+            detail=str(exc),
+            error_code="RESOURCE_NOT_FOUND",
+            metadata={
+                "path": str(request.url),
+                "resource_type": exc.resource_type,
+                "resource_id": str(exc.resource_id),
+            },
+        )
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content=error.model_dump(),
+        )
+
+    # 2. Excepciones de dominio: VideoNotFoundError
     @app.exception_handler(VideoNotFoundError)
     async def video_not_found_handler(request: Request, exc: VideoNotFoundError) -> JSONResponse:
         """Maneja VideoNotFoundError como 404 Not Found."""
