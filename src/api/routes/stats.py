@@ -37,6 +37,33 @@ router = APIRouter(prefix="/stats", tags=["Stats"])
     response_model=GlobalStatsResponse,
     summary="Get global statistics",
     description="Get system-wide statistics including video counts, transcriptions, and summaries.",
+    responses={
+        200: {
+            "description": "Global statistics",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "total_videos": 150,
+                        "completed_videos": 120,
+                        "failed_videos": 10,
+                        "pending_videos": 20,
+                        "total_transcriptions": 120,
+                        "total_summaries": 115,
+                        "sources": [
+                            {
+                                "source_id": "123e4567-e89b-12d3-a456-426614174000",
+                                "source_name": "DotCSV",
+                                "total_videos": 50,
+                                "completed_videos": 45,
+                                "failed_videos": 2,
+                                "pending_videos": 3
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
 )
 def get_global_stats(
     db: DBSession,
@@ -137,6 +164,26 @@ def get_global_stats(
     response_model=SourceStatsResponse,
     summary="Get source statistics",
     description="Get detailed statistics for a specific source.",
+    responses={
+        200: {
+            "description": "Source statistics",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "source_id": "123e4567-e89b-12d3-a456-426614174000",
+                        "source_name": "DotCSV",
+                        "total_videos": 50,
+                        "completed_videos": 45,
+                        "failed_videos": 2,
+                        "pending_videos": 3,
+                        "avg_processing_time_seconds": 325.5,
+                        "total_transcription_words": 125000
+                    }
+                }
+            }
+        },
+        404: {"description": "Source not found"}
+    }
 )
 def get_source_stats(
     source_id: UUID,
@@ -215,15 +262,18 @@ def get_source_stats(
             avg_processing_time = float(avg_seconds)
 
     # Total de palabras transcritas
+    # NOTE: word_count es un @property, no una columna de BD
+    # Necesitamos calcular la suma extrayendo las transcripciones
     total_transcription_words = None
-    transcription_word_sum = (
-        db.query(func.sum(Transcription.word_count))
-        .join(Video, Transcription.video_id == Video.id)
+    transcriptions = (
+        db.query(Transcription)
+        .select_from(Video)
+        .join(Transcription, Video.id == Transcription.video_id)
         .filter(Video.source_id == source_id)
-        .scalar()
+        .all()
     )
-    if transcription_word_sum:
-        total_transcription_words = int(transcription_word_sum)
+    if transcriptions:
+        total_transcription_words = sum(t.word_count for t in transcriptions)
 
     return SourceStatsResponse(
         source_id=source_id,
