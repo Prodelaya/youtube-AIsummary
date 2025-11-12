@@ -585,7 +585,8 @@ def get_video_stats(
         transcription_word_count = video.transcription.word_count
 
         if hasattr(video.transcription, "summary") and video.transcription.summary:
-            summary_key_points_count = len(video.transcription.summary.key_points or [])
+            # NOTE: Summary model doesn't have key_points field yet, using keywords count as proxy
+            summary_key_points_count = len(video.transcription.summary.keywords or [])
 
     # Calcular tiempo de procesamiento (created_at -> updated_at)
     if video.status == VideoStatus.COMPLETED:

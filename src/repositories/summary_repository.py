@@ -269,20 +269,19 @@ class SummaryRepository(BaseRepository[Summary]):
             results = repo.search_full_text("machine learning", limit=20)
             for result in results:
                 print(f"Score: {result['relevance_score']}")
-                print(f"Title: {result['summary'].title}")
+                print(f"Category: {result['summary'].category}")
+                print(f"Keywords: {result['summary'].keywords}")
         """
-        from sqlalchemy import String, cast
 
-        # Crear vector de busqueda concatenando multiples campos
+        # Crear vector de busqueda concatenando multiples campos existentes
+        # Convertir el array de keywords a texto usando array_to_string
         search_vector = func.to_tsvector(
             "english",
-            func.coalesce(Summary.title, "")
+            func.coalesce(Summary.summary_text, "")
             + " "
-            + func.coalesce(Summary.summary_text, "")
+            + func.coalesce(func.array_to_string(Summary.keywords, " "), "")
             + " "
-            + func.coalesce(cast(Summary.key_points, String), "")
-            + " "
-            + func.coalesce(cast(Summary.topics, String), ""),
+            + func.coalesce(Summary.category, ""),
         )
 
         # Query de busqueda
