@@ -39,6 +39,35 @@ router = APIRouter(prefix="/summaries", tags=["Summaries"])
     response_model=SummaryListResponse,
     summary="List summaries",
     description="List all summaries with cursor-based pagination.",
+    responses={
+        200: {
+            "description": "List of summaries with pagination",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "data": [
+                            {
+                                "id": "123e4567-e89b-12d3-a456-426614174000",
+                                "transcription_id": "987fcdeb-51a2-43f7-9876-543210987654",
+                                "title": "FastAPI Best Practices",
+                                "summary_text": "This video covers best practices for building APIs with FastAPI...",
+                                "key_points": ["Use dependency injection", "Implement proper error handling"],
+                                "topics": ["FastAPI", "Python", "API Design"],
+                                "category": "framework",
+                                "keywords": ["fastapi", "python", "async"],
+                                "created_at": "2025-01-15T12:00:00Z"
+                            }
+                        ],
+                        "cursor": {
+                            "has_next": True,
+                            "next_cursor": "123e4567-e89b-12d3-a456-426614174000",
+                            "count": 1
+                        }
+                    }
+                }
+            }
+        }
+    }
 )
 def list_summaries(
     summary_repo: SummaryRepo,
@@ -120,6 +149,36 @@ def get_summary(
     response_model=SummarySearchResponse,
     summary="Search summaries",
     description="Full-text search in summaries using PostgreSQL full-text search.",
+    responses={
+        200: {
+            "description": "Search results with relevance scoring",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "results": [
+                            {
+                                "summary": {
+                                    "id": "123e4567-e89b-12d3-a456-426614174000",
+                                    "title": "FastAPI Best Practices",
+                                    "summary_text": "This video covers best practices...",
+                                    "key_points": ["Use dependency injection"],
+                                    "topics": ["FastAPI", "Python"],
+                                    "category": "framework"
+                                },
+                                "relevance_score": 0.95
+                            }
+                        ],
+                        "cursor": {
+                            "has_next": False,
+                            "next_cursor": None,
+                            "count": 1
+                        },
+                        "query": "FastAPI best practices"
+                    }
+                }
+            }
+        }
+    }
 )
 def search_summaries(
     search_request: SummarySearchRequest,
