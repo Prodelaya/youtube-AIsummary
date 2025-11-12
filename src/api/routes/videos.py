@@ -51,6 +51,56 @@ router = APIRouter(prefix="/videos", tags=["Videos"])
     response_model=VideoResponse,
     summary="Create video manually",
     description="Create a new video entry manually without automatic discovery.",
+    responses={
+        201: {
+            "description": "Video created successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "id": "123e4567-e89b-12d3-a456-426614174000",
+                        "source_id": "987fcdeb-51a2-43f7-9876-543210987654",
+                        "youtube_id": "dQw4w9WgXcQ",
+                        "title": "Never Gonna Give You Up",
+                        "url": "https://youtube.com/watch?v=dQw4w9WgXcQ",
+                        "duration_seconds": 212,
+                        "status": "pending",
+                        "published_at": None,
+                        "metadata": {"view_count": 1000000},
+                        "created_at": "2025-01-15T10:30:00Z",
+                        "updated_at": "2025-01-15T10:30:00Z",
+                        "deleted_at": None
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Video with youtube_id already exists",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Video with youtube_id 'dQw4w9WgXcQ' already exists",
+                        "error_code": "BAD_REQUEST"
+                    }
+                }
+            }
+        },
+        422: {
+            "description": "Validation error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["body", "youtube_id"],
+                                "msg": "field required",
+                                "type": "value_error.missing"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
 )
 def create_video(
     video_data: VideoCreateRequest,
@@ -107,6 +157,38 @@ def create_video(
     response_model=VideoListResponse,
     summary="List videos",
     description="List videos with cursor-based pagination and optional filters.",
+    responses={
+        200: {
+            "description": "List of videos with pagination info",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "data": [
+                            {
+                                "id": "123e4567-e89b-12d3-a456-426614174000",
+                                "source_id": "987fcdeb-51a2-43f7-9876-543210987654",
+                                "youtube_id": "dQw4w9WgXcQ",
+                                "title": "Never Gonna Give You Up",
+                                "url": "https://youtube.com/watch?v=dQw4w9WgXcQ",
+                                "duration_seconds": 212,
+                                "status": "completed",
+                                "published_at": "2009-10-25T06:57:33Z",
+                                "metadata": {"view_count": 1000000},
+                                "created_at": "2025-01-15T10:30:00Z",
+                                "updated_at": "2025-01-15T11:45:00Z",
+                                "deleted_at": None
+                            }
+                        ],
+                        "cursor": {
+                            "has_next": True,
+                            "next_cursor": "123e4567-e89b-12d3-a456-426614174000",
+                            "count": 1
+                        }
+                    }
+                }
+            }
+        }
+    }
 )
 def list_videos(
     video_repo: VideoRepo,
@@ -166,6 +248,22 @@ def list_videos(
     response_model=VideoDetailResponse,
     summary="Get video details",
     description="Get detailed information about a video including transcription and summary.",
+    responses={
+        200: {
+            "description": "Video details with transcription and summary",
+        },
+        404: {
+            "description": "Video not found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Video 123e4567-e89b-12d3-a456-426614174000 not found",
+                        "error_code": "VIDEO_NOT_FOUND"
+                    }
+                }
+            }
+        }
+    }
 )
 def get_video(
     video_id: UUID,
@@ -212,6 +310,18 @@ def get_video(
     response_model=VideoResponse,
     summary="Update video",
     description="Update video metadata (title, duration, metadata).",
+    responses={
+        200: {"description": "Video updated successfully"},
+        400: {
+            "description": "No fields provided to update",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "At least one field must be provided to update"}
+                }
+            }
+        },
+        404: {"description": "Video not found"}
+    }
 )
 def update_video(
     video_id: UUID,
@@ -265,6 +375,18 @@ def update_video(
     response_model=MessageResponse,
     summary="Delete video",
     description="Soft delete a video (sets deleted_at timestamp).",
+    responses={
+        200: {
+            "description": "Video deleted successfully",
+            "content": {
+                "application/json": {
+                    "example": {"message": "Video deleted successfully"}
+                }
+            }
+        },
+        400: {"description": "Video already deleted"},
+        404: {"description": "Video not found"}
+    }
 )
 def delete_video(
     video_id: UUID,
@@ -308,6 +430,28 @@ def delete_video(
     response_model=ProcessVideoResponse,
     summary="Process video",
     description="Enqueue video for processing (download, transcribe, summarize).",
+    responses={
+        202: {
+            "description": "Video queued for processing",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Video queued for processing",
+                        "task_id": "550e8400-e29b-41d4-a716-446655440000"
+                    }
+                }
+            }
+        },
+        404: {"description": "Video not found"},
+        409: {
+            "description": "Video in invalid state for processing",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Video is already completed or in progress"}
+                }
+            }
+        }
+    }
 )
 def process_video(
     video_id: UUID,
