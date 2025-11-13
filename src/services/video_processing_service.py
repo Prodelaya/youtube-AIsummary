@@ -226,6 +226,20 @@ class VideoProcessingService:
             # ==================== FASE 3: RESUMEN ====================
             summary = await self._create_summary(session, video, transcription, video_repo)
 
+            # ==================== FASE 4: DISTRIBUCIÓN ====================
+            # Encolar tarea de distribución automática a usuarios suscritos
+            from src.tasks.distribute_summaries import distribute_summary_task
+
+            distribute_summary_task.delay(str(summary.id))
+
+            logger.info(
+                "distribution_task_enqueued",
+                extra={
+                    "video_id": str(video.id),
+                    "summary_id": str(summary.id),
+                },
+            )
+
             # ==================== COMPLETADO ====================
             video.status = VideoStatus.COMPLETED
             session.commit()
