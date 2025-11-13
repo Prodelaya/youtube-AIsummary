@@ -177,6 +177,25 @@ class TelegramUserRepository(BaseRepository[TelegramUser]):
 
         return source.users
 
+    def get_users_subscribed_to_source(self, source_id: UUID) -> list[TelegramUser]:
+        """
+        Obtiene todos los usuarios suscritos a una fuente (alias para get_source_subscribers).
+
+        Este método es un alias conveniente para distribución de resúmenes.
+
+        Args:
+            source_id: UUID de la fuente
+
+        Returns:
+            Lista de usuarios suscritos a esa fuente
+
+        Example:
+            subscribers = repo.get_users_subscribed_to_source(source_id)
+            for user in subscribers:
+                distribute_summary_to_user(user, summary)
+        """
+        return self.get_source_subscribers(source_id)
+
     def is_subscribed(self, user_id: UUID, source_id: UUID) -> bool:
         """
         Verifica si un usuario está suscrito a una fuente.
