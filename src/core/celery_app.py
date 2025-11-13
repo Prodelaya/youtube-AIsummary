@@ -33,7 +33,10 @@ celery_app = Celery(
     "youtube_aisummary",
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
-    include=["src.tasks.video_processing"],  # Auto-discover tasks
+    include=[
+        "src.tasks.video_processing",
+        "src.tasks.distribute_summaries",
+    ],  # Auto-discover tasks
 )
 
 # Configuracion del broker y backend
@@ -78,6 +81,10 @@ celery_app.conf.task_routes = {
     "src.tasks.video_processing.retry_failed_video_task": {
         "queue": "video_processing",
         "routing_key": "video.retry",
+    },
+    "src.tasks.distribute_summaries.distribute_summary_task": {
+        "queue": "distribution",  # Queue dedicada para distribución
+        "routing_key": "summary.distribute",
     },
 }
 
