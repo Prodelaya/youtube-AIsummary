@@ -28,7 +28,7 @@ class VideoStatus(str, enum.Enum):
     Enum de estado de procesamiento del video.
 
     El video pasa por estos estados en orden durante el procesamiento.
-    El estado failed puede ocurrir en cualquier punto si hay errores.
+    Los estados failed y skipped pueden ocurrir en cualquier punto.
     """
 
     PENDING = "pending"  # Descubierto pero aún no descargado
@@ -39,6 +39,7 @@ class VideoStatus(str, enum.Enum):
     SUMMARIZING = "summarizing"  # ApyHub está generando resumen
     COMPLETED = "completed"  # Completamente procesado (transcrito + resumido)
     FAILED = "failed"  # El procesamiento falló en algún paso
+    SKIPPED = "skipped"  # Video descartado por criterios (duración excesiva, etc.)
 
 
 class Video(TimestampedUUIDBase):
