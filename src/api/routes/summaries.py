@@ -16,7 +16,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from src.api.dependencies import SummaryRepo, VideoRepo
+from src.api.dependencies import SummaryRepo
 from src.api.schemas.common import CursorInfo
 from src.api.schemas.summaries import (
     SummaryListResponse,
@@ -51,23 +51,26 @@ router = APIRouter(prefix="/summaries", tags=["Summaries"])
                                 "transcription_id": "987fcdeb-51a2-43f7-9876-543210987654",
                                 "title": "FastAPI Best Practices",
                                 "summary_text": "This video covers best practices for building APIs with FastAPI...",
-                                "key_points": ["Use dependency injection", "Implement proper error handling"],
+                                "key_points": [
+                                    "Use dependency injection",
+                                    "Implement proper error handling",
+                                ],
                                 "topics": ["FastAPI", "Python", "API Design"],
                                 "category": "framework",
                                 "keywords": ["fastapi", "python", "async"],
-                                "created_at": "2025-01-15T12:00:00Z"
+                                "created_at": "2025-01-15T12:00:00Z",
                             }
                         ],
                         "cursor": {
                             "has_next": True,
                             "next_cursor": "123e4567-e89b-12d3-a456-426614174000",
-                            "count": 1
-                        }
+                            "count": 1,
+                        },
                     }
                 }
-            }
+            },
         }
-    }
+    },
 )
 def list_summaries(
     summary_repo: SummaryRepo,
@@ -163,22 +166,18 @@ def get_summary(
                                     "summary_text": "This video covers best practices...",
                                     "key_points": ["Use dependency injection"],
                                     "topics": ["FastAPI", "Python"],
-                                    "category": "framework"
+                                    "category": "framework",
                                 },
-                                "relevance_score": 0.95
+                                "relevance_score": 0.95,
                             }
                         ],
-                        "cursor": {
-                            "has_next": False,
-                            "next_cursor": None,
-                            "count": 1
-                        },
-                        "query": "FastAPI best practices"
+                        "cursor": {"has_next": False, "next_cursor": None, "count": 1},
+                        "query": "FastAPI best practices",
                     }
                 }
-            }
+            },
         }
-    }
+    },
 )
 def search_summaries(
     search_request: SummarySearchRequest,
@@ -267,5 +266,5 @@ def delete_summary(
             detail=f"Summary {summary_id} not found",
         )
 
-    summary_repo.delete(summary_id)
+    summary_repo.delete(summary_id)  # type: ignore
     return None

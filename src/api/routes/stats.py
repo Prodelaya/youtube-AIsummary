@@ -13,7 +13,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
 from src.api.dependencies import DBSession, SourceRepo
 from src.api.schemas.stats import (
@@ -56,14 +55,14 @@ router = APIRouter(prefix="/stats", tags=["Stats"])
                                 "total_videos": 50,
                                 "completed_videos": 45,
                                 "failed_videos": 2,
-                                "pending_videos": 3
+                                "pending_videos": 3,
                             }
-                        ]
+                        ],
                     }
                 }
-            }
+            },
         }
-    }
+    },
 )
 def get_global_stats(
     db: DBSession,
@@ -86,22 +85,13 @@ def get_global_stats(
     # Contadores globales
     total_videos = db.query(func.count(Video.id)).scalar() or 0
     completed_videos = (
-        db.query(func.count(Video.id))
-        .filter(Video.status == VideoStatus.COMPLETED)
-        .scalar()
-        or 0
+        db.query(func.count(Video.id)).filter(Video.status == VideoStatus.COMPLETED).scalar() or 0
     )
     failed_videos = (
-        db.query(func.count(Video.id))
-        .filter(Video.status == VideoStatus.FAILED)
-        .scalar()
-        or 0
+        db.query(func.count(Video.id)).filter(Video.status == VideoStatus.FAILED).scalar() or 0
     )
     pending_videos = (
-        db.query(func.count(Video.id))
-        .filter(Video.status == VideoStatus.PENDING)
-        .scalar()
-        or 0
+        db.query(func.count(Video.id)).filter(Video.status == VideoStatus.PENDING).scalar() or 0
     )
 
     total_transcriptions = db.query(func.count(Transcription.id)).scalar() or 0
@@ -113,10 +103,7 @@ def get_global_stats(
 
     for source in sources:
         source_total = (
-            db.query(func.count(Video.id))
-            .filter(Video.source_id == source.id)
-            .scalar()
-            or 0
+            db.query(func.count(Video.id)).filter(Video.source_id == source.id).scalar() or 0
         )
         source_completed = (
             db.query(func.count(Video.id))
@@ -177,13 +164,13 @@ def get_global_stats(
                         "failed_videos": 2,
                         "pending_videos": 3,
                         "avg_processing_time_seconds": 325.5,
-                        "total_transcription_words": 125000
+                        "total_transcription_words": 125000,
                     }
                 }
-            }
+            },
         },
-        404: {"description": "Source not found"}
-    }
+        404: {"description": "Source not found"},
+    },
 )
 def get_source_stats(
     source_id: UUID,
@@ -219,10 +206,7 @@ def get_source_stats(
         )
 
     # Contadores por estado
-    total_videos = (
-        db.query(func.count(Video.id)).filter(Video.source_id == source_id).scalar()
-        or 0
-    )
+    total_videos = db.query(func.count(Video.id)).filter(Video.source_id == source_id).scalar() or 0
     completed_videos = (
         db.query(func.count(Video.id))
         .filter(Video.source_id == source_id, Video.status == VideoStatus.COMPLETED)

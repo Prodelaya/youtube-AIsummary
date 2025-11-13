@@ -40,8 +40,10 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 /help - Mostrar esta ayuda
 
 **📡 Suscripciones**
-/sources - Ver y gestionar tus canales suscritos
-_Elige qué canales de YouTube quieres seguir_
+/sources - Ver canales y gestionar suscripciones
+• Elige qué canales de YouTube quieres seguir
+• Toca los botones ✅/❌ para suscribirte o desuscribirte
+• Recibirás resúmenes automáticamente de tus canales suscritos
 
 **📰 Consultar Resúmenes**
 /recent - Ver los últimos 10 resúmenes de tus canales

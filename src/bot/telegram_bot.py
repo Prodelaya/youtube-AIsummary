@@ -12,9 +12,14 @@ import logging
 from typing import NoReturn
 
 from telegram import BotCommand, Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
-from src.bot.handlers import help_handler, start_handler
+from src.bot.handlers import (
+    help_handler,
+    sources_handler,
+    start_handler,
+    toggle_subscription_callback,
+)
 from src.core.config import settings
 
 # ==================== LOGGING ====================
@@ -83,6 +88,12 @@ def create_application() -> Application:
     # Registrar handlers de comandos
     application.add_handler(CommandHandler("start", start_handler))
     application.add_handler(CommandHandler("help", help_handler))
+    application.add_handler(CommandHandler("sources", sources_handler))
+
+    # Registrar callback query handlers (botones inline)
+    application.add_handler(
+        CallbackQueryHandler(toggle_subscription_callback, pattern="^toggle_source:")
+    )
 
     # Registrar error handler global
     application.add_error_handler(error_handler)
@@ -107,7 +118,7 @@ async def post_init(application: Application) -> None:
     commands = [
         BotCommand("start", "Iniciar el bot y registrarse"),
         BotCommand("help", "Ver comandos disponibles"),
-        BotCommand("sources", "Gestionar suscripciones (próximamente)"),
+        BotCommand("sources", "Gestionar suscripciones a canales"),
         BotCommand("recent", "Ver últimos resúmenes (próximamente)"),
         BotCommand("search", "Buscar en histórico (próximamente)"),
     ]
