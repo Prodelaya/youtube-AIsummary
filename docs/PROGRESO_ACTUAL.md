@@ -1,7 +1,7 @@
 # 📊 PROGRESO ACTUAL DEL PROYECTO
 
 **Última actualización:** 2025-11-13
-**Estado:** Semana 4 - Bot Telegram en progreso
+**Estado:** Semana 4 - Bot Telegram completado + Worker de Distribución
 
 ---
 
@@ -12,10 +12,11 @@ El proyecto ha completado **3 semanas completas** de desarrollo, con las siguien
 - ✅ **Fase 0:** Planning & Setup
 - ✅ **Fase 1:** Infraestructura Base
 - ✅ **Fase 2:** Pipeline Core (Descarga → Transcripción → Resumen)
+- ✅ **Fase 3:** Bot Telegram Multi-Usuario (COMPLETADO)
 - ✅ **Modelos de Datos:** 5 modelos completos con relaciones
 - ✅ **Repository Pattern:** BaseRepository + 5 especializados
 - ✅ **API REST:** 18 endpoints documentados
-- 📍 **Fase 3:** Bot Telegram Multi-Usuario (EN PROGRESO)
+- 📍 **Fase 4:** Optimización y Distribución (EN PROGRESO)
 
 ---
 
@@ -155,28 +156,106 @@ tests/bot/
 
 ---
 
-## 📍 SIGUIENTE PASO (Paso 17)
+### 🤖 Paso 17: Bot de Telegram - Historial y Búsqueda (✅ COMPLETADO)
 
-### 🤖 Bot de Telegram - Historial y Búsqueda
+**Implementación:**
+- ✅ Implementado command `/recent` - Últimos 10 resúmenes de canales suscritos
+- ✅ Implementado command `/search <query>` - Buscar en histórico por keyword
+- ✅ Formateo profesional de mensajes con MarkdownV2:
+  - 📹 Título del video (con link)
+  - 🎬 Nombre del canal
+  - ⏱️ Duración formateada (HH:MM:SS)
+  - 🏷️ Tags/Keywords (#FastAPI #Python)
+  - 📝 Resumen truncado (800 chars max)
+  - 📊 Metadata (vistas, fecha de publicación)
+- ✅ Botón inline "Ver transcripción" con callback handler
+- ✅ Integración con SummaryRepository y full-text search
+
+**Archivos creados:**
+```
+src/bot/handlers/
+├── history.py              (193 líneas - /recent)
+└── search.py               (165 líneas - /search)
+
+src/bot/utils/
+└── formatters.py           (199 líneas - format_summary_message)
+```
+
+**Funcionalidad validada:**
+- ✅ `/recent` muestra últimos 10 resúmenes de canales suscritos
+- ✅ `/search <keyword>` busca en histórico con full-text search
+- ✅ Formateo profesional con escape de caracteres especiales
+- ✅ Botón "Ver transcripción" muestra texto completo
+- ✅ Manejo de casos sin resultados o sin suscripciones
+
+---
+
+### 🔄 Paso 18: Worker de Distribución Personalizada (✅ COMPLETADO)
+
+**Implementación:**
+- ✅ Tarea Celery `distribute_summary_task()` con retry automático
+- ✅ Distribución automática a usuarios suscritos vía Telegram
+- ✅ Manejo robusto de errores (usuario bloqueó bot, rate limits)
+- ✅ Idempotencia (flag `sent_to_telegram`)
+- ✅ Rate limiting (0.05s entre envíos = 20 msg/s)
+- ✅ Campo `bot_blocked` en TelegramUser para filtrar usuarios inactivos
+- ✅ Registro de `telegram_message_ids` en Summary
+- ✅ Integración automática con VideoProcessingService
+- ✅ 6 tests unitarios completos
+
+**Archivos creados:**
+```
+src/tasks/
+└── distribute_summaries.py (391 líneas)
+
+tests/tasks/
+└── test_distribute_summaries.py (6 tests)
+
+migrations/versions/
+└── ca472a01716d_add_bot_blocked_field_to_telegram_users.py
+```
+
+**Archivos modificados:**
+```
+src/models/telegram_user.py         (campo bot_blocked)
+src/repositories/telegram_user_repository.py
+src/services/video_processing_service.py  (integración)
+src/core/celery_app.py              (nueva queue 'distribution')
+```
+
+**Pipeline completo end-to-end:**
+```
+Video → Descarga → Transcripción → Resumen → Distribución Telegram
+```
+
+**Características técnicas:**
+- Idempotencia: no re-enviar si `sent_to_telegram = True`
+- Manejo de errores Telegram: Forbidden, RetryAfter, Timeout
+- Logging estructurado con contexto de summary_id
+- Queue dedicada: `distribution` en Celery
+- Reintentos: max 3 con exponential backoff (60s → 120s → 240s)
+
+**Documentación:**
+- ✅ `docs/step18-completion.md` - Documentación completa del paso
+
+---
+
+## 📍 SIGUIENTE PASO (Paso 19)
+
+### 🔧 Optimización - Caché de Resúmenes con Redis
 
 **¿Qué implementar?**
-- [ ] Implementar command `/recent` - Últimos 10 resúmenes de canales suscritos
-- [ ] Implementar command `/search <query>` - Buscar en histórico por keyword
-- [ ] Formatear mensajes con:
-  - 📹 Título del video
-  - 🔗 Link de YouTube
-  - ⏱️ Duración
-  - 🏷️ Tags (#FastAPI #Python)
-  - 📝 Resumen
-- [ ] Añadir botón inline "Ver más" o "Reenviar"
-- [ ] Consumir API interna o repositories directamente
+- [ ] Implementar caching de resúmenes frecuentes con Redis
+- [ ] Estrategia de invalidación de caché
+- [ ] Optimización de queries N+1 con eager loading
+- [ ] Métricas de cache hit/miss
 
 **Próximos pasos:**
 1. ✅ Paso 16: Suscripciones interactivas (COMPLETADO)
-2. 📍 Paso 17: Historial y búsqueda (`/recent`, `/search`) ← SIGUIENTE
-3. Paso 18: Worker de distribución personalizada
-4. Paso 19: Celery setup + workers asíncronos
-5. Paso 20: Jobs programados con Celery Beat
+2. ✅ Paso 17: Historial y búsqueda (COMPLETADO)
+3. ✅ Paso 18: Worker de distribución personalizada (COMPLETADO)
+4. 📍 Paso 19: Caché de resúmenes con Redis ← SIGUIENTE
+5. Paso 20: Métricas y monitorización con Prometheus
 
 ---
 
@@ -274,4 +353,28 @@ src/
 
 ---
 
-**🚀 Estado General:** En progreso, ~65% completado (~3.5 de 5 semanas)
+**🚀 Estado General:** En progreso, ~70% completado (~3.8 de 5 semanas)
+
+---
+
+## 🎉 Hito Alcanzado: Pipeline Completo End-to-End
+
+El proyecto ha alcanzado un **hito crítico**: el pipeline completo funciona de forma **100% automática** desde la URL de YouTube hasta la distribución en Telegram:
+
+```
+📥 URL YouTube → 🎵 Descarga Audio → 🎙️ Whisper → 🤖 DeepSeek → 📤 Telegram Bot
+```
+
+**Sin intervención manual:**
+1. Video se encola para procesamiento
+2. Audio se descarga con yt-dlp
+3. Whisper transcribe el contenido
+4. DeepSeek genera resumen con keywords
+5. Celery worker distribuye a usuarios suscritos vía Telegram
+6. Usuarios reciben notificación automática en sus chats
+
+**Sistema multi-usuario funcionando:**
+- ✅ Suscripciones personalizadas por canal
+- ✅ Historial individual con `/recent`
+- ✅ Búsqueda full-text con `/search`
+- ✅ Notificaciones automáticas de nuevos contenidos
