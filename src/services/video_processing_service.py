@@ -16,11 +16,13 @@ El servicio implementa:
 """
 
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.core.config import settings
 from src.models import Summary, Transcription, Video
 from src.models.video import VideoStatus
 from src.repositories.transcription_repository import TranscriptionRepository
@@ -159,6 +161,48 @@ class VideoProcessingService:
                 f"Video {video_id} está en estado '{video.status.value}', "
                 f"solo se pueden procesar videos en estado 'pending' o 'failed'"
             )
+
+        # ==================== VALIDACIÓN DE DURACIÓN ====================
+        if video.duration_seconds and video.duration_seconds > settings.MAX_VIDEO_DURATION_SECONDS:
+            max_duration_formatted = self._format_duration(settings.MAX_VIDEO_DURATION_SECONDS)
+            actual_duration_formatted = self._format_duration(video.duration_seconds)
+
+            logger.warning(
+                "video_skipped_duration_exceeded",
+                extra={
+                    "video_id": str(video_id),
+                    "youtube_id": video.youtube_id,
+                    "title": video.title,
+                    "duration_seconds": video.duration_seconds,
+                    "max_allowed_seconds": settings.MAX_VIDEO_DURATION_SECONDS,
+                    "skip_reason": "duration_exceeded",
+                },
+            )
+
+            # Marcar como SKIPPED y guardar razón en metadata
+            video.status = VideoStatus.SKIPPED
+            video.extra_metadata = video.extra_metadata or {}
+            video.extra_metadata.update({
+                "skip_reason": "duration_exceeded",
+                "max_allowed_seconds": settings.MAX_VIDEO_DURATION_SECONDS,
+                "actual_duration_seconds": video.duration_seconds,
+                "skipped_at": datetime.now(timezone.utc).isoformat(),
+            })
+
+            session.commit()
+
+            logger.info(
+                "video_marked_as_skipped",
+                extra={
+                    "video_id": str(video_id),
+                    "reason": "duration_exceeded",
+                    "duration": actual_duration_formatted,
+                    "max_allowed": max_duration_formatted,
+                },
+            )
+
+            return video
+        # ==================== FIN VALIDACIÓN ====================
 
         logger.info(
             "video_processing_started",
@@ -535,3 +579,28 @@ class VideoProcessingService:
                     "error": str(e),
                 },
             )
+
+    def _format_duration(self, seconds: int) -> str:
+        """
+        Convierte segundos a formato legible HH:MM:SS o MM:SS.
+
+        Args:
+            seconds: Duración en segundos.
+
+        Returns:
+            String formateado (ej: "35:59", "1:02:15").
+
+        Example:
+            >>> service._format_duration(2159)
+            '35:59'
+            >>> service._format_duration(3665)
+            '1:01:05'
+        """
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        secs = seconds % 60
+
+        if hours > 0:
+            return f"{hours}:{minutes:02d}:{secs:02d}"
+        else:
+            return f"{minutes}:{secs:02d}"
