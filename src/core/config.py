@@ -50,6 +50,18 @@ class Settings(BaseSettings):
         examples=["redis://localhost:6379/0"],
     )
 
+    CACHE_ENABLED: bool = Field(
+        default=True,
+        description="Habilitar sistema de caché con Redis (desactivar solo para debugging)",
+    )
+
+    CACHE_DEFAULT_TTL: int = Field(
+        default=3600,
+        ge=60,
+        le=86400,
+        description="TTL por defecto para caché en segundos (1 hora por defecto)",
+    )
+
     # ==================== API KEYS ====================
     DEEPSEEK_API_KEY: str = Field(
         min_length=20,
