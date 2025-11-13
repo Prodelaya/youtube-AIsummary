@@ -54,6 +54,7 @@ class TelegramUser(TimestampedUUIDBase):
         last_name: Apellido del usuario (opcional)
         is_active: Si el usuario está activo (default True)
         language_code: Código de idioma del usuario ("es", "en", etc.)
+        bot_blocked: Si el usuario bloqueó el bot o el chat no existe (default False)
         created_at: Timestamp de registro (de TimestampedUUIDBase)
         updated_at: Timestamp última modificación (de TimestampedUUIDBase)
         sources: Relación M:N con Source (fuentes suscritas)
@@ -110,6 +111,12 @@ class TelegramUser(TimestampedUUIDBase):
         comment="Código ISO 639-1 del idioma del usuario",
     )
 
+    bot_blocked: Mapped[bool] = mapped_column(
+        nullable=False,
+        default=False,
+        comment="Usuario ha bloqueado el bot o chat no existe",
+    )
+
     # ==================== RELACIONES ====================
 
     # Relación M:N con Source (fuentes suscritas)
@@ -154,6 +161,7 @@ class TelegramUser(TimestampedUUIDBase):
             "last_name": self.last_name,
             "is_active": self.is_active,
             "language_code": self.language_code,
+            "bot_blocked": self.bot_blocked,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
