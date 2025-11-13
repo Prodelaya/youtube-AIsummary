@@ -88,6 +88,15 @@ class Settings(BaseSettings):
         examples=["123456789:ABCdefGHIjklMNOpqrsTUVwxyz"],
     )
 
+    # ==================== LÍMITES DE PROCESAMIENTO ====================
+    MAX_VIDEO_DURATION_SECONDS: int = Field(
+        default=2159,  # 35:59 en segundos
+        ge=60,  # Mínimo 1 minuto
+        le=7200,  # Máximo 2 horas
+        description="Duración máxima de video para procesar (en segundos). "
+                    "Videos más largos se marcarán como SKIPPED para ahorrar recursos.",
+    )
+
     # ==================== CONFIGURACIÓN API ====================
     API_HOST: str = Field(
         default="0.0.0.0",
