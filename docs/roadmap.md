@@ -502,7 +502,7 @@ git commit -m "chore: add python-telegram-bot dependency"
 
 ---
 
-### Paso 16: Bot de Telegram - Suscripciones Interactivas
+### Paso 16: Bot de Telegram - Suscripciones Interactivas (✅ COMPLETADO)
 **¿Qué hacer?**
 - Implementar command `/sources` con inline keyboard
 - Mostrar lista de canales con botones ✅/❌ (suscrito/no suscrito)
@@ -515,16 +515,21 @@ git commit -m "chore: add python-telegram-bot dependency"
 - Feedback visual inmediato (✅/❌)
 - Reduce errores del usuario (no tipear nombres de canales)
 
-**Validación:**
-- `/sources` muestra teclado con canales disponibles
-- Click en botón actualiza suscripción en BD
-- Teclado se actualiza reflejando nuevo estado
+**Estado:**
+- ✅ Handler `/sources` con inline keyboard implementado
+- ✅ Callback handler `toggle_subscription_callback` funcional
+- ✅ Toggle idempotente con manejo de race conditions
+- ✅ Actualización dinámica de texto y botones (contador + emojis)
+- ✅ Integrado en telegram_bot.py con CallbackQueryHandler
+- ✅ Tests comprehensivos (test_sources_handler.py)
+
+**Archivos creados:**
+- `src/bot/handlers/sources.py` (348 líneas)
+- `tests/bot/test_sources_handler.py`
 
 **Git:**
 ```bash
-git commit -m "feat(bot): add /sources command with inline keyboard"
-git commit -m "feat(bot): add subscription toggle callback handlers"
-git commit -m "test(bot): add subscription toggle tests"
+git commit -m "feat(bot): add interactive /sources subscription management"
 ```
 **Nos da paso a:** Commands de consulta de histórico.
 
@@ -964,8 +969,8 @@ git commit -m "docs: finalize ADRs for key technical decisions"
 
 ### 📍 Semana 4: Bot Telegram Multi-Usuario (EN PROGRESO)
 - **Lunes:** Bot - Setup básico + /start + /help ✅
-- **Martes:** Bot - Suscripciones interactivas con inline keyboards ← 📍 AQUÍ ESTAMOS
-- **Miércoles:** Bot - Historial y búsqueda (/recent, /search)
+- **Martes:** Bot - Suscripciones interactivas con inline keyboards ✅
+- **Miércoles:** Bot - Historial y búsqueda (/recent, /search) ← 📍 AQUÍ ESTAMOS
 - **Jueves:** Worker de distribución personalizada (ADR-010)
 - **Viernes:** Logging estructurado
 

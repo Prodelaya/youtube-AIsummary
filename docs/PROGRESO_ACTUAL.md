@@ -1,6 +1,6 @@
 # 📊 PROGRESO ACTUAL DEL PROYECTO
 
-**Última actualización:** 2025-11-12
+**Última actualización:** 2025-11-13
 **Estado:** Semana 4 - Bot Telegram en progreso
 
 ---
@@ -22,47 +22,47 @@ El proyecto ha completado **3 semanas completas** de desarrollo, con las siguien
 ## ✅ COMPLETADO (Pasos 1-14)
 
 ### 📦 Infraestructura y Base
-| Paso | Componente | Estado | Commits |
-|------|-----------|--------|---------|
-| 1-3 | Arquitectura + Poetry + Git | ✅ | `docs: initial architecture`, `chore: setup Poetry` |
-| 4-7 | Docker + Config + FastAPI + ORM | ✅ | `feat: Docker Compose`, `feat: Alembic migrations` |
+| Paso | Componente                      | Estado | Commits                                             |
+| ---- | ------------------------------- | ------ | --------------------------------------------------- |
+| 1-3  | Arquitectura + Poetry + Git     | ✅      | `docs: initial architecture`, `chore: setup Poetry` |
+| 4-7  | Docker + Config + FastAPI + ORM | ✅      | `feat: Docker Compose`, `feat: Alembic migrations`  |
 
 ### 🔧 Servicios Core
-| Paso | Servicio | Descripción | Estado |
-|------|----------|-------------|--------|
-| 8 | `SummarizationService` | DeepSeek API con SDK OpenAI | ✅ |
-| 9 | `DownloaderService` | yt-dlp para descarga de audio | ✅ |
-| 10 | `TranscriptionService` | Whisper local (modelo base) | ✅ |
-| 13 | `VideoProcessingService` | Orquestador del pipeline completo | ✅ |
+| Paso | Servicio                 | Descripción                       | Estado |
+| ---- | ------------------------ | --------------------------------- | ------ |
+| 8    | `SummarizationService`   | DeepSeek API con SDK OpenAI       | ✅      |
+| 9    | `DownloaderService`      | yt-dlp para descarga de audio     | ✅      |
+| 10   | `TranscriptionService`   | Whisper local (modelo base)       | ✅      |
+| 13   | `VideoProcessingService` | Orquestador del pipeline completo | ✅      |
 
 ### 💾 Modelos de Datos
-| Modelo | Descripción | Relaciones | Estado |
-|--------|-------------|-----------|--------|
-| `Source` | Fuentes de contenido (YouTube, RSS) | 1:N con Video | ✅ |
-| `Video` | Videos descargados y metadata | 1:1 con Transcription | ✅ |
-| `Transcription` | Texto transcrito por Whisper | 1:1 con Summary | ✅ |
-| `Summary` | Resúmenes generados por DeepSeek | N:M con TelegramUser | ✅ |
-| `TelegramUser` | Usuarios del bot multi-usuario | M:N con Source | ✅ |
+| Modelo          | Descripción                         | Relaciones            | Estado |
+| --------------- | ----------------------------------- | --------------------- | ------ |
+| `Source`        | Fuentes de contenido (YouTube, RSS) | 1:N con Video         | ✅      |
+| `Video`         | Videos descargados y metadata       | 1:1 con Transcription | ✅      |
+| `Transcription` | Texto transcrito por Whisper        | 1:1 con Summary       | ✅      |
+| `Summary`       | Resúmenes generados por DeepSeek    | N:M con TelegramUser  | ✅      |
+| `TelegramUser`  | Usuarios del bot multi-usuario      | M:N con Source        | ✅      |
 
 **Tabla intermedia:** `user_source_subscriptions` (M:N entre usuarios y fuentes)
 
 ### 🗄️ Repository Pattern
-| Repository | Métodos especializados | Estado |
-|-----------|----------------------|--------|
-| `BaseRepository[T]` | CRUD genérico con TypeVar | ✅ |
-| `SourceRepository` | Búsqueda por tipo, activas | ✅ |
-| `VideoRepository` | Filtros por estado, soft delete | ✅ |
-| `TranscriptionRepository` | Búsqueda por video_id | ✅ |
-| `SummaryRepository` | Full-text search, filtros por categoría | ✅ |
-| `TelegramUserRepository` | Queries de suscripciones M:N | ✅ |
+| Repository                | Métodos especializados                  | Estado |
+| ------------------------- | --------------------------------------- | ------ |
+| `BaseRepository[T]`       | CRUD genérico con TypeVar               | ✅      |
+| `SourceRepository`        | Búsqueda por tipo, activas              | ✅      |
+| `VideoRepository`         | Filtros por estado, soft delete         | ✅      |
+| `TranscriptionRepository` | Búsqueda por video_id                   | ✅      |
+| `SummaryRepository`       | Full-text search, filtros por categoría | ✅      |
+| `TelegramUserRepository`  | Queries de suscripciones M:N            | ✅      |
 
 ### 🌐 API REST (18 endpoints)
-| Router | Endpoints | Descripción | Estado |
-|--------|-----------|-------------|--------|
-| `/videos` | 10 endpoints | CRUD + procesamiento + stats | ✅ |
-| `/transcriptions` | 2 endpoints | Listado paginado + detalle | ✅ |
-| `/summaries` | 4 endpoints | CRUD + búsqueda full-text | ✅ |
-| `/stats` | 2 endpoints | Globales + por fuente | ✅ |
+| Router            | Endpoints    | Descripción                  | Estado |
+| ----------------- | ------------ | ---------------------------- | ------ |
+| `/videos`         | 10 endpoints | CRUD + procesamiento + stats | ✅      |
+| `/transcriptions` | 2 endpoints  | Listado paginado + detalle   | ✅      |
+| `/summaries`      | 4 endpoints  | CRUD + búsqueda full-text    | ✅      |
+| `/stats`          | 2 endpoints  | Globales + por fuente        | ✅      |
 
 **Features adicionales:**
 - ✅ Paginación cursor-based en listados
@@ -116,22 +116,67 @@ tests/bot/
 
 ---
 
-## 📍 SIGUIENTE PASO (Paso 16)
+### 🤖 Paso 16: Bot de Telegram - Suscripciones Interactivas (✅ COMPLETADO)
 
-### 🤖 Bot de Telegram - Suscripciones Interactivas
+**Implementación:**
+- ✅ Implementado command `/sources` con inline keyboard
+- ✅ Mostrar canales disponibles con botones ✅/❌ (suscrito/no suscrito)
+- ✅ Callback handler para toggle de suscripciones en tiempo real
+- ✅ Actualización dinámica del teclado y contador de suscripciones
+- ✅ Integración con TelegramUserRepository y SourceRepository
+- ✅ Tests comprehensivos para handlers
 
-**¿Qué falta?**
-- [ ] Implementar command `/sources` con inline keyboards
-- [ ] Mostrar lista de canales disponibles
-- [ ] Botones interactivos ✅/❌ (suscrito/no suscrito)
-- [ ] Toggle de suscripciones en tiempo real
-- [ ] Actualización dinámica del teclado
+**Archivos creados:**
+```
+src/bot/handlers/
+└── sources.py                (348 líneas)
+
+tests/bot/
+└── test_sources_handler.py   (tests unitarios)
+```
+
+**Funcionalidad validada:**
+- ✅ `/sources` muestra teclado con canales disponibles
+- ✅ Click en botón alterna suscripción en BD (idempotente)
+- ✅ Texto y botones se actualizan dinámicamente (contador + emojis)
+- ✅ Manejo de race conditions con AlreadyExistsError/NotFoundError
+- ✅ Feedback inmediato con `answer_callback_query`
+
+**Decisiones técnicas:**
+- Toggle idempotente usando `is_subscribed()` antes de ejecutar acción
+- `query.edit_message_text()` para actualizar texto + markup simultáneamente
+- Funciones auxiliares síncronas envueltas con `asyncio.to_thread()`
+- Un botón por fila para mejor UX móvil
+
+**Fix aplicado:**
+- 🐛 Corregido contador de suscripciones que no se actualizaba (línea 178)
+  - Cambio de `edit_message_reply_markup()` a `edit_message_text()`
+  - Ahora actualiza tanto texto como botones en cada toggle
+
+---
+
+## 📍 SIGUIENTE PASO (Paso 17)
+
+### 🤖 Bot de Telegram - Historial y Búsqueda
+
+**¿Qué implementar?**
+- [ ] Implementar command `/recent` - Últimos 10 resúmenes de canales suscritos
+- [ ] Implementar command `/search <query>` - Buscar en histórico por keyword
+- [ ] Formatear mensajes con:
+  - 📹 Título del video
+  - 🔗 Link de YouTube
+  - ⏱️ Duración
+  - 🏷️ Tags (#FastAPI #Python)
+  - 📝 Resumen
+- [ ] Añadir botón inline "Ver más" o "Reenviar"
+- [ ] Consumir API interna o repositories directamente
 
 **Próximos pasos:**
-1. Paso 17: Historial y búsqueda (`/recent`, `/search`)
-2. Paso 18: Worker de distribución personalizada
-3. Paso 19: Celery setup + workers asíncronos
-4. Paso 20: Jobs programados con Celery Beat
+1. ✅ Paso 16: Suscripciones interactivas (COMPLETADO)
+2. 📍 Paso 17: Historial y búsqueda (`/recent`, `/search`) ← SIGUIENTE
+3. Paso 18: Worker de distribución personalizada
+4. Paso 19: Celery setup + workers asíncronos
+5. Paso 20: Jobs programados con Celery Beat
 
 ---
 
@@ -146,9 +191,9 @@ src/
 ├── api/
 │   ├── routes/    4 routers con 18 endpoints totales
 │   └── schemas/   Schemas Pydantic v2 para request/response
-├── bot/           Bot de Telegram (3 archivos, ~340 líneas)
+├── bot/           Bot de Telegram (4 archivos, ~688 líneas)
 │   ├── telegram_bot.py
-│   └── handlers/  2 handlers (/start, /help)
+│   └── handlers/  3 handlers (/start, /help, /sources)
 └── core/          Config, Database, Celery setup
 ```
 
@@ -160,7 +205,7 @@ src/
 
 ### Tests
 - ✅ Tests API (suite completa con pytest)
-- ✅ Tests bot de Telegram (6 tests unitarios)
+- ✅ Tests bot de Telegram (6 tests básicos + tests de sources handler)
 - ⏳ Tests unitarios de servicios (pendiente)
 - ⏳ Tests de integración (pendiente)
 - 🎯 **Objetivo:** >80% de cobertura
@@ -187,7 +232,9 @@ src/
 ### 📍 Semana Actual (4)
 
 **Bot Telegram Multi-Usuario**
-- Setup básico + `/start` + `/help` ← AQUÍ ESTAMOS
+- ✅ Setup básico + `/start` + `/help`
+- ✅ Suscripciones interactivas con `/sources`
+- 📍 Historial y búsqueda (`/recent`, `/search`) ← AQUÍ ESTAMOS
 
 ### ⏳ Próximas Semanas
 
@@ -198,13 +245,13 @@ src/
 
 ## 🎯 Próximos Hitos
 
-| Hito | Semana | Prioridad |
-|------|--------|-----------|
-| Bot Telegram funcional | 4 | 🔴 Alta |
-| Worker de distribución | 4 | 🔴 Alta |
-| Suite de tests >80% | 5 | 🟡 Media |
-| Métricas Prometheus | 5 | 🟡 Media |
-| CI/CD con GitHub Actions | 5-6 | 🟢 Baja |
+| Hito                     | Semana | Prioridad |
+| ------------------------ | ------ | --------- |
+| Bot Telegram funcional   | 4      | 🔴 Alta    |
+| Worker de distribución   | 4      | 🔴 Alta    |
+| Suite de tests >80%      | 5      | 🟡 Media   |
+| Métricas Prometheus      | 5      | 🟡 Media   |
+| CI/CD con GitHub Actions | 5-6    | 🟢 Baja    |
 
 ---
 
@@ -227,4 +274,4 @@ src/
 
 ---
 
-**🚀 Estado General:** En progreso, 60% completado (~3 de 5 semanas)
+**🚀 Estado General:** En progreso, ~65% completado (~3.5 de 5 semanas)
