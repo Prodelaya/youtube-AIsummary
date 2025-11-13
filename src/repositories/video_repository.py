@@ -303,3 +303,51 @@ class VideoRepository(BaseRepository[Video]):
         self.session.commit()
         self.session.refresh(video)
         return video
+
+    def get_skipped_videos(
+        self, source_id: UUID | None = None, limit: int = 50
+    ) -> list[Video]:
+        """
+        Obtiene videos que fueron descartados (status=SKIPPED).
+
+        Útil para reportes y análisis de contenido no procesado.
+
+        Args:
+            source_id: Filtrar por fuente específica (opcional).
+            limit: Máximo de resultados (default 50).
+
+        Returns:
+            Lista de videos con status SKIPPED, ordenados por fecha.
+
+        Example:
+            skipped = repo.get_skipped_videos(limit=10)
+            for video in skipped:
+                print(f"Skipped: {video.title} ({video.duration_seconds}s)")
+        """
+        query = self.session.query(Video).filter(Video.status == VideoStatus.SKIPPED)
+
+        if source_id:
+            query = query.filter(Video.source_id == source_id)
+
+        return query.order_by(Video.created_at.desc()).limit(limit).all()
+
+    def get_stats_by_status(self) -> dict[VideoStatus, int]:
+        """
+        Cuenta videos agrupados por status.
+
+        Returns:
+            Dict con counts por status: {PENDING: 5, COMPLETED: 20, SKIPPED: 3, ...}
+
+        Example:
+            stats = repo.get_stats_by_status()
+            print(f"Videos descartados: {stats.get(VideoStatus.SKIPPED, 0)}")
+        """
+        from sqlalchemy import func
+
+        result = (
+            self.session.query(Video.status, func.count(Video.id))
+            .group_by(Video.status)
+            .all()
+        )
+
+        return {status: count for status, count in result}
