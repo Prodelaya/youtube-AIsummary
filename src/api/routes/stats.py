@@ -269,3 +269,89 @@ def get_source_stats(
         avg_processing_time_seconds=avg_processing_time,
         total_transcription_words=total_transcription_words,
     )
+
+
+@router.get(
+    "/videos/skipped",
+    response_model=dict,
+    summary="Get skipped videos statistics",
+    description="Get videos that were skipped due to exceeding duration limit or other criteria.",
+    responses={
+        200: {
+            "description": "Skipped videos statistics",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "total_skipped": 15,
+                        "breakdown": {"duration_exceeded": 15},
+                        "videos": [
+                            {
+                                "id": "123e4567-e89b-12d3-a456-426614174000",
+                                "youtube_id": "dQw4w9WgXcQ",
+                                "title": "Long Video Title",
+                                "duration_seconds": 3600,
+                                "duration_formatted": "1:00:00",
+                                "skip_reason": "duration_exceeded",
+                                "skipped_at": "2025-11-13T12:00:00Z",
+                            }
+                        ],
+                    }
+                }
+            },
+        },
+    },
+)
+def get_skipped_videos_stats(
+    db: DBSession,
+    source_id: UUID | None = None,
+) -> dict:
+    """
+    Estadísticas de videos descartados por duración u otros criterios.
+
+    Permite analizar qué contenido no se está procesando y por qué.
+    Útil para ajustar el límite de duración o identificar patrones.
+
+    Args:
+        db: Sesión de BD (inyectada).
+        source_id: Filtrar por fuente específica (opcional).
+
+    Returns:
+        dict: Estadísticas y lista de videos descartados.
+
+    Example:
+        GET /api/v1/stats/videos/skipped
+        GET /api/v1/stats/videos/skipped?source_id=123e4567-e89b-12d3-a456-426614174000
+    """
+    from src.bot.utils.formatters import format_duration
+
+    query = db.query(Video).filter(Video.status == VideoStatus.SKIPPED)
+
+    if source_id:
+        query = query.filter(Video.source_id == source_id)
+
+    skipped_videos = query.order_by(Video.created_at.desc()).limit(50).all()
+
+    return {
+        "total_skipped": len(skipped_videos),
+        "breakdown": {
+            "duration_exceeded": sum(
+                1
+                for v in skipped_videos
+                if v.extra_metadata and v.extra_metadata.get("skip_reason") == "duration_exceeded"
+            )
+        },
+        "videos": [
+            {
+                "id": str(v.id),
+                "youtube_id": v.youtube_id,
+                "title": v.title,
+                "duration_seconds": v.duration_seconds,
+                "duration_formatted": (
+                    format_duration(v.duration_seconds) if v.duration_seconds else None
+                ),
+                "skip_reason": v.extra_metadata.get("skip_reason") if v.extra_metadata else None,
+                "skipped_at": v.extra_metadata.get("skipped_at") if v.extra_metadata else None,
+            }
+            for v in skipped_videos
+        ],
+    }
