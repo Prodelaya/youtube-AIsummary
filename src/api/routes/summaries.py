@@ -14,7 +14,7 @@ Incluyen puntos clave, temas y texto completo del resumen.
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Header, HTTPException, Query, Response, status
 
 from src.api.dependencies import SummaryRepo
 from src.api.schemas.common import CursorInfo
@@ -25,6 +25,7 @@ from src.api.schemas.summaries import (
     SummarySearchResponse,
     SummarySearchResult,
 )
+from src.services.cache_service import cache_service
 
 # ==================== ROUTER ====================
 
@@ -115,18 +116,27 @@ def list_summaries(
     "/{summary_id}",
     response_model=SummaryResponse,
     summary="Get summary details",
-    description="Get full summary text, key points, and topics by ID.",
+    description="Get full summary text, key points, and topics by ID. Supports cache bypass with header.",
 )
 def get_summary(
     summary_id: UUID,
     summary_repo: SummaryRepo,
+    response: Response,
+    x_cache_bypass: bool = Header(default=False, alias="X-Cache-Bypass"),
 ) -> SummaryResponse:
     """
     Obtener detalle completo de un resumen.
 
+    Soporta caché con headers:
+    - X-Cache-Status: HIT|MISS (response header)
+    - X-Cache-Bypass: true (request header para forzar lectura de BD)
+    - X-Cache-TTL: seconds (response header con TTL restante)
+
     Args:
         summary_id: UUID del resumen.
         summary_repo: Repositorio de resumenes (inyectado).
+        response: Response object para añadir headers.
+        x_cache_bypass: Si True, fuerza lectura desde BD (ignora caché).
 
     Returns:
         SummaryResponse: Resumen completo con texto y puntos clave.
@@ -136,13 +146,41 @@ def get_summary(
 
     Example:
         GET /api/v1/summaries/123e4567-e89b-12d3-a456-426614174000
+        GET /api/v1/summaries/123e4567-e89b-12d3-a456-426614174000
+        Headers: X-Cache-Bypass: true
     """
-    summary = summary_repo.get_by_id(summary_id)
+    # Determinar si usar caché (por defecto sí, a menos que bypass esté activo)
+    use_cache = not x_cache_bypass
+
+    # Verificar si hay cache hit antes de consultar
+    cache_key = f"summary:detail:{summary_id}"
+    cache_status = "MISS"
+
+    if use_cache and cache_service.exists(cache_key):
+        cache_status = "HIT"
+
+    # Obtener resumen (con o sin caché)
+    summary = summary_repo.get_by_id(summary_id, use_cache=use_cache)
+
     if not summary:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Summary {summary_id} not found",
         )
+
+    # Añadir headers de caché
+    response.headers["X-Cache-Status"] = cache_status
+
+    if cache_status == "HIT":
+        # Obtener TTL restante (aproximado, puede haber expirado entre exists y aquí)
+        try:
+            if cache_service.redis_client:
+                ttl = cache_service.redis_client.ttl(cache_key)
+                if ttl > 0:
+                    response.headers["X-Cache-TTL"] = str(ttl)
+        except Exception:
+            # Si falla obtener TTL, no es crítico
+            pass
 
     return SummaryResponse.model_validate(summary)
 

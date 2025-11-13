@@ -4,15 +4,21 @@ Repository para el modelo Summary.
 Extiende BaseRepository con métodos específicos para búsqueda
 avanzada, filtrado por categoría/keywords y full-text search
 en PostgreSQL.
+
+Incluye integración con CacheService para optimizar queries frecuentes.
 """
 
+import logging
 from uuid import UUID
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from src.models import Summary
+from src.models import Summary, Transcription, Video
 from src.repositories.base_repository import BaseRepository
+from src.services.cache_service import cache_service, hash_query
+
+logger = logging.getLogger(__name__)
 
 
 class SummaryRepository(BaseRepository[Summary]):
@@ -36,6 +42,55 @@ class SummaryRepository(BaseRepository[Summary]):
         """
         super().__init__(session, Summary)
 
+    def get_by_id(self, summary_id: UUID, use_cache: bool = True) -> Summary | None:
+        """
+        Obtiene resumen por ID con soporte de caché.
+
+        Args:
+            summary_id: UUID del resumen
+            use_cache: Si True, intenta obtener de caché primero (default: True)
+
+        Returns:
+            Summary si existe, None si no existe
+
+        Example:
+            # Con caché
+            summary = repo.get_by_id(summary_id)
+
+            # Sin caché (forzar DB)
+            summary = repo.get_by_id(summary_id, use_cache=False)
+        """
+        cache_key = f"summary:detail:{summary_id}"
+
+        # Intentar obtener de caché
+        if use_cache:
+            cached_data = cache_service.get(cache_key, cache_type="summary")
+            if cached_data:
+                logger.debug(f"Cache hit for summary {summary_id}")
+                # Reconstituir objeto Summary desde dict
+                return Summary(**cached_data)
+
+        # Cache miss o caché deshabilitado: consultar BD
+        summary = self.session.query(Summary).filter(Summary.id == summary_id).first()
+
+        if summary and use_cache:
+            # Almacenar en caché (TTL: 24 horas)
+            summary_dict = {
+                "id": str(summary.id),
+                "transcription_id": str(summary.transcription_id),
+                "summary_text": summary.summary_text,
+                "category": summary.category,
+                "keywords": summary.keywords,
+                "model_used": summary.model_used,
+                "sent_to_telegram": summary.sent_to_telegram,
+                "created_at": summary.created_at.isoformat() if summary.created_at else None,
+                "sent_at": summary.sent_at.isoformat() if summary.sent_at else None,
+            }
+            cache_service.set(cache_key, summary_dict, ttl=86400, cache_type="summary")
+            logger.debug(f"Cache set for summary {summary_id}")
+
+        return summary
+
     def get_by_transcription_id(self, transcription_id: UUID) -> Summary | None:
         """
         Busca el resumen de una transcripción específica.
@@ -57,7 +112,7 @@ class SummaryRepository(BaseRepository[Summary]):
             self.session.query(Summary).filter(Summary.transcription_id == transcription_id).first()
         )
 
-    def get_recent(self, limit: int = 10) -> list[Summary]:
+    def get_recent(self, limit: int = 10, with_relations: bool = False) -> list[Summary]:
         """
         Obtiene los resúmenes más recientes, ordenados por fecha de creación.
 
@@ -65,35 +120,74 @@ class SummaryRepository(BaseRepository[Summary]):
 
         Args:
             limit: Número máximo de resultados (default 10)
+            with_relations: Si True, hace eager loading de video y source (default: False)
 
         Returns:
             Lista de resúmenes recientes, ordenados descendentemente
 
         Example:
+            # Sin relaciones (más rápido)
             recent = repo.get_recent(limit=10)
-            for summary in recent:
-                bot.send_message(chat_id, summary.summary)
-        """
-        return self.session.query(Summary).order_by(Summary.created_at.desc()).limit(limit).all()
 
-    def search_by_text(self, query: str, limit: int = 20) -> list[Summary]:
+            # Con relaciones cargadas (evita N+1 queries)
+            recent = repo.get_recent(limit=10, with_relations=True)
+            for summary in recent:
+                print(summary.transcription.video.title)
+        """
+        query = self.session.query(Summary)
+
+        # Eager loading de relaciones si se solicita
+        if with_relations:
+            query = query.options(
+                joinedload(Summary.transcription)
+                .joinedload(Transcription.video)
+                .joinedload(Video.source)
+            )
+
+        return query.order_by(Summary.created_at.desc()).limit(limit).all()
+
+    def search_by_text(self, query: str, limit: int = 20, use_cache: bool = True) -> list[Summary]:
         """
         Búsqueda full-text en el campo summary usando PostgreSQL.
 
         Usa el índice GIN creado en la migración para búsquedas eficientes.
         Soporta búsqueda en español (configuración 'spanish' en to_tsvector).
+        Cachea resultados para queries frecuentes.
 
         Args:
             query: Texto a buscar (ej: "FastAPI python async")
             limit: Máximo de resultados (default 20)
+            use_cache: Si True, intenta obtener de caché primero (default: True)
 
         Returns:
             Lista de resúmenes que coinciden con la búsqueda, ordenados por relevancia
 
         Example:
+            # Con caché
             results = repo.search_by_text("FastAPI async", limit=10)
+
+            # Sin caché (forzar búsqueda fresca)
+            results = repo.search_by_text("FastAPI async", limit=10, use_cache=False)
         """
-        return (
+        # Generar key de caché
+        query_hash_str = hash_query(query)
+        cache_key = f"search:{query_hash_str}:results:{limit}"
+
+        # Intentar obtener de caché (solo IDs)
+        if use_cache:
+            cached_ids = cache_service.get(cache_key, cache_type="search")
+            if cached_ids:
+                logger.debug(f"Cache hit for search query: {query}")
+                # Obtener resúmenes por IDs (usa caché individual de cada resumen)
+                summaries = []
+                for summary_id in cached_ids:
+                    summary = self.get_by_id(UUID(summary_id), use_cache=True)
+                    if summary:
+                        summaries.append(summary)
+                return summaries
+
+        # Cache miss: ejecutar búsqueda
+        summaries = (
             self.session.query(Summary)
             .filter(
                 func.to_tsvector("spanish", Summary.summary_text).op("@@")(
@@ -103,6 +197,31 @@ class SummaryRepository(BaseRepository[Summary]):
             .limit(limit)
             .all()
         )
+
+        if summaries and use_cache:
+            # Cachear lista de IDs (TTL: 10 minutos)
+            summary_ids = [str(s.id) for s in summaries]
+            cache_service.set(cache_key, summary_ids, ttl=600, cache_type="search")
+            logger.debug(f"Cache set for search query: {query} ({len(summary_ids)} results)")
+
+            # Cachear resúmenes individuales si no están cacheados
+            for summary in summaries:
+                summary_cache_key = f"summary:detail:{summary.id}"
+                if not cache_service.exists(summary_cache_key):
+                    summary_dict = {
+                        "id": str(summary.id),
+                        "transcription_id": str(summary.transcription_id),
+                        "summary_text": summary.summary_text,
+                        "category": summary.category,
+                        "keywords": summary.keywords,
+                        "model_used": summary.model_used,
+                        "sent_to_telegram": summary.sent_to_telegram,
+                        "created_at": summary.created_at.isoformat() if summary.created_at else None,
+                        "sent_at": summary.sent_at.isoformat() if summary.sent_at else None,
+                    }
+                    cache_service.set(summary_cache_key, summary_dict, ttl=86400, cache_type="summary")
+
+        return summaries
 
     def get_by_category(self, category: str) -> list[Summary]:
         """
@@ -316,3 +435,70 @@ class SummaryRepository(BaseRepository[Summary]):
             {"summary": summary, "relevance_score": float(score), "id": summary.id}
             for summary, score in results
         ]
+
+    # ==================== MÉTODOS DE INVALIDACIÓN DE CACHÉ ====================
+
+    def invalidate_summary_cache(self, summary_id: UUID) -> None:
+        """
+        Invalida caché de un resumen específico.
+
+        Args:
+            summary_id: UUID del resumen a invalidar
+
+        Example:
+            repo.invalidate_summary_cache(summary_id)
+        """
+        cache_key = f"summary:detail:{summary_id}"
+        deleted = cache_service.delete(cache_key)
+
+        logger.info(
+            f"Invalidated cache for summary {summary_id}",
+            extra={"summary_id": str(summary_id), "cache_deleted": deleted},
+        )
+
+    def invalidate_search_cache(self, keywords: list[str] | None = None) -> None:
+        """
+        Invalida caché de búsquedas.
+
+        Args:
+            keywords: Si se especifica, invalida solo búsquedas relacionadas.
+                     Si es None, invalida todas las búsquedas.
+
+        Example:
+            # Invalidar búsquedas específicas
+            repo.invalidate_search_cache(keywords=["fastapi", "python"])
+
+            # Invalidar todas las búsquedas
+            repo.invalidate_search_cache()
+        """
+        if keywords:
+            # Invalidar búsquedas específicas por keyword
+            for keyword in keywords:
+                query_hash_str = hash_query(keyword)
+                pattern = f"search:{query_hash_str}:*"
+                deleted_count = cache_service.invalidate_pattern(pattern)
+                logger.debug(
+                    f"Invalidated search cache for keyword '{keyword}'",
+                    extra={"keyword": keyword, "deleted_count": deleted_count},
+                )
+        else:
+            # Invalidar todas las búsquedas
+            deleted_count = cache_service.invalidate_pattern("search:*:results:*")
+            logger.info(
+                "Invalidated all search cache",
+                extra={"deleted_count": deleted_count},
+            )
+
+    def invalidate_recent_cache(self) -> None:
+        """
+        Invalida caché de listas de resúmenes recientes de todos los usuarios.
+
+        Example:
+            repo.invalidate_recent_cache()
+        """
+        deleted_count = cache_service.invalidate_pattern("user:*:recent")
+
+        logger.info(
+            "Invalidated all user recent cache",
+            extra={"deleted_count": deleted_count},
+        )

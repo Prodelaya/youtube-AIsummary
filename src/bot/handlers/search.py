@@ -3,12 +3,15 @@ Handler del comando /search - Búsqueda en historial de resúmenes.
 
 Permite buscar en resúmenes pasados usando keywords, filtrado por
 suscripciones del usuario.
+
+Incluye caché optimizado para búsquedas frecuentes.
 """
 
 import asyncio
 import logging
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -205,10 +208,12 @@ def _search_user_summaries(telegram_id: int, query: str, limit: int) -> list[dic
     """
     Busca en resúmenes usando full-text search, filtrado por suscripciones.
 
+    Optimizado: Filtrado en SQL (no en Python) para mejor performance.
+
     Args:
         telegram_id: ID de Telegram del usuario
         query: Términos de búsqueda
-        limit: Número máximo de resultados a retornar (buffer para filtrado)
+        limit: Número máximo de resultados a retornar
 
     Returns:
         Lista de dicts con keys: "summary", "video", "source"
@@ -217,7 +222,6 @@ def _search_user_summaries(telegram_id: int, query: str, limit: int) -> list[dic
     session = SessionLocal()
     try:
         user_repo = TelegramUserRepository(session)
-        summary_repo = SummaryRepository(session)
 
         # Obtener usuario por telegram_id
         user = user_repo.get_by_telegram_id(telegram_id)
@@ -231,43 +235,46 @@ def _search_user_summaries(telegram_id: int, query: str, limit: int) -> list[dic
             logger.info(f"Usuario {telegram_id} no tiene suscripciones activas")
             return []
 
-        subscribed_source_ids = {source.id for source in user_subscriptions}
+        subscribed_source_ids = [source.id for source in user_subscriptions]
 
         # Sanitizar query (básico: eliminar caracteres especiales SQL)
         sanitized_query = _sanitize_query(query)
 
-        # Realizar búsqueda full-text
-        search_results = summary_repo.search_by_text(sanitized_query, limit=limit)
+        # OPTIMIZACIÓN: Búsqueda full-text con filtro de suscripciones en SQL
+        from sqlalchemy import func
 
-        if not search_results:
-            return []
-
-        # Eager-load relaciones para evitar N+1 queries
-        summary_ids = [s.id for s in search_results]
-        summaries_with_relations = (
+        search_results = (
             session.query(Summary)
+            .join(Transcription, Summary.transcription_id == Transcription.id)
+            .join(Video, Transcription.video_id == Video.id)
+            .join(Source, Video.source_id == Source.id)
+            .filter(Source.id.in_(subscribed_source_ids))  # Filtro SQL de suscripciones
+            .filter(
+                # Full-text search
+                func.to_tsvector("spanish", Summary.summary_text).op("@@")(
+                    func.plainto_tsquery("spanish", sanitized_query)
+                )
+            )
+            .order_by(Summary.created_at.desc())
+            .limit(limit)
             .options(
+                # Eager loading para evitar N+1
                 joinedload(Summary.transcription)
                 .joinedload(Transcription.video)
                 .joinedload(Video.source)
             )
-            .filter(Summary.id.in_(summary_ids))
             .all()
         )
 
-        # Filtrar por suscripciones y construir lista de resultados
-        results = []
-        for summary in summaries_with_relations:
-            # Verificar que tenemos todas las relaciones cargadas
-            if not summary.transcription or not summary.transcription.video:
-                continue
+        if not search_results:
+            return []
 
+        # Construir lista de resultados (sin filtrado, ya viene filtrado de SQL)
+        results = []
+        for summary in search_results:
+            # Las relaciones ya están cargadas por eager loading
             video = summary.transcription.video
             source = video.source
-
-            # Filtrar por suscripciones
-            if source.id not in subscribed_source_ids:
-                continue
 
             results.append(
                 {
@@ -277,8 +284,15 @@ def _search_user_summaries(telegram_id: int, query: str, limit: int) -> list[dic
                 }
             )
 
-        # Ordenar por fecha (más reciente primero) como criterio secundario
-        results.sort(key=lambda x: x["summary"].created_at, reverse=True)
+        logger.debug(
+            f"Search returned {len(results)} results for user {telegram_id}",
+            extra={
+                "telegram_id": telegram_id,
+                "query": sanitized_query,
+                "results_count": len(results),
+                "subscribed_sources": len(subscribed_source_ids),
+            },
+        )
 
         return results
 

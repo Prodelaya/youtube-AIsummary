@@ -3,6 +3,8 @@ Handler del comando /recent - Historial de resúmenes recientes.
 
 Muestra los últimos resúmenes de canales a los que el usuario está suscrito,
 con formato rico y botón para ver transcripción completa.
+
+Incluye caché para mejorar performance de queries frecuentes.
 """
 
 import asyncio
@@ -19,6 +21,7 @@ from src.core.database import SessionLocal
 from src.models import Source, Summary, Transcription, Video
 from src.repositories.summary_repository import SummaryRepository
 from src.repositories.telegram_user_repository import TelegramUserRepository
+from src.services.cache_service import cache_service
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +237,11 @@ def _get_user_recent_summaries(telegram_id: int, limit: int) -> list[dict]:
     """
     Obtiene últimos resúmenes de canales suscritos por el usuario.
 
+    Optimizado:
+    - Filtrado en SQL (no en Python) para mejor performance
+    - Caché de lista de summary IDs (TTL: 5 minutos)
+    - Resúmenes individuales cacheados (TTL: 24 horas)
+
     Args:
         telegram_id: ID de Telegram del usuario
         limit: Número máximo de resúmenes a retornar
@@ -249,10 +257,51 @@ def _get_user_recent_summaries(telegram_id: int, limit: int) -> list[dict]:
             ...
         ]
     """
+    # Key de caché para lista de IDs de resúmenes recientes del usuario
+    cache_key = f"user:{telegram_id}:recent:{limit}"
+
+    # Intentar obtener lista de IDs desde caché
+    cached_summary_ids = cache_service.get(cache_key, cache_type="user_recent")
+
     session = SessionLocal()
     try:
-        user_repo = TelegramUserRepository(session)
         summary_repo = SummaryRepository(session)
+
+        if cached_summary_ids:
+            # Cache HIT: Obtener resúmenes por IDs (usa caché individual de cada resumen)
+            logger.debug(f"Cache HIT for user {telegram_id} recent summaries")
+
+            results = []
+            for summary_id_str in cached_summary_ids:
+                summary = summary_repo.get_by_id(UUID(summary_id_str), use_cache=True)
+                if summary:
+                    # Eager load relations
+                    summary_with_relations = (
+                        session.query(Summary)
+                        .options(
+                            joinedload(Summary.transcription)
+                            .joinedload(Transcription.video)
+                            .joinedload(Video.source)
+                        )
+                        .filter(Summary.id == summary.id)
+                        .first()
+                    )
+
+                    if summary_with_relations:
+                        video = summary_with_relations.transcription.video
+                        source = video.source
+                        results.append({
+                            "summary": summary_with_relations,
+                            "video": video,
+                            "source": source,
+                        })
+
+            return results
+
+        # Cache MISS: Consultar BD
+        logger.debug(f"Cache MISS for user {telegram_id} recent summaries")
+
+        user_repo = TelegramUserRepository(session)
 
         # Obtener usuario por telegram_id
         user = user_repo.get_by_telegram_id(telegram_id)
@@ -266,46 +315,71 @@ def _get_user_recent_summaries(telegram_id: int, limit: int) -> list[dict]:
             logger.info(f"Usuario {telegram_id} no tiene suscripciones activas")
             return []
 
-        subscribed_source_ids = {source.id for source in user_subscriptions}
+        subscribed_source_ids = [source.id for source in user_subscriptions]
 
-        # Obtener resúmenes recientes (buffer grande para filtrar después)
+        # OPTIMIZACIÓN: Filtrar por suscripciones en SQL (no en Python)
+        # Query directa con JOIN y filtro, sin buffer innecesario
         recent_summaries = (
             session.query(Summary)
+            .join(Transcription, Summary.transcription_id == Transcription.id)
+            .join(Video, Transcription.video_id == Video.id)
+            .join(Source, Video.source_id == Source.id)
+            .filter(Source.id.in_(subscribed_source_ids))  # Filtro SQL
+            .order_by(Summary.created_at.desc())
+            .limit(limit)  # Limit directo, sin buffer
             .options(
+                # Eager loading para evitar N+1 en el loop
                 joinedload(Summary.transcription)
                 .joinedload(Transcription.video)
                 .joinedload(Video.source)
             )
-            .order_by(Summary.created_at.desc())
-            .limit(100)  # Buffer: obtener más para filtrar
             .all()
         )
 
-        # Filtrar por suscripciones y construir lista de resultados
+        # Construir lista de resultados (sin filtrado, ya viene filtrado de SQL)
         results = []
-        for summary in recent_summaries:
-            # Verificar que tenemos todas las relaciones cargadas
-            if not summary.transcription or not summary.transcription.video:
-                continue
+        summary_ids = []
 
+        for summary in recent_summaries:
+            # Las relaciones ya están cargadas por eager loading
             video = summary.transcription.video
             source = video.source
 
-            # Filtrar por suscripciones
-            if source.id not in subscribed_source_ids:
-                continue
+            results.append({
+                "summary": summary,
+                "video": video,
+                "source": source,
+            })
 
-            results.append(
-                {
-                    "summary": summary,
-                    "video": video,
-                    "source": source,
+            summary_ids.append(str(summary.id))
+
+            # Cachear resumen individual si no está cacheado
+            summary_cache_key = f"summary:detail:{summary.id}"
+            if not cache_service.exists(summary_cache_key):
+                summary_dict = {
+                    "id": str(summary.id),
+                    "transcription_id": str(summary.transcription_id),
+                    "summary_text": summary.summary_text,
+                    "category": summary.category,
+                    "keywords": summary.keywords,
+                    "model_used": summary.model_used,
+                    "sent_to_telegram": summary.sent_to_telegram,
+                    "created_at": summary.created_at.isoformat() if summary.created_at else None,
+                    "sent_at": summary.sent_at.isoformat() if summary.sent_at else None,
                 }
-            )
+                cache_service.set(summary_cache_key, summary_dict, ttl=86400, cache_type="summary")
 
-            # Limitar a número solicitado
-            if len(results) >= limit:
-                break
+        # Cachear lista de IDs (TTL: 5 minutos)
+        if summary_ids:
+            cache_service.set(cache_key, summary_ids, ttl=300, cache_type="user_recent")
+            logger.debug(
+                f"Cached {len(summary_ids)} recent summary IDs for user {telegram_id}",
+                extra={
+                    "telegram_id": telegram_id,
+                    "results_count": len(summary_ids),
+                    "subscribed_sources": len(subscribed_source_ids),
+                },
+            )
 
         return results
 
