@@ -16,9 +16,12 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 
 from src.bot.handlers import (
     help_handler,
+    recent_handler,
+    search_handler,
     sources_handler,
     start_handler,
     toggle_subscription_callback,
+    view_transcript_callback,
 )
 from src.core.config import settings
 
@@ -89,10 +92,15 @@ def create_application() -> Application:
     application.add_handler(CommandHandler("start", start_handler))
     application.add_handler(CommandHandler("help", help_handler))
     application.add_handler(CommandHandler("sources", sources_handler))
+    application.add_handler(CommandHandler("recent", recent_handler))
+    application.add_handler(CommandHandler("search", search_handler))
 
     # Registrar callback query handlers (botones inline)
     application.add_handler(
         CallbackQueryHandler(toggle_subscription_callback, pattern="^toggle_source:")
+    )
+    application.add_handler(
+        CallbackQueryHandler(view_transcript_callback, pattern="^view_transcript:")
     )
 
     # Registrar error handler global
@@ -119,8 +127,8 @@ async def post_init(application: Application) -> None:
         BotCommand("start", "Iniciar el bot y registrarse"),
         BotCommand("help", "Ver comandos disponibles"),
         BotCommand("sources", "Gestionar suscripciones a canales"),
-        BotCommand("recent", "Ver últimos resúmenes (próximamente)"),
-        BotCommand("search", "Buscar en histórico (próximamente)"),
+        BotCommand("recent", "Ver últimos 10 resúmenes"),
+        BotCommand("search", "Buscar en histórico"),
     ]
 
     await application.bot.set_my_commands(commands)
