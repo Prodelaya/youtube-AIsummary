@@ -36,6 +36,7 @@ celery_app = Celery(
     include=[
         "src.tasks.video_processing",
         "src.tasks.distribute_summaries",
+        "src.tasks.scraping",
     ],  # Auto-discover tasks
 )
 
@@ -86,6 +87,10 @@ celery_app.conf.task_routes = {
         "queue": "distribution",  # Queue dedicada para distribución
         "routing_key": "summary.distribute",
     },
+    "src.tasks.scraping.sync_youtube_sources_task": {
+        "queue": "scraping",  # Queue dedicada para scraping
+        "routing_key": "scraping.sync",
+    },
 }
 
 # ==================== TASK PRIORITIES ====================
@@ -98,20 +103,19 @@ celery_app.conf.broker_transport_options = {
 
 # ==================== BEAT SCHEDULE ====================
 # Tareas programadas (cron-like)
-# Descomentado cuando se necesiten tareas periodicas
 
-# from celery.schedules import crontab
-#
-# celery_app.conf.beat_schedule = {
-#     'cleanup-old-videos': {
-#         'task': 'src.tasks.maintenance.cleanup_old_videos',
-#         'schedule': crontab(hour=3, minute=0),  # Diario a las 3 AM
-#     },
-#     'update-video-metadata': {
-#         'task': 'src.tasks.discovery.update_metadata',
-#         'schedule': crontab(hour='*/6'),  # Cada 6 horas
-#     },
-# }
+from celery.schedules import crontab
+
+celery_app.conf.beat_schedule = {
+    "sync-youtube-channels": {
+        "task": "sync_youtube_sources",
+        "schedule": crontab(hour="*/6"),  # Cada 6 horas (00:00, 06:00, 12:00, 18:00)
+        "options": {
+            "queue": "scraping",
+            "priority": 7,
+        },
+    },
+}
 
 # ==================== LOGGING ====================
 
