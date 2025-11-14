@@ -16,7 +16,6 @@ from sqlalchemy.orm import Session, joinedload
 
 from src.models import Summary, Transcription, Video
 from src.repositories.base_repository import BaseRepository
-from src.services.cache_service import cache_service, hash_query
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +59,9 @@ class SummaryRepository(BaseRepository[Summary]):
             # Sin caché (forzar DB)
             summary = repo.get_by_id(summary_id, use_cache=False)
         """
+        # Import lazy para evitar importación circular
+        from src.services.cache_service import cache_service
+
         cache_key = f"summary:detail:{summary_id}"
 
         # Intentar obtener de caché
@@ -169,6 +171,9 @@ class SummaryRepository(BaseRepository[Summary]):
             # Sin caché (forzar búsqueda fresca)
             results = repo.search_by_text("FastAPI async", limit=10, use_cache=False)
         """
+        # Import lazy para evitar importación circular
+        from src.services.cache_service import cache_service, hash_query
+
         # Generar key de caché
         query_hash_str = hash_query(query)
         cache_key = f"search:{query_hash_str}:results:{limit}"
@@ -448,6 +453,9 @@ class SummaryRepository(BaseRepository[Summary]):
         Example:
             repo.invalidate_summary_cache(summary_id)
         """
+        # Import lazy para evitar importación circular
+        from src.services.cache_service import cache_service
+
         cache_key = f"summary:detail:{summary_id}"
         deleted = cache_service.delete(cache_key)
 
@@ -471,6 +479,9 @@ class SummaryRepository(BaseRepository[Summary]):
             # Invalidar todas las búsquedas
             repo.invalidate_search_cache()
         """
+        # Import lazy para evitar importación circular
+        from src.services.cache_service import cache_service, hash_query
+
         if keywords:
             # Invalidar búsquedas específicas por keyword
             for keyword in keywords:
@@ -496,6 +507,9 @@ class SummaryRepository(BaseRepository[Summary]):
         Example:
             repo.invalidate_recent_cache()
         """
+        # Import lazy para evitar importación circular
+        from src.services.cache_service import cache_service
+
         deleted_count = cache_service.invalidate_pattern("user:*:recent")
 
         logger.info(

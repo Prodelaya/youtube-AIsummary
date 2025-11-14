@@ -3,8 +3,11 @@ Repository para el modelo Video.
 
 Extiende BaseRepository con métodos específicos para filtrar
 videos por estado (enum VideoStatus) y por source.
+
+Incluye invalidación automática de caché de estadísticas al crear videos.
 """
 
+import logging
 from datetime import UTC
 from uuid import UUID
 
@@ -12,6 +15,8 @@ from sqlalchemy.orm import Session
 
 from src.models import Video, VideoStatus
 from src.repositories.base_repository import BaseRepository
+
+logger = logging.getLogger(__name__)
 
 
 class VideoRepository(BaseRepository[Video]):
@@ -33,6 +38,33 @@ class VideoRepository(BaseRepository[Video]):
             session: Sesión activa de SQLAlchemy
         """
         super().__init__(session, Video)
+
+    def _invalidate_stats_cache(self, source_id: UUID) -> None:
+        """
+        Invalida caché de estadísticas al crear/modificar videos.
+
+        Invalida:
+        - stats:global (estadísticas globales)
+        - stats:source:{source_id} (estadísticas de la fuente específica)
+
+        Args:
+            source_id: UUID de la fuente del video
+
+        Example:
+            self._invalidate_stats_cache(video.source_id)
+        """
+        # Import lazy para evitar importación circular
+        from src.services.cache_service import cache_service
+
+        # Invalidar caché global
+        global_key = "stats:global"
+        cache_service.delete(global_key)
+        logger.debug(f"Invalidated cache: {global_key}")
+
+        # Invalidar caché de la fuente específica
+        source_key = f"stats:source:{source_id}"
+        cache_service.delete(source_key)
+        logger.debug(f"Invalidated cache: {source_key}")
 
     def get_by_status(self, status: VideoStatus) -> list[Video]:
         """
@@ -212,6 +244,8 @@ class VideoRepository(BaseRepository[Video]):
         """
         Crea un nuevo video con parametros individuales.
 
+        Invalida automáticamente caché de estadísticas (global y de la fuente).
+
         Args:
             source_id: UUID de la fuente.
             youtube_id: ID de YouTube.
@@ -241,15 +275,29 @@ class VideoRepository(BaseRepository[Video]):
             extra_metadata=metadata or {},
             status=status,
         )
-        return self.create(video)
+
+        # Crear video en BD
+        created_video = self.create(video)
+
+        # Invalidar caché de estadísticas
+        self._invalidate_stats_cache(source_id)
+
+        logger.info(
+            f"Video created and stats cache invalidated",
+            extra={"video_id": str(created_video.id), "source_id": str(source_id)},
+        )
+
+        return created_video
 
     def update_video(self, video_id: UUID, **kwargs) -> Video:
         """
         Actualiza campos de un video.
 
+        Invalida caché de estadísticas si se actualiza el campo 'status'.
+
         Args:
             video_id: UUID del video a actualizar.
-            **kwargs: Campos a actualizar (title, duration_seconds, etc.).
+            **kwargs: Campos a actualizar (title, duration_seconds, status, etc.).
 
         Returns:
             Video actualizado.
@@ -260,13 +308,15 @@ class VideoRepository(BaseRepository[Video]):
         Example:
             video = repo.update_video(
                 video_id,
-                title="New Title",
-                duration_seconds=300
+                status=VideoStatus.COMPLETED
             )
         """
         video = self.get_by_id(video_id)
         if not video:
             raise ValueError(f"Video {video_id} not found")
+
+        # Detectar si se está cambiando el estado (para invalidar caché)
+        status_changed = "status" in kwargs and kwargs["status"] != video.status
 
         for key, value in kwargs.items():
             if hasattr(video, key):
@@ -274,6 +324,19 @@ class VideoRepository(BaseRepository[Video]):
 
         self.session.commit()
         self.session.refresh(video)
+
+        # Invalidar caché si cambió el estado
+        if status_changed:
+            self._invalidate_stats_cache(video.source_id)
+            logger.info(
+                f"Video status updated and stats cache invalidated",
+                extra={
+                    "video_id": str(video_id),
+                    "new_status": kwargs["status"].value if hasattr(kwargs["status"], "value") else str(kwargs["status"]),
+                    "source_id": str(video.source_id),
+                },
+            )
+
         return video
 
     def soft_delete(self, video_id: UUID) -> Video:

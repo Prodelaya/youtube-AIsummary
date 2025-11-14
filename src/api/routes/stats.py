@@ -7,11 +7,17 @@ Este modulo define 2 endpoints para metricas y estadisticas:
 
 Las estadisticas incluyen contadores de videos por estado, transcripciones,
 resumenes, y metricas de procesamiento agrupadas por fuente.
+
+CACHE:
+- GET /stats: TTL 15 minutos (stats:global)
+- GET /stats/sources/{source_id}: TTL 15 minutos (stats:source:{source_id})
+- Headers: X-Cache-Status (HIT/MISS), X-Cache-TTL
 """
 
+import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, Response, status
 from sqlalchemy import func
 
 from src.api.dependencies import DBSession, SourceRepo
@@ -22,6 +28,8 @@ from src.api.schemas.stats import (
 )
 from src.models import Source, Summary, Transcription, Video
 from src.models.video import VideoStatus
+
+logger = logging.getLogger(__name__)
 
 # ==================== ROUTER ====================
 
@@ -35,7 +43,10 @@ router = APIRouter(prefix="/stats", tags=["Stats"])
     "",
     response_model=GlobalStatsResponse,
     summary="Get global statistics",
-    description="Get system-wide statistics including video counts, transcriptions, and summaries.",
+    description=(
+        "Get system-wide statistics including video counts, transcriptions, and summaries. "
+        "Results are cached for 15 minutes. Use header X-Cache-Bypass: true to force refresh."
+    ),
     responses={
         200: {
             "description": "Global statistics",
@@ -65,7 +76,9 @@ router = APIRouter(prefix="/stats", tags=["Stats"])
     },
 )
 def get_global_stats(
+    response: Response,
     db: DBSession,
+    x_cache_bypass: str | None = Header(None, alias="X-Cache-Bypass"),
 ) -> GlobalStatsResponse:
     """
     Obtener estadisticas globales del sistema.
@@ -73,15 +86,49 @@ def get_global_stats(
     Calcula contadores agregados de todos los videos, transcripciones
     y resumenes, con desglose por estado y por fuente.
 
+    Cache: 15 minutos (900 segundos)
+
     Args:
+        response: FastAPI Response para añadir headers de caché.
         db: Sesion de BD (inyectada).
+        x_cache_bypass: Header para forzar bypass de caché (opcional).
 
     Returns:
         GlobalStatsResponse: Estadisticas globales con desglose por fuente.
 
     Example:
         GET /api/v1/stats
+        GET /api/v1/stats -H "X-Cache-Bypass: true"
     """
+    # Import lazy para evitar importación circular
+    from src.services.cache_service import cache_service
+
+    cache_key = "stats:global"
+    cache_ttl = 900  # 15 minutos
+
+    # Determinar si se debe hacer bypass de caché
+    bypass_cache = x_cache_bypass and x_cache_bypass.lower() in ("true", "1", "yes")
+
+    # Intentar obtener de caché
+    if not bypass_cache:
+        cached_data = cache_service.get(cache_key, cache_type="stats")
+        if cached_data:
+            # Cache hit: retornar datos cacheados
+            logger.info("Global stats cache HIT", extra={"cache_key": cache_key})
+            response.headers["X-Cache-Status"] = "HIT"
+            response.headers["X-Cache-TTL"] = str(
+                cache_service.redis_client.ttl(cache_key) if cache_service.enabled else 0
+            )
+
+            # Reconstruir response desde datos cacheados
+            return GlobalStatsResponse(**cached_data)
+
+    # Cache miss o bypass: calcular estadísticas
+    logger.info(
+        "Global stats cache MISS or BYPASS",
+        extra={"cache_key": cache_key, "bypass": bypass_cache},
+    )
+
     # Contadores globales
     total_videos = db.query(func.count(Video.id)).scalar() or 0
     completed_videos = (
@@ -135,7 +182,8 @@ def get_global_stats(
             )
         )
 
-    return GlobalStatsResponse(
+    # Construir response
+    stats_response = GlobalStatsResponse(
         total_videos=total_videos,
         completed_videos=completed_videos,
         failed_videos=failed_videos,
@@ -145,12 +193,29 @@ def get_global_stats(
         sources=source_stats_list,
     )
 
+    # Cachear resultado (convertir a dict para serialización)
+    cache_service.set(
+        cache_key,
+        stats_response.model_dump(),
+        ttl=cache_ttl,
+        cache_type="stats",
+    )
+
+    # Headers de caché
+    response.headers["X-Cache-Status"] = "MISS"
+    response.headers["X-Cache-TTL"] = str(cache_ttl)
+
+    return stats_response
+
 
 @router.get(
     "/sources/{source_id}",
     response_model=SourceStatsResponse,
     summary="Get source statistics",
-    description="Get detailed statistics for a specific source.",
+    description=(
+        "Get detailed statistics for a specific source. "
+        "Results are cached for 15 minutes. Use header X-Cache-Bypass: true to force refresh."
+    ),
     responses={
         200: {
             "description": "Source statistics",
@@ -174,8 +239,10 @@ def get_global_stats(
 )
 def get_source_stats(
     source_id: UUID,
+    response: Response,
     db: DBSession,
     source_repo: SourceRepo,
+    x_cache_bypass: str | None = Header(None, alias="X-Cache-Bypass"),
 ) -> SourceStatsResponse:
     """
     Obtener estadisticas detalladas de una fuente.
@@ -183,10 +250,14 @@ def get_source_stats(
     Incluye contadores de videos por estado, tiempo promedio de procesamiento
     y total de palabras transcritas.
 
+    Cache: 15 minutos (900 segundos)
+
     Args:
         source_id: UUID de la fuente.
+        response: FastAPI Response para añadir headers de caché.
         db: Sesion de BD (inyectada).
         source_repo: Repositorio de fuentes (inyectado).
+        x_cache_bypass: Header para forzar bypass de caché (opcional).
 
     Returns:
         SourceStatsResponse: Estadisticas detalladas de la fuente.
@@ -196,14 +267,47 @@ def get_source_stats(
 
     Example:
         GET /api/v1/stats/sources/123e4567-e89b-12d3-a456-426614174000
+        GET /api/v1/stats/sources/{id} -H "X-Cache-Bypass: true"
     """
-    # Verificar que la fuente existe
+    # Import lazy para evitar importación circular
+    from src.services.cache_service import cache_service
+
+    # Verificar que la fuente existe (esto siempre se ejecuta, incluso con caché)
     source = source_repo.get_by_id(source_id)
     if not source:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Source {source_id} not found",
         )
+
+    cache_key = f"stats:source:{source_id}"
+    cache_ttl = 900  # 15 minutos
+
+    # Determinar si se debe hacer bypass de caché
+    bypass_cache = x_cache_bypass and x_cache_bypass.lower() in ("true", "1", "yes")
+
+    # Intentar obtener de caché
+    if not bypass_cache:
+        cached_data = cache_service.get(cache_key, cache_type="stats")
+        if cached_data:
+            # Cache hit: retornar datos cacheados
+            logger.info(
+                "Source stats cache HIT",
+                extra={"cache_key": cache_key, "source_id": str(source_id)},
+            )
+            response.headers["X-Cache-Status"] = "HIT"
+            response.headers["X-Cache-TTL"] = str(
+                cache_service.redis_client.ttl(cache_key) if cache_service.enabled else 0
+            )
+
+            # Reconstruir response desde datos cacheados
+            return SourceStatsResponse(**cached_data)
+
+    # Cache miss o bypass: calcular estadísticas
+    logger.info(
+        "Source stats cache MISS or BYPASS",
+        extra={"cache_key": cache_key, "source_id": str(source_id), "bypass": bypass_cache},
+    )
 
     # Contadores por estado
     total_videos = db.query(func.count(Video.id)).filter(Video.source_id == source_id).scalar() or 0
@@ -259,7 +363,8 @@ def get_source_stats(
     if transcriptions:
         total_transcription_words = sum(t.word_count for t in transcriptions)
 
-    return SourceStatsResponse(
+    # Construir response
+    source_stats_response = SourceStatsResponse(
         source_id=source_id,
         source_name=source.name,
         total_videos=total_videos,
@@ -269,6 +374,20 @@ def get_source_stats(
         avg_processing_time_seconds=avg_processing_time,
         total_transcription_words=total_transcription_words,
     )
+
+    # Cachear resultado (convertir a dict para serialización)
+    cache_service.set(
+        cache_key,
+        source_stats_response.model_dump(),
+        ttl=cache_ttl,
+        cache_type="stats",
+    )
+
+    # Headers de caché
+    response.headers["X-Cache-Status"] = "MISS"
+    response.headers["X-Cache-TTL"] = str(cache_ttl)
+
+    return source_stats_response
 
 
 @router.get(
