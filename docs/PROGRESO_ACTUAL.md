@@ -268,24 +268,56 @@ Video → Descarga → Transcripción → Resumen → Distribución Telegram
 
 ---
 
-## 📍 SIGUIENTE PASO (Paso 20)
+## ✅ PASO 20 COMPLETADO: Jobs Programados con Celery Beat
 
-### ⏰ Jobs Programados - Scraping Automático con Celery Beat
+### ⏰ Scraping Automático con Celery Beat (100% COMPLETADO)
 
-**¿Qué implementar?**
-- [ ] Configurar Celery Beat scheduler
-- [ ] Crear tarea de scraping automático de nuevos videos
-- [ ] Detectar nuevos contenidos de canales suscritos
-- [ ] Encolar procesamiento automático
-- [ ] Tests de tareas programadas
+**Implementación completada:**
+- ✅ YouTubeScraperService con yt-dlp (solo metadata, no descarga)
+- ✅ sync_youtube_sources_task - tarea Celery para scraping automático
+- ✅ Beat schedule configurado (cada 6 horas: 00:00, 06:00, 12:00, 18:00)
+- ✅ Queue dedicada: `scraping`
+- ✅ Deduplicación automática por URL
+- ✅ Encolado automático para procesamiento (process_video_task)
+- ✅ Script start_beat.sh con validaciones
+- ✅ Documentación ADR-012 (decisión de frecuencia)
+
+**Archivos creados:**
+- `src/services/youtube_scraper_service.py` (283 líneas)
+- `src/tasks/scraping.py` (248 líneas)
+- `scripts/start_beat.sh` (31 líneas, ejecutable)
+- `docs/ADR-012-scraping-frequency.md`
+- `docs/step20-completion-summary.md`
+
+**Características técnicas:**
+- Scraping sin descargar videos (solo metadata)
+- Manejo robusto de errores (rate limits, canales privados)
+- Timeout 30 segundos por canal
+- Retry con backoff exponencial si rate limit
+- Logging estructurado con estadísticas
+
+**Pipeline Completo End-to-End:**
+```
+Celery Beat (6h) → scraping task → Videos nuevos → process_video_task → Telegram
+```
+
+**Documentación:**
+- ✅ `docs/ADR-012-scraping-frequency.md` - Decisión de frecuencia
+- ✅ `docs/step20-completion-summary.md` - Resumen completo
+
+---
+
+## 📍 SIGUIENTE PASO (Paso 21)
+
+### 📝 Logging Estructurado
 
 **Próximos pasos:**
 1. ✅ Paso 16: Suscripciones interactivas (COMPLETADO)
 2. ✅ Paso 17: Historial y búsqueda (COMPLETADO)
 3. ✅ Paso 18: Worker de distribución personalizada (COMPLETADO)
 4. ✅ Paso 19: Caché de resúmenes con Redis (COMPLETADO)
-5. 📍 Paso 20: Jobs programados con Celery Beat ← SIGUIENTE
-6. Paso 21: Logging estructurado
+5. ✅ Paso 20: Jobs programados con Celery Beat (COMPLETADO)
+6. 📍 Paso 21: Logging estructurado ← SIGUIENTE
 7. Paso 22-23: Métricas y monitorización con Prometheus + Grafana
 
 ---
@@ -384,7 +416,7 @@ src/
 
 ---
 
-**🚀 Estado General:** En progreso, ~78% completado (~4.2 de 5.5 semanas)
+**🚀 Estado General:** En progreso, ~82% completado (~4.5 de 5.5 semanas)
 
 ---
 
