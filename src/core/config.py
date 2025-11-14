@@ -109,6 +109,13 @@ class Settings(BaseSettings):
                     "Videos más largos se marcarán como SKIPPED para ahorrar recursos.",
     )
 
+    YOUTUBE_MAX_RESULTS_PER_CHANNEL: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Número máximo de videos a scrapear por canal en cada ejecución",
+    )
+
     # ==================== CONFIGURACIÓN API ====================
     API_HOST: str = Field(
         default="0.0.0.0",
