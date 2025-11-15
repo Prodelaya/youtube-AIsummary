@@ -21,10 +21,11 @@ from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+# Local (módulos propios)
+from src.api.middleware.request_id import RequestIDMiddleware
+
 # Importar routers
 from src.api.routes import stats, summaries, transcriptions, videos
-
-# Local (módulos propios)
 from src.api.schemas.errors import ErrorResponse, ValidationErrorResponse
 from src.core.config import settings
 from src.repositories.exceptions import NotFoundError
@@ -180,6 +181,9 @@ def create_app() -> FastAPI:
     )
 
     # ==================== MIDDLEWARES ====================
+
+    # 0. Request ID - Correlación de logs (debe ir primero)
+    app.add_middleware(RequestIDMiddleware)
 
     # 1. CORS - Permitir peticiones desde frontend
     app.add_middleware(

@@ -15,7 +15,6 @@ El servicio implementa:
 - Manejo robusto de errores con estados de fallo específicos
 """
 
-import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID
@@ -23,6 +22,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.core.config import settings
+from src.core.logging_config import get_logger
 from src.models import Summary, Transcription, Video
 from src.models.video import VideoStatus
 from src.repositories.transcription_repository import TranscriptionRepository
@@ -45,7 +45,7 @@ from src.services.transcription_service import (
 
 # ==================== LOGGER ====================
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ==================== EXCEPCIONES PERSONALIZADAS ====================
@@ -111,7 +111,7 @@ class VideoProcessingService:
         self.transcriber = get_transcription_service()
         self.summarizer = SummarizationService()
 
-        logger.info("VideoProcessingService inicializado")
+        logger.info("video_processing_service_initialized")
 
     async def process_video(
         self,
@@ -167,52 +167,44 @@ class VideoProcessingService:
             max_duration_formatted = self._format_duration(settings.MAX_VIDEO_DURATION_SECONDS)
             actual_duration_formatted = self._format_duration(video.duration_seconds)
 
-            logger.warning(
-                "video_skipped_duration_exceeded",
-                extra={
-                    "video_id": str(video_id),
-                    "youtube_id": video.youtube_id,
-                    "title": video.title,
-                    "duration_seconds": video.duration_seconds,
-                    "max_allowed_seconds": settings.MAX_VIDEO_DURATION_SECONDS,
-                    "skip_reason": "duration_exceeded",
-                },
-            )
+            logger.bind(
+                video_id=str(video_id),
+                youtube_id=video.youtube_id,
+                title=video.title,
+                duration_seconds=video.duration_seconds,
+                max_allowed_seconds=settings.MAX_VIDEO_DURATION_SECONDS,
+            ).warning("video_skipped_duration_exceeded")
 
             # Marcar como SKIPPED y guardar razón en metadata
             video.status = VideoStatus.SKIPPED
             video.extra_metadata = video.extra_metadata or {}
-            video.extra_metadata.update({
-                "skip_reason": "duration_exceeded",
-                "max_allowed_seconds": settings.MAX_VIDEO_DURATION_SECONDS,
-                "actual_duration_seconds": video.duration_seconds,
-                "skipped_at": datetime.now(timezone.utc).isoformat(),
-            })
+            video.extra_metadata.update(  # type: ignore
+                {
+                    "skip_reason": "duration_exceeded",
+                    "max_allowed_seconds": settings.MAX_VIDEO_DURATION_SECONDS,
+                    "actual_duration_seconds": video.duration_seconds,
+                    "skipped_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
 
             session.commit()
 
-            logger.info(
-                "video_marked_as_skipped",
-                extra={
-                    "video_id": str(video_id),
-                    "reason": "duration_exceeded",
-                    "duration": actual_duration_formatted,
-                    "max_allowed": max_duration_formatted,
-                },
-            )
+            logger.bind(
+                video_id=str(video_id),
+                reason="duration_exceeded",
+                duration=actual_duration_formatted,
+                max_allowed=max_duration_formatted,
+            ).info("video_marked_as_skipped")
 
             return video
         # ==================== FIN VALIDACIÓN ====================
 
-        logger.info(
-            "video_processing_started",
-            extra={
-                "video_id": str(video.id),
-                "youtube_id": video.youtube_id,
-                "url": video.url,
-                "status": video.status.value,
-            },
-        )
+        logger.bind(
+            video_id=str(video.id),
+            youtube_id=video.youtube_id,
+            url=video.url,
+            status=video.status.value,
+        ).info("video_processing_started")
 
         audio_path: Path | None = None
 
@@ -232,27 +224,21 @@ class VideoProcessingService:
 
             distribute_summary_task.delay(str(summary.id))
 
-            logger.info(
-                "distribution_task_enqueued",
-                extra={
-                    "video_id": str(video.id),
-                    "summary_id": str(summary.id),
-                },
-            )
+            logger.bind(
+                video_id=str(video.id),
+                summary_id=str(summary.id),
+            ).info("distribution_task_enqueued")
 
             # ==================== COMPLETADO ====================
             video.status = VideoStatus.COMPLETED
             session.commit()
 
-            logger.info(
-                "video_processing_completed",
-                extra={
-                    "video_id": str(video.id),
-                    "transcription_id": str(transcription.id),
-                    "summary_id": str(summary.id),
-                    "status": "completed",
-                },
-            )
+            logger.bind(
+                video_id=str(video.id),
+                transcription_id=str(transcription.id),
+                summary_id=str(summary.id),
+                status="completed",
+            ).info("video_processing_completed")
 
             # Limpiar archivos temporales después del éxito
             if audio_path:
@@ -265,14 +251,11 @@ class VideoProcessingService:
             video.status = VideoStatus.FAILED
             session.commit()
 
-            logger.error(
-                "video_processing_failed_download",
-                extra={
-                    "video_id": str(video.id),
-                    "error": str(e),
-                    "status": "failed",
-                },
-            )
+            logger.bind(
+                video_id=str(video.id),
+                error=str(e),
+                status="failed",
+            ).error("video_processing_failed_download")
             raise
 
         except (NetworkError, AudioExtractionError) as e:
@@ -280,15 +263,12 @@ class VideoProcessingService:
             video.status = VideoStatus.FAILED
             session.commit()
 
-            logger.error(
-                "video_processing_failed_download",
-                extra={
-                    "video_id": str(video.id),
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                    "status": "failed",
-                },
-            )
+            logger.bind(
+                video_id=str(video.id),
+                error=str(e),
+                error_type=type(e).__name__,
+                status="failed",
+            ).error("video_processing_failed_download")
 
             # Intentar limpiar archivo parcial si existe
             if audio_path and audio_path.exists():
@@ -301,24 +281,18 @@ class VideoProcessingService:
             video.status = VideoStatus.FAILED
             session.commit()
 
-            logger.error(
-                "video_processing_failed_transcription",
-                extra={
-                    "video_id": str(video.id),
-                    "error": str(e),
-                    "status": "failed",
-                },
-            )
+            logger.bind(
+                video_id=str(video.id),
+                error=str(e),
+                status="failed",
+            ).error("video_processing_failed_transcription")
 
             # Mantener audio para debugging (no borrar)
             if audio_path:
-                logger.info(
-                    "audio_file_kept_for_debugging",
-                    extra={
-                        "video_id": str(video.id),
-                        "audio_path": str(audio_path),
-                    },
-                )
+                logger.bind(
+                    video_id=str(video.id),
+                    audio_path=str(audio_path),
+                ).info("audio_file_kept_for_debugging")
 
             raise
 
@@ -327,15 +301,12 @@ class VideoProcessingService:
             video.status = VideoStatus.FAILED
             session.commit()
 
-            logger.error(
-                "video_processing_failed_summarization",
-                extra={
-                    "video_id": str(video.id),
-                    "error": str(e),
-                    "status_code": getattr(e, "status_code", None),
-                    "status": "failed",
-                },
-            )
+            logger.bind(
+                video_id=str(video.id),
+                error=str(e),
+                status_code=getattr(e, "status_code", None),
+                status="failed",
+            ).error("video_processing_failed_summarization")
 
             # Limpiar audio (transcripción ya está guardada)
             if audio_path:
@@ -348,15 +319,12 @@ class VideoProcessingService:
             video.status = VideoStatus.FAILED
             session.commit()
 
-            logger.exception(
-                "video_processing_failed_unexpected",
-                extra={
-                    "video_id": str(video.id),
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                    "status": "failed",
-                },
-            )
+            logger.bind(
+                video_id=str(video.id),
+                error=str(e),
+                error_type=type(e).__name__,
+                status="failed",
+            ).exception("video_processing_failed_unexpected")
 
             # Intentar limpiar archivo si existe
             if audio_path and audio_path.exists():
@@ -394,14 +362,11 @@ class VideoProcessingService:
         video.status = VideoStatus.DOWNLOADING
         session.commit()
 
-        logger.info(
-            "audio_download_started",
-            extra={
-                "video_id": str(video.id),
-                "url": video.url,
-                "status": "downloading",
-            },
-        )
+        logger.bind(
+            video_id=str(video.id),
+            url=video.url,
+            status="downloading",
+        ).info("audio_download_started")
 
         # Descargar audio (ya es async)
         audio_path = await self.downloader.download_audio(video.url)
@@ -414,16 +379,13 @@ class VideoProcessingService:
         video.status = VideoStatus.DOWNLOADED
         session.commit()
 
-        logger.info(
-            "audio_downloaded",
-            extra={
-                "video_id": str(video.id),
-                "audio_path": str(audio_path),
-                "file_size_mb": round(file_size_mb, 2),
-                "file_size_bytes": file_size_bytes,
-                "status": "downloaded",
-            },
-        )
+        logger.bind(
+            video_id=str(video.id),
+            audio_path=str(audio_path),
+            file_size_mb=round(file_size_mb, 2),
+            file_size_bytes=file_size_bytes,
+            status="downloaded",
+        ).info("audio_downloaded")
 
         return audio_path
 
@@ -456,14 +418,11 @@ class VideoProcessingService:
         video.status = VideoStatus.TRANSCRIBING
         session.commit()
 
-        logger.info(
-            "transcription_started",
-            extra={
-                "video_id": str(video.id),
-                "audio_path": str(audio_path),
-                "status": "transcribing",
-            },
-        )
+        logger.bind(
+            video_id=str(video.id),
+            audio_path=str(audio_path),
+            status="transcribing",
+        ).info("transcription_started")
 
         # Transcribir (ejecutar en thread separado)
         result = await self.transcriber.transcribe_audio(audio_path)
@@ -486,17 +445,14 @@ class VideoProcessingService:
         video.status = VideoStatus.TRANSCRIBED
         session.commit()
 
-        logger.info(
-            "transcription_completed",
-            extra={
-                "video_id": str(video.id),
-                "transcription_id": str(created_transcription.id),
-                "text_length": len(result.text),
-                "language": result.language,
-                "duration_seconds": int(result.duration),
-                "status": "transcribed",
-            },
-        )
+        logger.bind(
+            video_id=str(video.id),
+            transcription_id=str(created_transcription.id),
+            text_length=len(result.text),
+            language=result.language,
+            duration_seconds=int(result.duration),
+            status="transcribed",
+        ).info("transcription_completed")
 
         return created_transcription
 
@@ -529,14 +485,11 @@ class VideoProcessingService:
         video.status = VideoStatus.SUMMARIZING
         session.commit()
 
-        logger.info(
-            "summarization_started",
-            extra={
-                "video_id": str(video.id),
-                "transcription_id": str(transcription.id),
-                "status": "summarizing",
-            },
-        )
+        logger.bind(
+            video_id=str(video.id),
+            transcription_id=str(transcription.id),
+            status="summarizing",
+        ).info("summarization_started")
 
         # Generar resumen (ya es async)
         summary = await self.summarizer.generate_summary(session, transcription.id)
@@ -544,17 +497,14 @@ class VideoProcessingService:
         # Commit ya se hace dentro de generate_summary
         # session.commit() ya ejecutado
 
-        logger.info(
-            "summary_created",
-            extra={
-                "video_id": str(video.id),
-                "summary_id": str(summary.id),
-                "summary_length": len(summary.summary_text),
-                "keywords": summary.keywords,
-                "tokens_used": summary.tokens_used,
-                "status": "summarizing",
-            },
-        )
+        logger.bind(
+            video_id=str(video.id),
+            summary_id=str(summary.id),
+            summary_length=len(summary.summary_text),
+            keywords=summary.keywords,
+            tokens_used=summary.tokens_used,
+            status="summarizing",
+        ).info("summary_created")
 
         return summary
 
@@ -571,28 +521,19 @@ class VideoProcessingService:
         try:
             if audio_path.exists():
                 audio_path.unlink()
-                logger.info(
-                    "audio_file_deleted",
-                    extra={
-                        "audio_path": str(audio_path),
-                    },
-                )
+                logger.bind(
+                    audio_path=str(audio_path),
+                ).info("audio_file_deleted")
             else:
-                logger.warning(
-                    "audio_file_not_found_for_cleanup",
-                    extra={
-                        "audio_path": str(audio_path),
-                    },
-                )
+                logger.bind(
+                    audio_path=str(audio_path),
+                ).warning("audio_file_not_found_for_cleanup")
         except Exception as e:
             # No fallar el pipeline por error de limpieza
-            logger.error(
-                "audio_file_cleanup_failed",
-                extra={
-                    "audio_path": str(audio_path),
-                    "error": str(e),
-                },
-            )
+            logger.bind(
+                audio_path=str(audio_path),
+                error=str(e),
+            ).error("audio_file_cleanup_failed")
 
     def _format_duration(self, seconds: int) -> str:
         """

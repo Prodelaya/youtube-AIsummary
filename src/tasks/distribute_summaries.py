@@ -15,7 +15,6 @@ Características:
 """
 
 import asyncio
-import logging
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -26,14 +25,16 @@ from telegram.error import Forbidden, TelegramError
 
 from src.bot.utils.formatters import format_summary_message
 from src.core.celery_app import celery_app
+from src.core.celery_context import task_context
 from src.core.config import settings
 from src.core.database import SessionLocal
+from src.core.logging_config import get_logger
 from src.repositories.summary_repository import SummaryRepository
 from src.repositories.telegram_user_repository import TelegramUserRepository
 
 # ==================== LOGGER ====================
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # ==================== CUSTOM TASK BASE ====================
@@ -149,155 +150,115 @@ def distribute_summary_task(self, summary_id_str: str) -> dict:
     """
     summary_id = UUID(summary_id_str)
 
-    logger.info(
-        "distribute_summary_task_started",
-        extra={
-            "summary_id": summary_id_str,
-            "task_id": self.request.id,
-            "retries": self.request.retries,
-        },
-    )
+    # Usar context manager para logging estructurado con Request ID
+    with task_context(
+        task_name="distribute_summary",
+        summary_id=summary_id_str,
+        task_id=self.request.id,
+        retries=self.request.retries,
+    ):
+        try:
+            # Obtener resumen con eager-loading de relaciones
+            summary_repo = SummaryRepository(self.db)
+            summary = summary_repo.get_by_id(summary_id)
 
-    try:
-        # Obtener resumen con eager-loading de relaciones
-        summary_repo = SummaryRepository(self.db)
-        summary = summary_repo.get_by_id(summary_id)
+            if not summary:
+                logger.error("summary_not_found")
+                raise SummaryNotFoundError(f"Summary {summary_id} not found")
 
-        if not summary:
-            logger.error(
-                "distribute_summary_task_summary_not_found",
-                extra={"summary_id": summary_id_str, "task_id": self.request.id},
-            )
-            raise SummaryNotFoundError(f"Summary {summary_id} not found")
+            # IDEMPOTENCIA: Si ya fue enviado, terminar inmediatamente
+            if summary.sent_to_telegram:
+                logger.bind(
+                    sent_at=summary.sent_at.isoformat() if summary.sent_at else None,
+                ).info("summary_already_sent")
+                raise SummaryAlreadySentError(
+                    f"Summary {summary_id} was already sent to Telegram"
+                )
 
-        # IDEMPOTENCIA: Si ya fue enviado, terminar inmediatamente
-        if summary.sent_to_telegram:
-            logger.info(
-                "distribute_summary_task_already_sent",
-                extra={
+            # Obtener video y source relacionados (con eager loading)
+            video = summary.transcription.video
+            source = video.source
+
+            logger.bind(
+                video_id=str(video.id),
+                source_id=str(source.id),
+                source_name=source.name,
+            ).info("summary_relations_fetched")
+
+            # Consultar usuarios suscritos al source
+            user_repo = TelegramUserRepository(self.db)
+            subscribed_users = user_repo.get_users_subscribed_to_source(source.id)
+
+            # Filtrar usuarios que NO bloquearon el bot
+            active_users = [user for user in subscribed_users if not user.bot_blocked]
+
+            logger.bind(
+                total_subscribers=len(subscribed_users),
+                active_users=len(active_users),
+                blocked_users=len(subscribed_users) - len(active_users),
+            ).info("users_count_calculated")
+
+            # Si no hay usuarios activos, marcar como enviado y terminar
+            if len(active_users) == 0:
+                summary.sent_to_telegram = True
+                summary.sent_at = datetime.now(timezone.utc)
+                summary.telegram_message_ids = {}
+                self.db.commit()
+
+                logger.info("no_active_users_completing")
+
+                return {
+                    "status": "completed_no_users",
                     "summary_id": summary_id_str,
-                    "task_id": self.request.id,
-                    "sent_at": summary.sent_at.isoformat() if summary.sent_at else None,
-                },
+                    "messages_sent": 0,
+                }
+
+            # Formatear mensaje con markdown
+            formatted_message = format_summary_message(summary, video, source)
+
+            # Distribuir a usuarios (async)
+            sent_message_ids = asyncio.run(
+                _distribute_to_users(
+                    bot=self.bot,
+                    users=active_users,
+                    message=formatted_message,
+                    summary_id=summary_id_str,
+                    user_repo=user_repo,
+                    db_session=self.db,
+                )
             )
-            raise SummaryAlreadySentError(
-                f"Summary {summary_id} was already sent to Telegram"
-            )
 
-        # Obtener video y source relacionados (con eager loading)
-        video = summary.transcription.video
-        source = video.source
-
-        logger.info(
-            "distribute_summary_fetched_relations",
-            extra={
-                "summary_id": summary_id_str,
-                "video_id": str(video.id),
-                "source_id": str(source.id),
-                "source_name": source.name,
-            },
-        )
-
-        # Consultar usuarios suscritos al source
-        user_repo = TelegramUserRepository(self.db)
-        subscribed_users = user_repo.get_users_subscribed_to_source(source.id)
-
-        # Filtrar usuarios que NO bloquearon el bot
-        active_users = [user for user in subscribed_users if not user.bot_blocked]
-
-        logger.info(
-            "distribute_summary_users_count",
-            extra={
-                "summary_id": summary_id_str,
-                "total_subscribers": len(subscribed_users),
-                "active_users": len(active_users),
-                "blocked_users": len(subscribed_users) - len(active_users),
-            },
-        )
-
-        # Si no hay usuarios activos, marcar como enviado y terminar
-        if len(active_users) == 0:
+            # Actualizar summary con IDs de mensajes enviados
+            summary.telegram_message_ids = sent_message_ids
             summary.sent_to_telegram = True
             summary.sent_at = datetime.now(timezone.utc)
-            summary.telegram_message_ids = {}
             self.db.commit()
 
-            logger.info(
-                "distribute_summary_no_active_users",
-                extra={"summary_id": summary_id_str, "task_id": self.request.id},
-            )
+            logger.bind(
+                messages_sent=len(sent_message_ids),
+                active_users=len(active_users),
+            ).info("distribution_completed")
 
             return {
-                "status": "completed_no_users",
+                "status": "completed",
                 "summary_id": summary_id_str,
-                "messages_sent": 0,
-            }
-
-        # Formatear mensaje con markdown
-        formatted_message = format_summary_message(summary, video, source)
-
-        # Distribuir a usuarios (async)
-        sent_message_ids = asyncio.run(
-            _distribute_to_users(
-                bot=self.bot,
-                users=active_users,
-                message=formatted_message,
-                summary_id=summary_id_str,
-                user_repo=user_repo,
-                db_session=self.db,
-            )
-        )
-
-        # Actualizar summary con IDs de mensajes enviados
-        summary.telegram_message_ids = sent_message_ids
-        summary.sent_to_telegram = True
-        summary.sent_at = datetime.now(timezone.utc)
-        self.db.commit()
-
-        logger.info(
-            "distribute_summary_task_completed",
-            extra={
-                "summary_id": summary_id_str,
-                "task_id": self.request.id,
                 "messages_sent": len(sent_message_ids),
                 "active_users": len(active_users),
-                "retries": self.request.retries,
-            },
-        )
+            }
 
-        return {
-            "status": "completed",
-            "summary_id": summary_id_str,
-            "messages_sent": len(sent_message_ids),
-            "active_users": len(active_users),
-        }
+        except (SummaryNotFoundError, SummaryAlreadySentError):
+            # No reintentar estos errores (son permanentes o idempotentes)
+            logger.error("permanent_error_occurred")
+            raise
 
-    except (SummaryNotFoundError, SummaryAlreadySentError):
-        # No reintentar estos errores (son permanentes o idempotentes)
-        logger.error(
-            "distribute_summary_task_permanent_error",
-            extra={
-                "summary_id": summary_id_str,
-                "task_id": self.request.id,
-            },
-        )
-        raise
-
-    except Exception as exc:
-        # Log del error y permitir retry automático
-        logger.error(
-            "distribute_summary_task_error",
-            extra={
-                "summary_id": summary_id_str,
-                "task_id": self.request.id,
-                "error": str(exc),
-                "error_type": type(exc).__name__,
-                "retries": self.request.retries,
-            },
-            exc_info=True,
-        )
-        # Celery hará retry automáticamente
-        raise
+        except Exception as exc:
+            # Log del error y permitir retry automático
+            logger.bind(
+                error=str(exc),
+                error_type=type(exc).__name__,
+            ).exception("distribution_error_occurred")
+            # Celery hará retry automáticamente
+            raise
 
 
 # ==================== FUNCIONES AUXILIARES ====================
@@ -345,29 +306,23 @@ async def _distribute_to_users(
             # Guardar ID del mensaje enviado
             sent_message_ids[str(user.telegram_id)] = sent_message.message_id
 
-            logger.debug(
-                "message_sent_to_user",
-                extra={
-                    "summary_id": summary_id,
-                    "telegram_user_id": user.telegram_id,
-                    "message_id": sent_message.message_id,
-                },
-            )
+            logger.bind(
+                summary_id=summary_id,
+                telegram_user_id=user.telegram_id,
+                message_id=sent_message.message_id,
+            ).debug("message_sent_to_user")
 
             # Rate limiting: esperar entre envíos
             await asyncio.sleep(RATE_LIMIT_DELAY)
 
         except Forbidden as e:
             # Usuario bloqueó el bot o chat no existe
-            logger.warning(
-                "user_blocked_bot",
-                extra={
-                    "summary_id": summary_id,
-                    "telegram_user_id": user.telegram_id,
-                    "user_id": str(user.id),
-                    "error": str(e),
-                },
-            )
+            logger.bind(
+                summary_id=summary_id,
+                telegram_user_id=user.telegram_id,
+                user_id=str(user.id),
+                error=str(e),
+            ).warning("user_blocked_bot")
 
             # Marcar usuario como bot_blocked en BD
             user.bot_blocked = True
@@ -375,16 +330,13 @@ async def _distribute_to_users(
 
         except TelegramError as e:
             # Otros errores de Telegram (rate limit, timeout, etc.)
-            logger.error(
-                "telegram_send_failed",
-                extra={
-                    "summary_id": summary_id,
-                    "telegram_user_id": user.telegram_id,
-                    "user_id": str(user.id),
-                    "error": str(e),
-                    "error_type": type(e).__name__,
-                },
-            )
+            logger.bind(
+                summary_id=summary_id,
+                telegram_user_id=user.telegram_id,
+                user_id=str(user.id),
+                error=str(e),
+                error_type=type(e).__name__,
+            ).error("telegram_send_failed")
 
             # Si es rate limit, propagar para retry
             if "too many requests" in str(e).lower():
@@ -394,15 +346,12 @@ async def _distribute_to_users(
 
         except Exception as e:
             # Error inesperado
-            logger.exception(
-                "unexpected_error_sending_message",
-                extra={
-                    "summary_id": summary_id,
-                    "telegram_user_id": user.telegram_id,
-                    "user_id": str(user.id),
-                    "error": str(e),
-                },
-            )
+            logger.bind(
+                summary_id=summary_id,
+                telegram_user_id=user.telegram_id,
+                user_id=str(user.id),
+                error=str(e),
+            ).exception("unexpected_error_sending_message")
             # Continuar con siguiente usuario
 
     return sent_message_ids
