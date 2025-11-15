@@ -13,46 +13,13 @@ from functools import wraps
 from typing import Any, Callable, TypeVar
 
 import redis
-from prometheus_client import Counter, Histogram
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import RedisError, TimeoutError as RedisTimeoutError
 
 from src.core.config import settings
+from src.core.metrics import metrics
 
 logger = logging.getLogger(__name__)
-
-# ==================== MÉTRICAS DE PROMETHEUS ====================
-
-cache_hits = Counter(
-    "cache_hits_total",
-    "Total cache hits",
-    ["cache_type"],  # summary, user_recent, search, stats
-)
-
-cache_misses = Counter(
-    "cache_misses_total",
-    "Total cache misses",
-    ["cache_type"],
-)
-
-cache_errors = Counter(
-    "cache_errors_total",
-    "Total cache operation errors",
-    ["error_type"],  # connection, timeout, serialization
-)
-
-cache_operation_duration = Histogram(
-    "cache_operation_seconds",
-    "Duration of cache operations",
-    ["operation"],  # get, set, delete, invalidate
-)
-
-cache_value_size = Histogram(
-    "cache_value_size_bytes",
-    "Size of cached values",
-    ["cache_type"],
-    buckets=[100, 500, 1000, 5000, 10000, 50000],
-)
 
 # ==================== TYPE VARS ====================
 
@@ -87,11 +54,11 @@ def timed(operation: str):
             try:
                 result = func(*args, **kwargs)
                 duration = time.time() - start
-                cache_operation_duration.labels(operation=operation).observe(duration)
+                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(duration)
                 return result
             except Exception:
                 duration = time.time() - start
-                cache_operation_duration.labels(operation=operation).observe(duration)
+                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(duration)
                 raise
 
         return wrapper
@@ -164,7 +131,7 @@ class CacheService:
             )
             self.enabled = False
             self.redis_client = None
-            cache_errors.labels(error_type="connection").inc()
+            metrics.cache_errors_total.labels(error_type="connection").inc()
 
     @timed("get")
     def get(self, key: str, cache_type: str = "generic") -> Any | None:
@@ -188,7 +155,7 @@ class CacheService:
             value = self.redis_client.get(key)
 
             if value is None:
-                cache_misses.labels(cache_type=cache_type).inc()
+                metrics.cache_misses_total.labels(cache_type=cache_type).inc()
                 logger.debug(
                     f"Cache miss: {key}",
                     extra={"key": key, "cache_type": cache_type},
@@ -199,8 +166,8 @@ class CacheService:
             deserialized = json.loads(value)
 
             # Métricas
-            cache_hits.labels(cache_type=cache_type).inc()
-            cache_value_size.labels(cache_type=cache_type).observe(len(value))
+            metrics.cache_hits_total.labels(cache_type=cache_type).inc()
+            metrics.cache_value_size_bytes.labels(cache_type=cache_type).observe(len(value))
 
             logger.debug(
                 f"Cache hit: {key}",
@@ -218,7 +185,7 @@ class CacheService:
                 f"Redis connection error on get: {e}",
                 extra={"key": key, "error": str(e)},
             )
-            cache_errors.labels(error_type="connection").inc()
+            metrics.cache_errors_total.labels(error_type="connection").inc()
             return None
 
         except json.JSONDecodeError as e:
@@ -227,7 +194,7 @@ class CacheService:
                 exc_info=True,
                 extra={"key": key, "value": value, "error": str(e)},
             )
-            cache_errors.labels(error_type="serialization").inc()
+            metrics.cache_errors_total.labels(error_type="serialization").inc()
             # Eliminar valor corrupto
             self.delete(key)
             return None
@@ -238,7 +205,7 @@ class CacheService:
                 exc_info=True,
                 extra={"key": key, "error": str(e)},
             )
-            cache_errors.labels(error_type="redis_error").inc()
+            metrics.cache_errors_total.labels(error_type="redis_error").inc()
             return None
 
     @timed("set")
@@ -275,7 +242,7 @@ class CacheService:
             self.redis_client.setex(key, ttl, serialized)
 
             # Métricas
-            cache_value_size.labels(cache_type=cache_type).observe(len(serialized))
+            metrics.cache_value_size_bytes.labels(cache_type=cache_type).observe(len(serialized))
 
             logger.debug(
                 f"Cache set: {key}",
@@ -294,7 +261,7 @@ class CacheService:
                 f"Redis connection error on set: {e}",
                 extra={"key": key, "error": str(e)},
             )
-            cache_errors.labels(error_type="connection").inc()
+            metrics.cache_errors_total.labels(error_type="connection").inc()
             return False
 
         except (TypeError, ValueError) as e:
@@ -303,7 +270,7 @@ class CacheService:
                 exc_info=True,
                 extra={"key": key, "value_type": type(value).__name__, "error": str(e)},
             )
-            cache_errors.labels(error_type="serialization").inc()
+            metrics.cache_errors_total.labels(error_type="serialization").inc()
             return False
 
         except RedisError as e:
@@ -312,7 +279,7 @@ class CacheService:
                 exc_info=True,
                 extra={"key": key, "error": str(e)},
             )
-            cache_errors.labels(error_type="redis_error").inc()
+            metrics.cache_errors_total.labels(error_type="redis_error").inc()
             return False
 
     @timed("delete")
@@ -347,7 +314,7 @@ class CacheService:
                 f"Redis connection error on delete: {e}",
                 extra={"key": key, "error": str(e)},
             )
-            cache_errors.labels(error_type="connection").inc()
+            metrics.cache_errors_total.labels(error_type="connection").inc()
             return False
 
         except RedisError as e:
@@ -356,7 +323,7 @@ class CacheService:
                 exc_info=True,
                 extra={"key": key, "error": str(e)},
             )
-            cache_errors.labels(error_type="redis_error").inc()
+            metrics.cache_errors_total.labels(error_type="redis_error").inc()
             return False
 
     def exists(self, key: str) -> bool:
@@ -384,7 +351,7 @@ class CacheService:
                 f"Redis connection error on exists: {e}",
                 extra={"key": key, "error": str(e)},
             )
-            cache_errors.labels(error_type="connection").inc()
+            metrics.cache_errors_total.labels(error_type="connection").inc()
             return False
 
         except RedisError as e:
@@ -393,7 +360,7 @@ class CacheService:
                 exc_info=True,
                 extra={"key": key, "error": str(e)},
             )
-            cache_errors.labels(error_type="redis_error").inc()
+            metrics.cache_errors_total.labels(error_type="redis_error").inc()
             return False
 
     @timed("get_or_set")
@@ -481,12 +448,12 @@ class CacheService:
                 if value is not None:
                     try:
                         results[key] = json.loads(value)
-                        cache_hits.labels(cache_type=cache_type).inc()
+                        metrics.cache_hits_total.labels(cache_type=cache_type).inc()
                     except json.JSONDecodeError:
                         logger.error(f"Failed to deserialize cached value for key: {key}")
-                        cache_errors.labels(error_type="serialization").inc()
+                        metrics.cache_errors_total.labels(error_type="serialization").inc()
                 else:
-                    cache_misses.labels(cache_type=cache_type).inc()
+                    metrics.cache_misses_total.labels(cache_type=cache_type).inc()
 
             logger.debug(
                 f"Cache get_many: {len(results)}/{len(keys)} hits",
@@ -504,7 +471,7 @@ class CacheService:
                 f"Redis connection error on get_many: {e}",
                 extra={"keys_count": len(keys), "error": str(e)},
             )
-            cache_errors.labels(error_type="connection").inc()
+            metrics.cache_errors_total.labels(error_type="connection").inc()
             return {}
 
         except RedisError as e:
@@ -513,7 +480,7 @@ class CacheService:
                 exc_info=True,
                 extra={"keys_count": len(keys), "error": str(e)},
             )
-            cache_errors.labels(error_type="redis_error").inc()
+            metrics.cache_errors_total.labels(error_type="redis_error").inc()
             return {}
 
     def set_many(
@@ -558,7 +525,7 @@ class CacheService:
                         f"Failed to serialize value for key {key}: {e}",
                         extra={"key": key, "error": str(e)},
                     )
-                    cache_errors.labels(error_type="serialization").inc()
+                    metrics.cache_errors_total.labels(error_type="serialization").inc()
                     continue
 
             pipe.execute()
@@ -579,7 +546,7 @@ class CacheService:
                 f"Redis connection error on set_many: {e}",
                 extra={"keys_count": len(data), "error": str(e)},
             )
-            cache_errors.labels(error_type="connection").inc()
+            metrics.cache_errors_total.labels(error_type="connection").inc()
             return False
 
         except RedisError as e:
@@ -588,7 +555,7 @@ class CacheService:
                 exc_info=True,
                 extra={"keys_count": len(data), "error": str(e)},
             )
-            cache_errors.labels(error_type="redis_error").inc()
+            metrics.cache_errors_total.labels(error_type="redis_error").inc()
             return False
 
     @timed("invalidate")
@@ -637,7 +604,7 @@ class CacheService:
                 f"Redis connection error on invalidate_pattern: {e}",
                 extra={"pattern": pattern, "error": str(e)},
             )
-            cache_errors.labels(error_type="connection").inc()
+            metrics.cache_errors_total.labels(error_type="connection").inc()
             return 0
 
         except RedisError as e:
@@ -646,7 +613,7 @@ class CacheService:
                 exc_info=True,
                 extra={"pattern": pattern, "error": str(e)},
             )
-            cache_errors.labels(error_type="redis_error").inc()
+            metrics.cache_errors_total.labels(error_type="redis_error").inc()
             return 0
 
     def health_check(self) -> dict[str, Any]:
@@ -708,7 +675,7 @@ class CacheService:
                 exc_info=True,
                 extra={"error": str(e)},
             )
-            cache_errors.labels(error_type="connection").inc()
+            metrics.cache_errors_total.labels(error_type="connection").inc()
             return {
                 "status": "unhealthy",
                 "error": str(e),
@@ -721,7 +688,7 @@ class CacheService:
                 exc_info=True,
                 extra={"error": str(e)},
             )
-            cache_errors.labels(error_type="redis_error").inc()
+            metrics.cache_errors_total.labels(error_type="redis_error").inc()
             return {
                 "status": "unhealthy",
                 "error": str(e),

@@ -28,6 +28,9 @@ from src.api.middleware.request_id import RequestIDMiddleware
 from src.api.routes import stats, summaries, transcriptions, videos
 from src.api.schemas.errors import ErrorResponse, ValidationErrorResponse
 from src.core.config import settings
+
+# Importar métricas de Prometheus
+from src.core.metrics import metrics  # noqa: F401 - Inicializa métricas globales
 from src.repositories.exceptions import NotFoundError
 from src.services.downloader_service import (
     DownloadError,

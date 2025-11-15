@@ -15,7 +15,8 @@ El servicio implementa:
 - Manejo robusto de errores con estados de fallo específicos
 """
 
-from datetime import datetime, timezone
+import time
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 
@@ -23,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from src.core.config import settings
 from src.core.logging_config import get_logger
+from src.core.metrics import metrics
 from src.models import Summary, Transcription, Video
 from src.models.video import VideoStatus
 from src.repositories.transcription_repository import TranscriptionRepository
@@ -164,9 +166,6 @@ class VideoProcessingService:
 
         # ==================== VALIDACIÓN DE DURACIÓN ====================
         if video.duration_seconds and video.duration_seconds > settings.MAX_VIDEO_DURATION_SECONDS:
-            max_duration_formatted = self._format_duration(settings.MAX_VIDEO_DURATION_SECONDS)
-            actual_duration_formatted = self._format_duration(video.duration_seconds)
-
             logger.bind(
                 video_id=str(video_id),
                 youtube_id=video.youtube_id,
@@ -183,11 +182,18 @@ class VideoProcessingService:
                     "skip_reason": "duration_exceeded",
                     "max_allowed_seconds": settings.MAX_VIDEO_DURATION_SECONDS,
                     "actual_duration_seconds": video.duration_seconds,
-                    "skipped_at": datetime.now(timezone.utc).isoformat(),
+                    "skipped_at": datetime.now(UTC).isoformat(),
                 }
             )
 
             session.commit()
+
+            # Métrica de video omitido
+            metrics.videos_processed_total.labels(status="skipped").inc()
+
+            # Formatear duraciones para el log final
+            max_duration_formatted = self._format_duration(settings.MAX_VIDEO_DURATION_SECONDS)
+            actual_duration_formatted = self._format_duration(video.duration_seconds)
 
             logger.bind(
                 video_id=str(video_id),
@@ -207,16 +213,32 @@ class VideoProcessingService:
         ).info("video_processing_started")
 
         audio_path: Path | None = None
+        start_time_total = time.time()
 
         try:
             # ==================== FASE 1: DESCARGA ====================
+            start_time_download = time.time()
             audio_path = await self._download_audio(session, video, video_repo)
+            download_duration = time.time() - start_time_download
+            metrics.video_processing_duration_seconds.labels(phase="download").observe(
+                download_duration
+            )
 
             # ==================== FASE 2: TRANSCRIPCIÓN ====================
+            start_time_transcription = time.time()
             transcription = await self._transcribe_audio(session, video, audio_path, video_repo)
+            transcription_duration = time.time() - start_time_transcription
+            metrics.video_processing_duration_seconds.labels(phase="transcription").observe(
+                transcription_duration
+            )
 
             # ==================== FASE 3: RESUMEN ====================
+            start_time_summary = time.time()
             summary = await self._create_summary(session, video, transcription, video_repo)
+            summary_duration = time.time() - start_time_summary
+            metrics.video_processing_duration_seconds.labels(phase="summary").observe(
+                summary_duration
+            )
 
             # ==================== FASE 4: DISTRIBUCIÓN ====================
             # Encolar tarea de distribución automática a usuarios suscritos
@@ -233,11 +255,21 @@ class VideoProcessingService:
             video.status = VideoStatus.COMPLETED
             session.commit()
 
+            # Métricas de éxito
+            total_duration = time.time() - start_time_total
+            metrics.video_processing_duration_seconds.labels(phase="total").observe(total_duration)
+            metrics.videos_processed_total.labels(status="completed").inc()
+
+            # Registrar duración del video procesado
+            if video.duration_seconds:
+                metrics.video_duration_seconds.observe(video.duration_seconds)
+
             logger.bind(
                 video_id=str(video.id),
                 transcription_id=str(transcription.id),
                 summary_id=str(summary.id),
                 status="completed",
+                total_duration_seconds=round(total_duration, 2),
             ).info("video_processing_completed")
 
             # Limpiar archivos temporales después del éxito
@@ -251,6 +283,10 @@ class VideoProcessingService:
             video.status = VideoStatus.FAILED
             session.commit()
 
+            # Métricas de error
+            metrics.videos_processed_total.labels(status="failed").inc()
+            metrics.video_processing_errors_total.labels(error_type="download").inc()
+
             logger.bind(
                 video_id=str(video.id),
                 error=str(e),
@@ -262,6 +298,10 @@ class VideoProcessingService:
             # Errores de descarga (potencialmente recuperables)
             video.status = VideoStatus.FAILED
             session.commit()
+
+            # Métricas de error
+            metrics.videos_processed_total.labels(status="failed").inc()
+            metrics.video_processing_errors_total.labels(error_type="download").inc()
 
             logger.bind(
                 video_id=str(video.id),
@@ -280,6 +320,10 @@ class VideoProcessingService:
             # Error de transcripción
             video.status = VideoStatus.FAILED
             session.commit()
+
+            # Métricas de error
+            metrics.videos_processed_total.labels(status="failed").inc()
+            metrics.video_processing_errors_total.labels(error_type="transcription").inc()
 
             logger.bind(
                 video_id=str(video.id),
@@ -301,6 +345,10 @@ class VideoProcessingService:
             video.status = VideoStatus.FAILED
             session.commit()
 
+            # Métricas de error
+            metrics.videos_processed_total.labels(status="failed").inc()
+            metrics.video_processing_errors_total.labels(error_type="summary").inc()
+
             logger.bind(
                 video_id=str(video.id),
                 error=str(e),
@@ -318,6 +366,10 @@ class VideoProcessingService:
             # Error inesperado
             video.status = VideoStatus.FAILED
             session.commit()
+
+            # Métricas de error
+            metrics.videos_processed_total.labels(status="failed").inc()
+            metrics.video_processing_errors_total.labels(error_type="other").inc()
 
             logger.bind(
                 video_id=str(video.id),
@@ -374,6 +426,10 @@ class VideoProcessingService:
         # Obtener tamaño del archivo
         file_size_bytes = audio_path.stat().st_size
         file_size_mb = file_size_bytes / (1024 * 1024)
+
+        # Métricas de descarga
+        metrics.audio_downloads_total.labels(status="success").inc()
+        metrics.audio_file_size_bytes.observe(file_size_bytes)
 
         # Actualizar estado
         video.status = VideoStatus.DOWNLOADED
@@ -445,6 +501,10 @@ class VideoProcessingService:
         video.status = VideoStatus.TRANSCRIBED
         session.commit()
 
+        # Métricas de transcripción
+        metrics.transcriptions_total.labels(model="whisper-base", status="success").inc()
+        metrics.transcription_text_length_chars.observe(len(result.text))
+
         logger.bind(
             video_id=str(video.id),
             transcription_id=str(created_transcription.id),
@@ -496,6 +556,10 @@ class VideoProcessingService:
 
         # Commit ya se hace dentro de generate_summary
         # session.commit() ya ejecutado
+
+        # Métricas de resumen
+        metrics.summaries_generated_total.labels(status="success").inc()
+        # Nota: Las métricas de AI API (tokens, cost) se registran en SummarizationService
 
         logger.bind(
             video_id=str(video.id),

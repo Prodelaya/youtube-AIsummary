@@ -13,6 +13,7 @@ Las tareas usan VideoProcessingService que orquesta todos los servicios.
 
 import asyncio
 import logging
+import time
 from uuid import UUID
 
 from celery import Task
@@ -20,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from src.core.celery_app import celery_app
 from src.core.database import SessionLocal
+from src.core.metrics import metrics
 from src.models.video import VideoStatus
 from src.repositories.video_repository import VideoRepository
 from src.services.video_processing_service import (
@@ -114,6 +116,7 @@ def process_video_task(self, video_id_str: str) -> dict:
         'PENDING'
     """
     video_id = UUID(video_id_str)
+    start_time = time.time()
 
     logger.info(
         "process_video_task_started",
@@ -155,6 +158,11 @@ def process_video_task(self, video_id_str: str) -> dict:
         service = VideoProcessingService()
         processed_video = asyncio.run(service.process_video(self.db, video_id))
 
+        # Métricas de éxito
+        duration = time.time() - start_time
+        metrics.celery_task_duration_seconds.labels(task_name="process_video").observe(duration)
+        metrics.celery_task_total.labels(task_name="process_video", status="success").inc()
+
         logger.info(
             "process_video_task_completed",
             extra={
@@ -162,6 +170,7 @@ def process_video_task(self, video_id_str: str) -> dict:
                 "task_id": self.request.id,
                 "final_status": processed_video.status.value,
                 "retries": self.request.retries,
+                "duration_seconds": round(duration, 2),
             },
         )
 
@@ -173,6 +182,10 @@ def process_video_task(self, video_id_str: str) -> dict:
 
     except (VideoNotFoundError, InvalidVideoStateError):
         # No reintentar estos errores (son permanentes)
+        duration = time.time() - start_time
+        metrics.celery_task_duration_seconds.labels(task_name="process_video").observe(duration)
+        metrics.celery_task_total.labels(task_name="process_video", status="failed").inc()
+
         logger.error(
             "process_video_task_permanent_error",
             extra={
@@ -184,6 +197,15 @@ def process_video_task(self, video_id_str: str) -> dict:
 
     except Exception as exc:
         # Log del error y permitir retry automatico
+        duration = time.time() - start_time
+        metrics.celery_task_duration_seconds.labels(task_name="process_video").observe(duration)
+
+        # Solo incrementar retry counter si hay retry
+        if self.request.retries > 0:
+            metrics.celery_task_retries_total.labels(task_name="process_video").inc()
+
+        metrics.celery_task_total.labels(task_name="process_video", status="retry").inc()
+
         logger.error(
             "process_video_task_error",
             extra={
