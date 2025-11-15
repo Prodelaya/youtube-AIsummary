@@ -1,0 +1,112 @@
+# ============================================
+# PROMETHEUS CONFIGURATION
+# ============================================
+# Configuración para scraping de métricas del sistema YouTube AI Summary
+#
+# Scraping targets:
+# - FastAPI application (port 8000)
+# - Postgres Exporter (opcional, puerto 9187)
+# - Redis Exporter (opcional, puerto 9121)
+# - Node Exporter (opcional, puerto 9100)
+
+global:
+  # Intervalo de scraping por defecto: cada 15 segundos
+  scrape_interval: 15s
+
+  # Timeout para scraping: 10 segundos
+  scrape_timeout: 10s
+
+  # Intervalo de evaluación de reglas de alerting: cada 15 segundos
+  evaluation_interval: 15s
+
+  # Labels globales para todas las métricas
+  external_labels:
+    environment: 'development'
+    project: 'youtube-ai-summary'
+    monitor: 'prometheus-local'
+
+# Archivos de reglas de alerting (opcional, para futuro)
+rule_files:
+  # - "alert_rules.yml"
+  # - "recording_rules.yml"
+
+# Configuración de scraping
+scrape_configs:
+  # ==========================================
+  # JOB 1: Prometheus self-monitoring
+  # ==========================================
+  - job_name: 'prometheus'
+    # Scrapear las métricas del propio Prometheus
+    static_configs:
+      - targets: ['localhost:9090']
+    # Labels adicionales
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'prometheus-server'
+
+  # ==========================================
+  # JOB 2: FastAPI Application
+  # ==========================================
+  - job_name: 'fastapi'
+    # Endpoint de métricas de FastAPI
+    metrics_path: '/metrics'
+
+    # Scraping cada 15 segundos (global default)
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+    static_configs:
+      # Usar host.docker.internal para acceder al host desde container Docker
+      # En Linux con Docker Compose, usar 'host.docker.internal' o 'localhost'
+      # En producción, usar el hostname o IP del servidor FastAPI
+      - targets: ['host.docker.internal:8000']
+        labels:
+          service: 'fastapi'
+          app: 'youtube-ai-summary'
+          environment: 'development'
+
+    # Relabeling para mejorar los labels
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'fastapi-main'
+
+  # ==========================================
+  # JOB 3: PostgreSQL Exporter (OPCIONAL)
+  # ==========================================
+  # Descomentar cuando se añada postgres_exporter al stack
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres_exporter:9187']
+  #       labels:
+  #         service: 'postgresql'
+  #         database: 'iamonitor'
+
+  # ==========================================
+  # JOB 4: Redis Exporter (OPCIONAL)
+  # ==========================================
+  # Descomentar cuando se añada redis_exporter al stack
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis_exporter:9121']
+  #       labels:
+  #         service: 'redis'
+
+  # ==========================================
+  # JOB 5: Node Exporter (OPCIONAL)
+  # ==========================================
+  # Para métricas del sistema operativo (CPU, RAM, disk, network)
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets: ['node_exporter:9100']
+  #       labels:
+  #         service: 'node-exporter'
+
+# ==========================================
+# CONFIGURACIÓN DE ALMACENAMIENTO
+# ==========================================
+# Prometheus usa TSDB (Time Series Database) local
+# Por defecto almacena en ./data
+# Retención: 15 días (se puede cambiar con --storage.tsdb.retention.time)
+# En docker-compose.yml se monta un volumen para persistencia
