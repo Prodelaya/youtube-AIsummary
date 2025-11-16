@@ -1,0 +1,25 @@
+# ============================================
+# GRAFANA DASHBOARD PROVISIONING
+# ============================================
+# Provisioning automático de dashboards
+# Carga automáticamente los dashboards JSON al iniciar Grafana
+
+apiVersion: 1
+
+providers:
+  - name: 'YouTube AI Summary Dashboards'
+    orgId: 1
+    # Carpeta donde se mostrarán en Grafana UI
+    folder: 'YouTube AI Summary'
+    type: file
+    # Deshabilitar eliminación desde UI
+    disableDeletion: false
+    # Intervalo de actualización (segundos)
+    updateIntervalSeconds: 10
+    # Permitir ediciones desde UI
+    allowUiUpdates: true
+    # Opciones del provider
+    options:
+      # Ruta donde están los archivos JSON
+      # En el container: /var/lib/grafana/dashboards
+      path: /var/lib/grafana/dashboards

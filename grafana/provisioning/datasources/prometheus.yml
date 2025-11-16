@@ -1,0 +1,34 @@
+# ============================================
+# GRAFANA DATASOURCE - PROMETHEUS
+# ============================================
+# Provisioning automático del datasource Prometheus
+# Se carga al iniciar Grafana sin necesidad de configuración manual
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    # URL interna de Docker Compose (nombre del servicio)
+    url: http://prometheus:9090
+    isDefault: true
+
+    # Configuración JSON específica de Prometheus
+    jsonData:
+      httpMethod: POST
+      # Intervalo mínimo de scrape (debe coincidir con prometheus.yml)
+      timeInterval: 15s
+      # Timeout de queries
+      queryTimeout: 60s
+      # Habilitar métricas de ejemplo
+      exemplarTraceIdDestinations: []
+
+    # No editable desde la UI (seguridad)
+    editable: false
+
+    # Versión de Prometheus (opcional)
+    version: 1
+
+    # UID único para referencias cruzadas
+    uid: prometheus-main
