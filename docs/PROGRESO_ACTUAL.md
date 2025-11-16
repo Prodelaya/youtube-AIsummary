@@ -1,22 +1,22 @@
 # 📊 PROGRESO ACTUAL DEL PROYECTO
 
-**Última actualización:** 2025-11-14
-**Estado:** Semana 5 - Sistema de Caché con Redis Completado
+**Última actualización:** 2025-11-15
+**Estado:** Semana 5 - Observabilidad Completa (Logging + Prometheus + Grafana)
 
 ---
 
 ## 🎯 Resumen Ejecutivo
 
-El proyecto ha completado **3 semanas completas** de desarrollo, con las siguientes fases terminadas:
+El proyecto ha completado **86% del roadmap** (23 de 30 pasos), con las siguientes fases terminadas:
 
-- ✅ **Fase 0:** Planning & Setup
-- ✅ **Fase 1:** Infraestructura Base
-- ✅ **Fase 2:** Pipeline Core (Descarga → Transcripción → Resumen)
-- ✅ **Fase 3:** Bot Telegram Multi-Usuario (COMPLETADO)
-- ✅ **Modelos de Datos:** 5 modelos completos con relaciones
-- ✅ **Repository Pattern:** BaseRepository + 5 especializados
-- ✅ **API REST:** 18 endpoints documentados
-- 📍 **Fase 4:** Optimización y Distribución (EN PROGRESO)
+- ✅ **Fase 0:** Planning & Setup (100%)
+- ✅ **Fase 1:** Infraestructura Base (100%)
+- ✅ **Fase 2:** Pipeline Core (100%)
+- ✅ **Fase 3:** API REST + Bot Telegram Multi-Usuario (100%)
+- ✅ **Fase 4:** Workers Async (100%)
+- ✅ **Fase 5:** Observabilidad (100%) ← **COMPLETADA 15/11/2025**
+- 📍 **Fase 6:** Testing & CI/CD (0%) ← **PRÓXIMA**
+- ⏳ **Fase 7:** Deployment (0%)
 
 ---
 
@@ -307,18 +307,134 @@ Celery Beat (6h) → scraping task → Videos nuevos → process_video_task → 
 
 ---
 
-## 📍 SIGUIENTE PASO (Paso 21)
+## ✅ PASO 21 COMPLETADO: Logging Estructurado (13/11/2025)
 
-### 📝 Logging Estructurado
+### 📝 Sistema de Logging JSON Estructurado (100% COMPLETADO)
+
+**Implementación completada:**
+- ✅ Configuración de logging JSON con contexto estructurado
+- ✅ Correlation ID para trazabilidad de requests
+- ✅ Metadata contextual (user_id, video_id, operation)
+- ✅ Formateo JSON para agregación en Prometheus/Grafana
+- ✅ Logging jerárquico (request → service → repository)
+
+**Documentación:**
+- ✅ `docs/logging-guide.md` - Guía completa de uso
+
+---
+
+## ✅ PASO 22 COMPLETADO: Métricas Prometheus (14-15/11/2025)
+
+### 📊 Sistema de Métricas Completo (100% COMPLETADO)
+
+**Implementación completada:**
+- ✅ 52 métricas instrumentadas en 8 categorías
+- ✅ Prometheus 2.48 en Docker Compose
+- ✅ Endpoint /metrics en FastAPI
+- ✅ Métricas de: HTTP, video processing, Celery, cache, AI/LLM
+- ✅ 52/52 tests pasando (100%)
+
+**Documentación:**
+- ✅ `docs/prometheus-guide.md` (guía principal)
+- ✅ `docs/prometheus-queries.md` (queries útiles)
+- ✅ `docs/prometheus-operations.md` (operaciones)
+- ✅ `docs/completitud/paso-22-prometheus-metricas.md`
+
+**Características:**
+- Histogramas para latencias (p50, p95, p99)
+- Counters para operaciones (videos, requests, errores)
+- Gauges para recursos (CPU, RAM, queue size)
+- Scraping cada 15 segundos
+- Retención de 15 días
+
+---
+
+## ✅ PASO 23 COMPLETADO: Grafana Dashboard (15/11/2025)
+
+### 📈 Dashboards de Visualización (100% COMPLETADO)
+
+**Implementación completada:**
+- ✅ Grafana 10.2.0 en Docker Compose
+- ✅ 3 dashboards con 22 paneles totales
+- ✅ Provisioning automático de datasources y dashboards
+- ✅ Alertas visuales con thresholds configurados
+- ✅ Documentación exhaustiva (664 líneas)
+
+**Dashboards implementados:**
+1. **System Overview** (8 paneles):
+   - Total videos processed
+   - Videos processing rate (videos/min)
+   - Success rate (%) con gauge
+   - Cache hit rate (%) con gauge
+   - API requests/second por método
+   - Celery queue size por cola
+   - System resources (CPU/RAM)
+   - HTTP 5xx error rate
+
+2. **API Performance** (6 paneles):
+   - Request rate by endpoint
+   - HTTP status codes distribution
+   - Request latency p95/p50
+   - Top 10 slowest endpoints
+   - Active HTTP requests
+
+3. **Video Processing Pipeline** (8 paneles):
+   - Videos by status (pie chart)
+   - Throughput (videos/hora)
+   - Processing duration by phase
+   - Download/Transcription/Summary duration (p95)
+   - Top processing errors
+
+**Características técnicas:**
+- Auto-refresh cada 15 segundos
+- Time range: Últimas 6 horas (configurable)
+- Queries PromQL optimizadas
+- Persistencia con volúmenes Docker
+- Alertas visuales (semáforos: verde/amarillo/rojo)
+
+**Acceso:**
+- URL: http://localhost:3000
+- Usuario: admin
+- Password: admin (configurable en .env)
+
+**Documentación:**
+- ✅ `docs/grafana-dashboards-guide.md` (664 líneas)
+- ✅ `docs/completitud/paso-23-grafana-dashboard.md`
+- ✅ `PASO-23-RESUMEN.md` (resumen ejecutivo)
+
+**Archivos creados:**
+```
+grafana/
+├── provisioning/
+│   ├── datasources/prometheus.yml
+│   └── dashboards/default.yml
+└── dashboards/
+    ├── system-overview.json       (8 paneles)
+    ├── api-performance.json       (6 paneles)
+    └── video-processing.json      (8 paneles)
+```
+
+**Validación:**
+- ✅ Grafana accesible y healthy
+- ✅ 3 dashboards cargados automáticamente
+- ✅ Datasource Prometheus configurado
+- ✅ Todos los paneles muestran datos reales
+- ✅ Persistencia verificada tras restart
+
+---
+
+## 📍 SIGUIENTE PASO (Paso 24)
+
+### 🧪 Suite de Tests Completa
+
+**Objetivo:** >80% cobertura en lógica crítica
 
 **Próximos pasos:**
-1. ✅ Paso 16: Suscripciones interactivas (COMPLETADO)
-2. ✅ Paso 17: Historial y búsqueda (COMPLETADO)
-3. ✅ Paso 18: Worker de distribución personalizada (COMPLETADO)
-4. ✅ Paso 19: Caché de resúmenes con Redis (COMPLETADO)
-5. ✅ Paso 20: Jobs programados con Celery Beat (COMPLETADO)
-6. 📍 Paso 21: Logging estructurado ← SIGUIENTE
-7. Paso 22-23: Métricas y monitorización con Prometheus + Grafana
+1. ✅ Paso 21: Logging estructurado (COMPLETADO)
+2. ✅ Paso 22: Métricas Prometheus (COMPLETADO)
+3. ✅ Paso 23: Grafana Dashboard (COMPLETADO)
+4. 📍 Paso 24: Suite de tests completa ← **SIGUIENTE**
+5. Paso 25: CI/CD con GitHub Actions
 
 ---
 
@@ -341,9 +457,11 @@ src/
 
 ### Infraestructura
 - ✅ PostgreSQL 15 con migraciones Alembic
-- ✅ Redis 7 como broker de Celery
+- ✅ Redis 7 como broker de Celery + cache
 - ✅ Docker Compose para desarrollo local
 - ✅ FastAPI con documentación OpenAPI automática
+- ✅ Prometheus 2.48 para métricas (52 métricas instrumentadas)
+- ✅ Grafana 10.2 con 3 dashboards (22 paneles totales)
 
 ### Tests
 - ✅ Tests API (suite completa con pytest)
@@ -416,7 +534,7 @@ src/
 
 ---
 
-**🚀 Estado General:** En progreso, ~82% completado (~4.5 de 5.5 semanas)
+**🚀 Estado General:** En progreso, **86% completado** (23 de 30 pasos, ~5 de 6 semanas)
 
 ---
 
