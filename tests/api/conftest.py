@@ -30,7 +30,7 @@ def db_session():
     """
     from src.core.database import engine
 
-    # Crear todas las tablas
+    # Crear todas las tablas (idempotente si ya existen)
     Base.metadata.create_all(engine)
 
     # Crear sesion
@@ -43,8 +43,15 @@ def db_session():
         # Rollback para deshacer cambios del test
         session.rollback()
         session.close()
-        # Limpiar todas las tablas
-        Base.metadata.drop_all(engine)
+
+        # Limpiar datos pero mantener schema
+        # Esto es más rápido y evita race conditions
+        with engine.begin() as conn:
+            for table in reversed(Base.metadata.sorted_tables):
+                conn.execute(table.delete())
+
+        # NO hacer drop_all aquí - causa race conditions entre tests
+        # Base.metadata.drop_all(engine)
 
 
 # ==================== FASTAPI CLIENT FIXTURE ====================

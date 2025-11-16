@@ -27,6 +27,7 @@ def mock_callback_query(mock_telegram_user, mock_message):
     query.data = None  # Se configurará en cada test
     query.answer = AsyncMock()
     query.edit_message_reply_markup = AsyncMock()
+    query.edit_message_text = AsyncMock()
     return query
 
 
@@ -244,8 +245,8 @@ class TestToggleSubscriptionCallback:
             # Assert - Verificar que se llamó a toggle
             mock_toggle.assert_called_once()
 
-            # Assert - Verificar que se actualizó teclado
-            mock_update_with_callback.callback_query.edit_message_reply_markup.assert_called_once()
+            # Assert - Verificar que se actualizó mensaje con teclado
+            mock_update_with_callback.callback_query.edit_message_text.assert_called_once()
 
             # Assert - Verificar feedback al usuario
             mock_update_with_callback.callback_query.answer.assert_called_once()

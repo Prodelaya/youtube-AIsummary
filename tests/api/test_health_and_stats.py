@@ -47,7 +47,8 @@ def test_health_check_structure(client: TestClient):
 
 def test_get_global_stats_empty(client: TestClient):
     """Test estadisticas globales sin datos."""
-    response = client.get("/api/v1/stats")
+    # Bypass cache para forzar query fresca a la BD
+    response = client.get("/api/v1/stats", headers={"X-Cache-Bypass": "true"})
 
     assert response.status_code == 200
     data = response.json()
@@ -64,7 +65,8 @@ def test_get_global_stats_with_data(
     client: TestClient, sample_video: Video, sample_completed_video: Video
 ):
     """Test estadisticas globales con datos."""
-    response = client.get("/api/v1/stats")
+    # Bypass cache para forzar query fresca a la BD
+    response = client.get("/api/v1/stats", headers={"X-Cache-Bypass": "true"})
 
     assert response.status_code == 200
     data = response.json()
@@ -78,7 +80,8 @@ def test_get_global_stats_source_breakdown(
     client: TestClient, sample_source: Source, sample_video: Video
 ):
     """Test estadisticas con desglose por fuente."""
-    response = client.get("/api/v1/stats")
+    # Bypass cache para forzar query fresca a la BD
+    response = client.get("/api/v1/stats", headers={"X-Cache-Bypass": "true"})
 
     assert response.status_code == 200
     data = response.json()
@@ -99,7 +102,8 @@ def test_get_global_stats_source_breakdown(
 
 def test_get_source_stats_success(client: TestClient, sample_source: Source, sample_video: Video):
     """Test estadisticas de fuente especifica."""
-    response = client.get(f"/api/v1/stats/sources/{sample_source.id}")
+    # Bypass cache para forzar query fresca a la BD
+    response = client.get(f"/api/v1/stats/sources/{sample_source.id}", headers={"X-Cache-Bypass": "true"})
 
     assert response.status_code == 200
     data = response.json()
@@ -139,7 +143,8 @@ def test_get_source_stats_with_multiple_videos(
         db_session.add(video)
     db_session.commit()
 
-    response = client.get(f"/api/v1/stats/sources/{sample_source.id}")
+    # Bypass cache para forzar query fresca a la BD
+    response = client.get(f"/api/v1/stats/sources/{sample_source.id}", headers={"X-Cache-Bypass": "true"})
 
     assert response.status_code == 200
     data = response.json()

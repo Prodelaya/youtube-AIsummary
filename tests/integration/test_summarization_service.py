@@ -305,16 +305,31 @@ async def test_generate_summary_with_database(skip_if_no_token):
     session = next(get_db())
 
     try:
-        # Crear video y transcripción de prueba
+        # Crear source, video y transcripción de prueba
+        from src.repositories.source_repository import SourceRepository
+        from src.models.source import Source
+
+        source_repo = SourceRepository(session)
         video_repo = VideoRepository(session)
         transcription_repo = TranscriptionRepository(session)
 
+        # Crear source de prueba
+        source = Source(
+            name="Test Source",
+            url="https://youtube.com/@test",
+            source_type="youtube_channel",
+            active=True,
+        )
+        created_source = source_repo.create(source)
+        session.commit()
+
+        # Crear video de prueba
         video = Video(
             youtube_id=f"test_video_{uuid4().hex[:8]}",
             title=SAMPLE_TITLE,
             url="https://www.youtube.com/watch?v=test123",
-            duration=765,  # 12:45 en segundos
-            channel_name="Test Channel",
+            duration_seconds=765,  # 12:45 en segundos
+            source_id=created_source.id,
         )
         created_video = video_repo.create(video)
         session.commit()
@@ -409,16 +424,31 @@ async def test_generate_summary_duplicate_error(skip_if_no_token):
     session = next(get_db())
 
     try:
-        # Crear video y transcripción de prueba
+        # Crear source, video y transcripción de prueba
+        from src.repositories.source_repository import SourceRepository
+        from src.models.source import Source
+
+        source_repo = SourceRepository(session)
         video_repo = VideoRepository(session)
         transcription_repo = TranscriptionRepository(session)
 
+        # Crear source de prueba
+        source = Source(
+            name="Test Source",
+            url="https://youtube.com/@test",
+            source_type="youtube_channel",
+            active=True,
+        )
+        created_source = source_repo.create(source)
+        session.commit()
+
+        # Crear video de prueba
         video = Video(
             youtube_id=f"test_duplicate_{uuid4().hex[:8]}",
             title="Test Duplicate",
             url="https://www.youtube.com/watch?v=test456",
-            duration=300,
-            channel_name="Test Channel",
+            duration_seconds=300,
+            source_id=created_source.id,
         )
         created_video = video_repo.create(video)
         session.commit()
