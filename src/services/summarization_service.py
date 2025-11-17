@@ -26,6 +26,8 @@ from src.models import Summary, Transcription, Video
 from src.repositories.exceptions import AlreadyExistsError, NotFoundError
 from src.repositories.summary_repository import SummaryRepository
 from src.repositories.transcription_repository import TranscriptionRepository
+from src.services.input_sanitizer import InputSanitizer
+from src.services.output_validator import OutputValidator
 from src.services.prompts import format_user_prompt, load_prompt
 
 # ==================== CONSTANTES ====================
@@ -122,6 +124,10 @@ class SummarizationService:
         # Cargar system prompt al inicializar (se reutiliza en todas las llamadas)
         self._system_prompt = load_prompt("system_prompt.txt")
 
+        # Inicializar sanitizer y validator
+        self._sanitizer = InputSanitizer()
+        self._validator = OutputValidator()
+
     async def __aenter__(self):
         """Soporte para context manager (async with)."""
         return self
@@ -172,15 +178,19 @@ class SummarizationService:
         max_tokens = max_tokens or settings.DEEPSEEK_MAX_TOKENS
         temperature = temperature if temperature is not None else settings.DEEPSEEK_TEMPERATURE
 
-        # Generar user prompt con datos del vídeo
+        # SEGURIDAD: Sanitizar inputs antes de enviar al LLM
+        sanitized_title = self._sanitizer.sanitize_title(title)
+        sanitized_transcription = self._sanitizer.sanitize_transcription(transcription)
+
+        # Generar user prompt con datos sanitizados
         user_prompt = format_user_prompt(
-            title=title,
+            title=sanitized_title,
             duration=duration,
-            transcription=transcription,
+            transcription=sanitized_transcription,
         )
 
         try:
-            # Llamada a DeepSeek API
+            # Llamada a DeepSeek API con JSON mode forzado
             response = await self._client.chat.completions.create(
                 model=settings.DEEPSEEK_MODEL,
                 messages=[
@@ -190,16 +200,33 @@ class SummarizationService:
                 max_tokens=max_tokens,
                 temperature=temperature,
                 top_p=DEFAULT_TOP_P,
+                response_format={"type": "json_object"},  # SEGURIDAD: Forzar JSON estructurado
             )
 
             # Extraer resultado
             if not response.choices or len(response.choices) == 0:
                 raise InvalidResponseError("La API no devolvió ningún choice")
 
-            summary_text = response.choices[0].message.content
+            content = response.choices[0].message.content
 
-            if not summary_text:
+            if not content:
                 raise InvalidResponseError("El resumen generado está vacío")
+
+            # Parsear JSON response
+            import json
+            try:
+                parsed_response = json.loads(content)
+                summary_text = parsed_response.get("summary", "")
+
+                if not summary_text:
+                    raise InvalidResponseError("El campo 'summary' está vacío en la respuesta JSON")
+
+            except json.JSONDecodeError as e:
+                raise InvalidResponseError(f"La API no devolvió JSON válido: {e}")
+
+            # SEGURIDAD: Detectar prompt leak en el output
+            if self._validator.detect_prompt_leak(summary_text):
+                raise InvalidResponseError("LLM output contains prompt leak")
 
             # Extraer métricas de uso
             usage = response.usage
