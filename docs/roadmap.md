@@ -769,7 +769,7 @@ git commit -m "feat(monitoring): add Grafana dashboards with 22 panels (Paso 23)
 
 ---
 
-### 🔒 Paso 23.5: Seguridad Crítica (✨ NUEVO - Prioridad P0)
+### 🔒 Paso 23.5: Seguridad Crítica ✅ COMPLETADO (17/11/2025)
 
 **Contexto:**
 Tras la auditoría de seguridad (ref: `docs/security-audit-report.md`), se identificaron **2 vulnerabilidades críticas** y **3 importantes** que impiden deployment seguro en producción. Este paso implementa las **Fases 1 y 2** del Plan de Mitigación.
