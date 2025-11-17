@@ -4,7 +4,7 @@
 **Fecha:** 2025-11-17
 **Estado del Proyecto:** Fase 5 completada (86% roadmap) - Pre-producción
 **Alcance:** Análisis de seguridad integral del backend, API, workers y bot de Telegram
-**Auditor:** Equipo de Seguridad Externo
+**Auditor:** Agente ChatGPT 5.1
 
 ---
 
@@ -38,16 +38,16 @@
 
 El proyecto tiene una **arquitectura sólida** y código de alta calidad, pero presenta **vulnerabilidades críticas** que impiden su deployment en producción:
 
-| Categoría | Estado | Riesgo | Prioridad |
-|-----------|--------|--------|-----------|
-| Autenticación/Autorización | ❌ **Ausente** | 🔴 Crítico | P0 |
-| Prompt Injection (LLM) | ⚠️ **Vulnerable** | 🔴 Crítico | P0 |
-| Configuración por Defecto | ⚠️ **Insegura** | 🟡 Alto | P1 |
-| Rate Limiting | ❌ **Ausente** | 🟡 Alto | P1 |
-| Gestión de Secretos | ⚠️ **Básica** | 🟡 Medio | P2 |
-| Logging de Datos Sensibles | ⚠️ **Riesgo** | 🟡 Medio | P2 |
-| SQL Injection | ✅ **Protegido** | 🟢 Bajo | - |
-| Dependencias | ⚠️ **Sin auditar** | 🟡 Medio | P2 |
+| Categoría                  | Estado            | Riesgo    | Prioridad |
+| -------------------------- | ----------------- | --------- | --------- |
+| Autenticación/Autorización | ❌ **Ausente**     | 🔴 Crítico | P0        |
+| Prompt Injection (LLM)     | ⚠️ **Vulnerable**  | 🔴 Crítico | P0        |
+| Configuración por Defecto  | ⚠️ **Insegura**    | 🟡 Alto    | P1        |
+| Rate Limiting              | ❌ **Ausente**     | 🟡 Alto    | P1        |
+| Gestión de Secretos        | ⚠️ **Básica**      | 🟡 Medio   | P2        |
+| Logging de Datos Sensibles | ⚠️ **Riesgo**      | 🟡 Medio   | P2        |
+| SQL Injection              | ✅ **Protegido**   | 🟢 Bajo    | -         |
+| Dependencias               | ⚠️ **Sin auditar** | 🟡 Medio   | P2        |
 
 ### Impacto Global
 
@@ -254,11 +254,11 @@ async def verify_api_key(x_api_key: str = Header(...)) -> str:
 
 **Roles y permisos sugeridos:**
 
-| Rol | Permisos |
-|-----|----------|
-| `admin` | Todos los endpoints (CRUD completo) |
-| `user` | Solo lectura + procesamiento de sus propios videos |
-| `bot` | Solo para distribución de resúmenes (API key dedicada) |
+| Rol     | Permisos                                               |
+| ------- | ------------------------------------------------------ |
+| `admin` | Todos los endpoints (CRUD completo)                    |
+| `user`  | Solo lectura + procesamiento de sus propios videos     |
+| `bot`   | Solo para distribución de resúmenes (API key dedicada) |
 
 **Cambios en CORS:**
 
@@ -856,12 +856,12 @@ async def process_video(request: Request, video_id: UUID, ...):
 
 **Rate limits sugeridos:**
 
-| Endpoint | Límite Global | Límite Autenticado |
-|----------|---------------|-------------------|
-| `POST /videos/{id}/process` | 5/min | 20/min |
-| `DELETE /summaries/{id}` | 10/min | 50/min |
-| `GET /summaries` | 100/min | 500/min |
-| `POST /summaries/search` | 30/min | 200/min |
+| Endpoint                    | Límite Global | Límite Autenticado |
+| --------------------------- | ------------- | ------------------ |
+| `POST /videos/{id}/process` | 5/min         | 20/min             |
+| `DELETE /summaries/{id}`    | 10/min        | 50/min             |
+| `GET /summaries`            | 100/min       | 500/min            |
+| `POST /summaries/search`    | 30/min        | 200/min            |
 
 **Implementación con Redis:**
 
@@ -1048,15 +1048,15 @@ structlog.configure(
 
 **Objetivo:** Resolver vulnerabilidades que impiden deployment en producción.
 
-| Tarea | Estimación | Responsable | Prioridad |
-|-------|------------|-------------|-----------|
-| HC-001: Implementar autenticación JWT básica | 2 días | Backend Team | P0 |
-| HC-001: Crear modelo User con roles | 1 día | Backend Team | P0 |
-| HC-001: Aplicar `Depends(auth)` en endpoints críticos | 1 día | Backend Team | P0 |
-| HC-002: Reforzar system prompt anti-injection | 0.5 días | AI Team | P0 |
-| HC-002: Crear InputSanitizer con detección | 1 día | Security Team | P0 |
-| HC-002: Integrar sanitización en pipeline | 0.5 días | Backend Team | P0 |
-| HI-001: Valores seguros por defecto en config | 0.5 días | DevOps Team | P0 |
+| Tarea                                                 | Estimación | Responsable   | Prioridad |
+| ----------------------------------------------------- | ---------- | ------------- | --------- |
+| HC-001: Implementar autenticación JWT básica          | 2 días     | Backend Team  | P0        |
+| HC-001: Crear modelo User con roles                   | 1 día      | Backend Team  | P0        |
+| HC-001: Aplicar `Depends(auth)` en endpoints críticos | 1 día      | Backend Team  | P0        |
+| HC-002: Reforzar system prompt anti-injection         | 0.5 días   | AI Team       | P0        |
+| HC-002: Crear InputSanitizer con detección            | 1 día      | Security Team | P0        |
+| HC-002: Integrar sanitización en pipeline             | 0.5 días   | Backend Team  | P0        |
+| HI-001: Valores seguros por defecto en config         | 0.5 días   | DevOps Team   | P0        |
 
 **Criterio de Éxito Fase 1:**
 - ✅ Todos los endpoints de modificación requieren autenticación
@@ -1070,14 +1070,14 @@ structlog.configure(
 
 **Objetivo:** Reducir superficie de ataque y mejorar defensa en profundidad.
 
-| Tarea | Estimación | Responsable | Prioridad |
-|-------|------------|-------------|-----------|
-| HI-002: Implementar rate limiting con SlowAPI | 1.5 días | Backend Team | P1 |
-| HI-002: Configurar límites por endpoint | 0.5 días | Backend Team | P1 |
-| HC-002: Output validation del LLM | 1 día | AI Team | P1 |
-| HC-002: Structured JSON output | 0.5 días | AI Team | P1 |
-| HI-001: Restringir CORS a dominios específicos | 0.5 días | DevOps Team | P1 |
-| HI-001: Validación de configuración en startup | 0.5 días | Backend Team | P1 |
+| Tarea                                          | Estimación | Responsable  | Prioridad |
+| ---------------------------------------------- | ---------- | ------------ | --------- |
+| HI-002: Implementar rate limiting con SlowAPI  | 1.5 días   | Backend Team | P1        |
+| HI-002: Configurar límites por endpoint        | 0.5 días   | Backend Team | P1        |
+| HC-002: Output validation del LLM              | 1 día      | AI Team      | P1        |
+| HC-002: Structured JSON output                 | 0.5 días   | AI Team      | P1        |
+| HI-001: Restringir CORS a dominios específicos | 0.5 días   | DevOps Team  | P1        |
+| HI-001: Validación de configuración en startup | 0.5 días   | Backend Team | P1        |
 
 **Criterio de Éxito Fase 2:**
 - ✅ Rate limiting bloquea >100 req/min desde misma IP
@@ -1091,15 +1091,15 @@ structlog.configure(
 
 **Objetivo:** Implementar mejores prácticas de seguridad operacional.
 
-| Tarea | Estimación | Responsable | Prioridad |
-|-------|------------|-------------|-----------|
-| Auditar dependencias con `pip-audit` | 0.5 días | DevOps Team | P2 |
-| Configurar Celery con TLS y message signing | 1 día | Backend Team | P2 |
-| Implementar SCAN en cache_service | 1 día | Backend Team | P2 |
-| Logging estructurado con filtrado de secretos | 1 día | Backend Team | P2 |
-| Tests de seguridad en CI/CD | 2 días | QA Team | P2 |
-| Dashboard de intentos de injection | 1 día | DevOps Team | P2 |
-| Gestión de secretos con Vault (opcional) | 3 días | DevOps Team | P3 |
+| Tarea                                         | Estimación | Responsable  | Prioridad |
+| --------------------------------------------- | ---------- | ------------ | --------- |
+| Auditar dependencias con `pip-audit`          | 0.5 días   | DevOps Team  | P2        |
+| Configurar Celery con TLS y message signing   | 1 día      | Backend Team | P2        |
+| Implementar SCAN en cache_service             | 1 día      | Backend Team | P2        |
+| Logging estructurado con filtrado de secretos | 1 día      | Backend Team | P2        |
+| Tests de seguridad en CI/CD                   | 2 días     | QA Team      | P2        |
+| Dashboard de intentos de injection            | 1 día      | DevOps Team  | P2        |
+| Gestión de secretos con Vault (opcional)      | 3 días     | DevOps Team  | P3        |
 
 **Criterio de Éxito Fase 3:**
 - ✅ Sin dependencias con CVE conocidos (score >7.0)
@@ -1346,12 +1346,12 @@ echo "✅ All security checks passed"
 
 **P3.2:** ¿Qué límites configurar por endpoint?
 
-| Endpoint | Propuesta | Justificación |
-|----------|-----------|---------------|
-| `POST /videos/{id}/process` | 5/min por IP | Costoso (transcripción + LLM) |
-| `DELETE /summaries/{id}` | 10/min por usuario | Operación destructiva |
-| `GET /summaries` | 100/min por IP | Lectura, bajo costo |
-| `POST /summaries/search` | 30/min por IP | Full-text search (costoso en BD) |
+| Endpoint                    | Propuesta          | Justificación                    |
+| --------------------------- | ------------------ | -------------------------------- |
+| `POST /videos/{id}/process` | 5/min por IP       | Costoso (transcripción + LLM)    |
+| `DELETE /summaries/{id}`    | 10/min por usuario | Operación destructiva            |
+| `GET /summaries`            | 100/min por IP     | Lectura, bajo costo              |
+| `POST /summaries/search`    | 30/min por IP      | Full-text search (costoso en BD) |
 
 **Pregunta:** ¿Ajustar según feedback de usuarios en beta?
 
@@ -1512,15 +1512,15 @@ security_events_total = Counter(
 
 ### B. Matriz de Riesgos
 
-| ID | Hallazgo | Probabilidad | Impacto | Riesgo | Estado |
-|----|----------|--------------|---------|--------|--------|
-| HC-001 | Falta de autenticación | 🔴 Alta | 🔴 Crítico | **Crítico** | ⏳ Pendiente |
-| HC-002 | Prompt Injection | 🟡 Media | 🔴 Alto | **Alto** | ⏳ Pendiente |
-| HI-001 | Config insegura | 🟡 Media | 🟡 Medio | **Medio** | ⏳ Pendiente |
-| HI-002 | Sin rate limiting | 🟡 Media | 🟡 Medio | **Medio** | ⏳ Pendiente |
-| HI-003 | KEYS bloqueante | 🟢 Baja | 🟡 Medio | **Bajo** | ⏳ Pendiente |
-| HM-001 | Stats públicas | 🟢 Baja | 🟢 Bajo | **Bajo** | ⏳ Pendiente |
-| HM-002 | Logging sensible | 🟢 Baja | 🟢 Bajo | **Bajo** | ⏳ Pendiente |
+| ID     | Hallazgo               | Probabilidad | Impacto   | Riesgo      | Estado      |
+| ------ | ---------------------- | ------------ | --------- | ----------- | ----------- |
+| HC-001 | Falta de autenticación | 🔴 Alta       | 🔴 Crítico | **Crítico** | ⏳ Pendiente |
+| HC-002 | Prompt Injection       | 🟡 Media      | 🔴 Alto    | **Alto**    | ⏳ Pendiente |
+| HI-001 | Config insegura        | 🟡 Media      | 🟡 Medio   | **Medio**   | ⏳ Pendiente |
+| HI-002 | Sin rate limiting      | 🟡 Media      | 🟡 Medio   | **Medio**   | ⏳ Pendiente |
+| HI-003 | KEYS bloqueante        | 🟢 Baja       | 🟡 Medio   | **Bajo**    | ⏳ Pendiente |
+| HM-001 | Stats públicas         | 🟢 Baja       | 🟢 Bajo    | **Bajo**    | ⏳ Pendiente |
+| HM-002 | Logging sensible       | 🟢 Baja       | 🟢 Bajo    | **Bajo**    | ⏳ Pendiente |
 
 **Leyenda:**
 - 🔴 Crítico: Requiere acción inmediata
@@ -1576,6 +1576,6 @@ security_events_total = Counter(
 
 ## 📝 REGISTRO DE CAMBIOS
 
-| Versión | Fecha | Cambios |
-|---------|-------|---------|
-| 1.0 | 2025-11-17 | Informe inicial completo |
+| Versión | Fecha      | Cambios                  |
+| ------- | ---------- | ------------------------ |
+| 1.0     | 2025-11-17 | Informe inicial completo |
