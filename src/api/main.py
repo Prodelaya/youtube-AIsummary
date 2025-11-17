@@ -19,12 +19,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Local (módulos propios)
 from src.api.middleware.request_id import RequestIDMiddleware
 
 # Importar routers
+from src.api.auth import routes as auth_routes
 from src.api.routes import stats, summaries, transcriptions, videos
 from src.api.schemas.errors import ErrorResponse, ValidationErrorResponse
 from src.core.config import settings
@@ -43,6 +47,15 @@ from src.services.video_processing_service import (
     InvalidVideoStateError,
     VideoNotFoundError,
     VideoProcessingError,
+)
+
+# ==================== RATE LIMITING ====================
+# Inicializar limiter con configuración desde settings
+limiter = Limiter(
+    key_func=get_remote_address,
+    enabled=settings.RATE_LIMIT_ENABLED,
+    storage_uri=settings.RATE_LIMIT_STORAGE_URI or str(settings.REDIS_URL),
+    strategy="fixed-window",
 )
 
 
@@ -76,6 +89,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     print(f"📍 Entorno: {settings.ENVIRONMENT}")
     print(f"🔧 Debug: {settings.DEBUG}")
     print(f"📊 Log Level: {settings.LOG_LEVEL}")
+
+    # SEGURIDAD: Validar configuración segura en producción
+    if settings.is_production:
+        assert not settings.DEBUG, "❌ ERROR: DEBUG must be False in production"
+        assert "*" not in settings.CORS_ORIGINS, "❌ ERROR: CORS cannot be '*' in production"
+        print("✅ Configuración de producción verificada (DEBUG=False, CORS restrictivo)")
 
     # TODO: Inicializar conexión a PostgreSQL
     # TODO: Inicializar conexión a Redis
@@ -366,7 +385,34 @@ def create_app() -> FastAPI:
             content=error.model_dump(),
         )
 
-    # 7. Errores de validación Pydantic
+    # 7. Rate Limit Exceeded
+    @app.exception_handler(RateLimitExceeded)
+    async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+        """
+        Maneja errores de rate limiting.
+
+        Args:
+            request: Petición HTTP que excedió el límite.
+            exc: Excepción de SlowAPI.
+
+        Returns:
+            JSONResponse: Respuesta 429 Too Many Requests.
+        """
+        error = ErrorResponse(
+            detail="Too many requests. Please try again later.",
+            error_code="RATE_LIMIT_EXCEEDED",
+            metadata={
+                "path": str(request.url),
+                "retry_after": "60 seconds",
+            },
+        )
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content=error.model_dump(),
+            headers={"Retry-After": "60"},
+        )
+
+    # 8. Errores de validación Pydantic
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(
         request: Request, exc: RequestValidationError
@@ -547,10 +593,18 @@ def create_app() -> FastAPI:
     app.mount("/metrics", metrics_app)
 
     # ==================== ROUTERS ====================
+    app.include_router(auth_routes.router, prefix="/api/v1")
     app.include_router(videos.router, prefix="/api/v1")
     app.include_router(transcriptions.router, prefix="/api/v1")
     app.include_router(summaries.router, prefix="/api/v1")
     app.include_router(stats.router, prefix="/api/v1")
+
+    # ==================== RATE LIMITING ====================
+    # Registrar limiter en app.state para acceso desde endpoints
+    app.state.limiter = limiter
+
+    # Aplicar límite global a toda la aplicación (100 req/min)
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     return app
 
