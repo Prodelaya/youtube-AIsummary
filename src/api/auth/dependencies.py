@@ -20,25 +20,26 @@ from sqlalchemy.orm import Session
 
 # OAuth2 scheme con Bearer token
 # Los clientes deben enviar: Authorization: Bearer <token>
-http_bearer = HTTPBearer()
+# auto_error=False hace que sea opcional (retorna None en lugar de error 403)
+http_bearer = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(http_bearer)],
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
     """
     Dependency que valida el token JWT y retorna el usuario actual.
 
     Args:
-        credentials: Credenciales HTTP Bearer (token JWT).
+        credentials: Credenciales HTTP Bearer (token JWT). Puede ser None si no se provee.
         db: Sesión de base de datos.
 
     Returns:
         User: Usuario autenticado.
 
     Raises:
-        HTTPException 401: Si el token es inválido, expirado o el usuario no existe.
+        HTTPException 401: Si el token es inválido, expirado, ausente o el usuario no existe.
         HTTPException 403: Si el usuario está inactivo.
 
     Examples:
@@ -46,6 +47,14 @@ def get_current_user(
         async def get_me(current_user: User = Depends(get_current_user)):
             return {"username": current_user.username}
     """
+    # Verificar que se haya provisto el header Authorization
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     token = credentials.credentials
 
     # Intentar decodificar el token

@@ -5,6 +5,7 @@ Proporciona funciones para crear y validar access tokens y refresh tokens
 usando la librería python-jose.
 """
 
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -26,8 +27,9 @@ def create_access_token(user_id: int, role: str, expires_delta: timedelta | None
         str: Token JWT firmado.
 
     Notes:
-        - El token incluye: user_id, role, exp (expiración), iat (issued at), type.
+        - El token incluye: user_id, role, exp (expiración), iat (issued at), jti (unique ID), type.
         - Firmado con HS256 + JWT_SECRET_KEY.
+        - Cada token tiene un jti único para evitar colisiones.
 
     Examples:
         >>> token = create_access_token(user_id=1, role="admin")
@@ -39,13 +41,15 @@ def create_access_token(user_id: int, role: str, expires_delta: timedelta | None
     if expires_delta is None:
         expires_delta = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    expire = datetime.now(timezone.utc) + expires_delta
+    now = datetime.now(timezone.utc)
+    expire = now + expires_delta
 
     payload = {
         "user_id": user_id,
         "role": role,
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": now,
+        "jti": str(uuid.uuid4()),  # JWT ID único para cada token
         "type": "access",
     }
 
@@ -69,13 +73,15 @@ def create_refresh_token(user_id: int, role: str) -> str:
         - Solo se usa para obtener nuevos access tokens, no para acceso directo.
     """
     expires_delta = timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
-    expire = datetime.now(timezone.utc) + expires_delta
+    now = datetime.now(timezone.utc)
+    expire = now + expires_delta
 
     payload = {
         "user_id": user_id,
         "role": role,
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": now,
+        "jti": str(uuid.uuid4()),  # JWT ID único para cada token
         "type": "refresh",
     }
 
