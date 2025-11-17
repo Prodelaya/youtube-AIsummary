@@ -15,6 +15,7 @@ from src.models.source import Source
 from src.models.summary import Summary
 from src.models.telegram_user import TelegramUser
 from src.models.transcription import Transcription
+from src.models.user import User
 from src.models.video import Video, VideoStatus
 
 # Exportar todos los modelos y Base para uso en otros módulos
@@ -30,6 +31,7 @@ __all__ = [
     "Transcription",
     "Summary",
     "TelegramUser",
+    "User",
     # Enums
     "VideoStatus",
 ]
