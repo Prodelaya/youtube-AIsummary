@@ -12,11 +12,14 @@ Los resumenes son generados por DeepSeek API a partir de las transcripciones.
 Incluyen puntos clave, temas y texto completo del resumen.
 """
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Header, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 
+from src.api.auth.dependencies import require_admin
 from src.api.dependencies import SummaryRepo
+from src.models.user import User
 from src.api.schemas.common import CursorInfo
 from src.api.schemas.summaries import (
     SummaryListResponse,
@@ -280,6 +283,7 @@ def search_summaries(
 def delete_summary(
     summary_id: UUID,
     summary_repo: SummaryRepo,
+    current_user: Annotated[User, Depends(require_admin)],
 ) -> None:
     """
     Eliminar un resumen.

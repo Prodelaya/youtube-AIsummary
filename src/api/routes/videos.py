@@ -14,11 +14,16 @@ Este modulo define 8 endpoints para el CRUD completo de videos:
 Todos los endpoints usan dependency injection para repos y servicios.
 """
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
+from src.api.auth.dependencies import get_current_user, require_admin
 from src.api.dependencies import DBSession, SummaryRepo, TranscriptionRepo, VideoRepo
+from src.models.user import User
 from src.api.schemas.common import CursorInfo, MessageResponse
 from src.api.schemas.summaries import SummaryResponse
 from src.api.schemas.transcriptions import TranscriptionResponse
@@ -40,6 +45,9 @@ from src.tasks.video_processing import process_video_task, retry_failed_video_ta
 # ==================== ROUTER ====================
 
 router = APIRouter(prefix="/videos", tags=["Videos"])
+
+# Limiter para rate limiting
+limiter = Limiter(key_func=get_remote_address)
 
 
 # ==================== ENDPOINTS ====================
@@ -102,7 +110,9 @@ router = APIRouter(prefix="/videos", tags=["Videos"])
         }
     }
 )
+@limiter.limit("10/minute")  # Límite para creación de videos
 def create_video(
+    request: Request,
     video_data: VideoCreateRequest,
     video_repo: VideoRepo,
 ) -> VideoResponse:
@@ -391,6 +401,7 @@ def update_video(
 def delete_video(
     video_id: UUID,
     video_repo: VideoRepo,
+    current_user: Annotated[User, Depends(require_admin)],
 ) -> MessageResponse:
     """
     Soft delete de un video.
@@ -453,9 +464,12 @@ def delete_video(
         }
     }
 )
+@limiter.limit("3/minute")  # Límite más restrictivo para procesamiento (costoso)
 def process_video(
+    request: Request,
     video_id: UUID,
     video_repo: VideoRepo,
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> ProcessVideoResponse:
     """
     Encolar video para procesamiento.
