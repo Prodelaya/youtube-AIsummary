@@ -62,6 +62,9 @@ prometheus-client = "^0.21.0"
 # Solo se instalan en desarrollo con: poetry install --with dev
 openai = "^2.6.1"
 python-telegram-bot = "^22.5"
+python-jose = {extras = ["cryptography"], version = "^3.5.0"}
+slowapi = "^0.1.9"
+bcrypt = "^5.0.0"
 [tool.poetry.group.dev.dependencies]
 # Testing
 pytest = "^8.3.3"
