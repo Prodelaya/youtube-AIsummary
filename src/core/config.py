@@ -100,6 +100,43 @@ class Settings(BaseSettings):
         examples=["123456789:ABCdefGHIjklMNOpqrsTUVwxyz"],
     )
 
+    # ==================== SEGURIDAD Y AUTENTICACIÓN ====================
+    JWT_SECRET_KEY: str = Field(
+        min_length=32,
+        description="Clave secreta para firmar tokens JWT (DEBE SER SECRETA Y ÚNICA EN PRODUCCIÓN)",
+        examples=["your-super-secret-key-min-32-chars-change-in-production"],
+    )
+
+    JWT_ALGORITHM: str = Field(
+        default="HS256",
+        description="Algoritmo de firma JWT (HS256 recomendado para symmetric keys)",
+    )
+
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=30,
+        ge=5,
+        le=1440,
+        description="Tiempo de expiración del access token en minutos (30 min por defecto)",
+    )
+
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=7,
+        ge=1,
+        le=30,
+        description="Tiempo de expiración del refresh token en días (7 días por defecto)",
+    )
+
+    # ==================== RATE LIMITING ====================
+    RATE_LIMIT_ENABLED: bool = Field(
+        default=True,
+        description="Habilitar rate limiting global (desactivar solo para debugging)",
+    )
+
+    RATE_LIMIT_STORAGE_URI: str | None = Field(
+        default=None,
+        description="URI de almacenamiento para rate limiting (usar REDIS_URL si no se especifica)",
+    )
+
     # ==================== LÍMITES DE PROCESAMIENTO ====================
     MAX_VIDEO_DURATION_SECONDS: int = Field(
         default=2159,  # 35:59 en segundos
@@ -138,12 +175,12 @@ class Settings(BaseSettings):
 
     # ==================== APLICACIÓN ====================
     ENVIRONMENT: Literal["development", "staging", "production"] = Field(
-        default="development",
+        ...,  # Obligatorio, sin default
         description="Entorno de ejecución (afecta logs, debug, optimizaciones)",
     )
 
     DEBUG: bool = Field(
-        default=True,
+        default=False,  # Seguro por defecto
         description="Activa modo debug (NUNCA en producción)",
     )
 
