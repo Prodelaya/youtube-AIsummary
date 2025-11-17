@@ -1,7 +1,7 @@
 # 📊 PROGRESO ACTUAL DEL PROYECTO
 
-**Última actualización:** 2025-11-15
-**Estado:** Semana 5 - Observabilidad Completa (Logging + Prometheus + Grafana)
+**Última actualización:** 2025-11-17
+**Estado:** Semana 5 - Seguridad Crítica (Paso 23.5 planificado)
 
 ---
 
@@ -15,8 +15,22 @@ El proyecto ha completado **86% del roadmap** (23 de 30 pasos), con las siguient
 - ✅ **Fase 3:** API REST + Bot Telegram Multi-Usuario (100%)
 - ✅ **Fase 4:** Workers Async (100%)
 - ✅ **Fase 5:** Observabilidad (100%) ← **COMPLETADA 15/11/2025**
+- 🔒 **Fase 5.5:** Seguridad Crítica (0%) ← **PLANIFICADA - Inserción nueva**
 - 📍 **Fase 6:** Testing & CI/CD (0%) ← **PRÓXIMA**
 - ⏳ **Fase 7:** Deployment (0%)
+
+### 🚨 ALERTA DE SEGURIDAD - Roadmap Actualizado
+
+**Fecha:** 17/11/2025
+
+Tras auditoría de seguridad (ref: `docs/security-audit-report.md`), se ha identificado la necesidad de insertar el **Paso 23.5: Seguridad Crítica** ANTES del Paso 24 (Testing), para:
+
+1. ✅ Resolver **2 vulnerabilidades críticas (P0)** que impiden deployment seguro
+2. ✅ Implementar **3 mitigaciones importantes (P1)** de hardening
+3. ✅ Integrar tests de seguridad desde el inicio (Paso 24)
+4. ✅ Preparar CI/CD con validación de configuración segura (Paso 25)
+
+**Impacto:** +3 días al roadmap, pero ahorro de 4-6 días vs implementar post-deployment
 
 ---
 
@@ -420,6 +434,248 @@ grafana/
 - ✅ Datasource Prometheus configurado
 - ✅ Todos los paneles muestran datos reales
 - ✅ Persistencia verificada tras restart
+
+---
+
+## 🔒 PASO 23.5 PLANIFICADO: Seguridad Crítica (17/11/2025)
+
+### 🚨 Mitigaciones de Vulnerabilidades Críticas
+
+**Estado:** Planificado para implementación inmediata
+**Duración estimada:** 3 días (2 días Fase 1 P0 + 1 día Fase 2 P1)
+**Ref:** `docs/security-audit-report.md` (1575 líneas)
+
+---
+
+#### 📋 Hallazgos de Auditoría
+
+**Severidad Crítica (P0):**
+- **HC-001:** Ausencia total de autenticación/autorización (CVSS 9.1)
+- **HC-002:** Vulnerabilidad a Prompt Injection en LLM (CVSS 8.6)
+
+**Severidad Alta (P1):**
+- **HI-001:** Configuración insegura por defecto (CVSS 6.5)
+- **HI-002:** Ausencia de Rate Limiting (CVSS 6.8)
+- **HI-003:** Cache con comando KEYS bloqueante (CVSS 5.3)
+
+---
+
+#### 🛡️ Fase 1: Mitigaciones Críticas P0 (2 días)
+
+**1. HC-001: Sistema de Autenticación JWT**
+
+**Implementación:**
+- [ ] Crear modelo `User` con roles (`admin`, `user`, `bot`)
+- [ ] Migración Alembic para tabla `users` con índices
+- [ ] Crear módulo `src/api/auth/`:
+  - `jwt.py` - Generación y validación de tokens JWT
+  - `dependencies.py` - `get_current_user()`, `require_admin()`
+  - `routes.py` - Endpoints `/auth/login`, `/auth/refresh`
+- [ ] Crear `UserRepository` con CRUD básico
+- [ ] Aplicar `Depends(get_current_user)` en endpoints de modificación
+- [ ] Aplicar `Depends(require_admin)` en endpoints DELETE
+- [ ] Configurar CORS restrictivo (solo dominios específicos en prod)
+
+**Archivos a crear:**
+```
+src/
+├── api/auth/
+│   ├── __init__.py
+│   ├── jwt.py
+│   ├── dependencies.py
+│   └── routes.py
+├── models/user.py
+├── repositories/user_repository.py
+└── core/security.py (password hashing utils)
+
+migrations/versions/
+└── xxxx_add_users_table.py
+```
+
+**Criterios de aceptación:**
+- ✅ Endpoint DELETE requiere token JWT válido + rol admin
+- ✅ POST `/videos/{id}/process` requiere autenticación
+- ✅ Token inválido retorna 401 Unauthorized
+- ✅ CORS restrictivo en producción
+
+---
+
+**2. HC-002: Mitigación de Prompt Injection**
+
+**Implementación:**
+- [ ] Reforzar system prompt con instrucciones anti-injection
+- [ ] Crear `src/services/input_sanitizer.py`:
+  - Clase `InputSanitizer` con patrones de detección
+  - Métodos `sanitize_title()` y `sanitize_transcription()`
+  - Patrones: `IGNORE`, `REVEAL`, `EXECUTE`, etc.
+- [ ] Integrar en `SummarizationService`:
+  - Sanitizar `title` y `transcription` antes de enviar a DeepSeek
+  - Logging de intentos de injection detectados
+- [ ] Implementar output validation:
+  - Validar longitud razonable del resumen
+  - Verificar idioma español (heurística básica)
+  - Detectar system prompt leaks
+
+**Archivos a crear:**
+```
+src/services/
+├── input_sanitizer.py
+└── output_validator.py
+```
+
+**Criterios de aceptación:**
+- ✅ InputSanitizer detecta >90% de patrones OWASP LLM Top 10
+- ✅ System prompt reforzado con instrucciones anti-injection
+- ✅ Output validation rechaza respuestas anómalas
+- ✅ Logging de intentos de injection con contexto completo
+
+---
+
+**3. HI-001: Configuración Segura por Defecto**
+
+**Implementación:**
+- [ ] Modificar `src/core/config.py`:
+  - `ENVIRONMENT`: sin default (Field(...)) - obligatorio
+  - `DEBUG`: default=False (seguro por defecto)
+  - `CORS_ORIGINS`: restrictivo en producción
+- [ ] Agregar validación en `src/api/main.py` (lifespan):
+  - Si `is_production`: assert DEBUG=False, CORS≠["*"], etc.
+  - App no arranca si configuración insegura en prod
+- [ ] Actualizar `.env.example` con valores seguros
+
+**Archivos a modificar:**
+```
+src/core/config.py
+src/api/main.py
+.env.example
+```
+
+**Criterios de aceptación:**
+- ✅ ENVIRONMENT obligatorio (sin default)
+- ✅ DEBUG=False por defecto
+- ✅ App no arranca con DEBUG=True en ENVIRONMENT=production
+
+---
+
+#### 🔐 Fase 2: Hardening P1 (1 día)
+
+**4. HI-002: Rate Limiting con SlowAPI**
+
+**Implementación:**
+- [ ] Instalar `slowapi` con Poetry
+- [ ] Configurar limiter en `src/api/main.py`:
+  - Backend Redis para contador compartido
+  - Key function: `get_remote_address`
+- [ ] Aplicar límites por endpoint:
+  - `POST /videos/{id}/process`: 5/min por IP
+  - `DELETE /summaries/{id}`: 10/min por IP
+  - `GET /summaries`: 100/min por IP
+  - `POST /summaries/search`: 30/min por IP
+- [ ] Exception handler para `RateLimitExceeded`
+
+**Dependencias:**
+```bash
+poetry add slowapi
+```
+
+**Criterios de aceptación:**
+- ✅ Rate limiting bloquea >5 req/min en `/process`
+- ✅ Exceso de límite retorna 429 Too Many Requests
+- ✅ Redis como storage backend funcional
+
+---
+
+**5. HC-002 (continuación): Output Validation Estricta**
+
+**Implementación:**
+- [ ] Forzar JSON output con `response_format={"type": "json_object"}`
+- [ ] Validar estructura del JSON (campos obligatorios)
+- [ ] Verificar que no contiene system prompt leaked
+
+**Criterios de aceptación:**
+- ✅ LLM output valida estructura JSON correctamente
+- ✅ Campos obligatorios presentes en respuesta
+
+---
+
+**6. Tests de Seguridad Básicos**
+
+**Implementación:**
+- [ ] Crear `tests/security/` (nueva carpeta)
+- [ ] Implementar `test_authentication.py` (5 tests)
+- [ ] Implementar `test_prompt_injection.py` (10+ casos adversariales)
+- [ ] Implementar `test_rate_limiting.py` (3 tests)
+
+**Archivos a crear:**
+```
+tests/security/
+├── __init__.py
+├── test_authentication.py
+├── test_prompt_injection.py
+└── test_rate_limiting.py
+```
+
+**Criterios de aceptación:**
+- ✅ 18+ tests de seguridad pasan
+- ✅ Coverage de módulos de seguridad >85%
+- ✅ Tests integrados en suite principal
+
+---
+
+#### 📦 Configuración Nueva (.env)
+
+```bash
+# ==================== SEGURIDAD (NUEVO) ====================
+# JWT Configuration
+JWT_SECRET_KEY=your-secret-key-min-32-chars  # CAMBIAR EN PRODUCCIÓN
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_STORAGE_URI=${REDIS_URL}
+
+# Security Flags
+ENVIRONMENT=production  # Obligatorio en producción
+DEBUG=false             # NUNCA true en producción
+CORS_ORIGINS=https://yourdomain.com
+```
+
+---
+
+#### 📚 Documentación Asociada
+
+- ✅ `docs/security-audit-report.md` (ya existe - 1575 líneas)
+- [ ] `docs/ADR/ADR-012-jwt-authentication.md` (a crear)
+- [ ] `docs/ADR/ADR-013-prompt-injection-mitigation.md` (a crear)
+- [ ] `.env.example` (actualizar con nuevas variables)
+
+---
+
+#### 🎯 Impacto en Pasos Posteriores
+
+**Paso 24 (Suite de Tests):**
+- ✅ Tests de autenticación ya implementados en Paso 23.5
+- ✅ Tests de seguridad ya implementados en Paso 23.5
+- ⚡ Tests unitarios de servicios (a implementar)
+- ⚡ Tests de integración de API con autenticación (a implementar)
+- ⚡ Tests E2E del pipeline (a implementar)
+
+**Paso 25 (CI/CD):**
+- ✅ Validación de configuración segura (DEBUG=false en main)
+- ✅ Tests de seguridad automáticos en CI
+- ✅ `pip-audit` para dependencias vulnerables
+- ✅ Fallar si coverage de seguridad <90%
+
+---
+
+#### ⏱️ Cronograma Actualizado - Semana 5
+
+**Lunes 18/11:** Fase 1 - HC-001 Autenticación JWT
+**Martes 19/11:** Fase 1 - HC-002 Prompt Injection + HI-001 Config Segura
+**Miércoles 20/11:** Fase 2 - HI-002 Rate Limiting + Tests Seguridad
+**Jueves-Viernes 21-22/11:** Paso 24 - Suite de Tests Completa (incluye seguridad)
 
 ---
 

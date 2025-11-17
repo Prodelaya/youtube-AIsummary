@@ -765,7 +765,323 @@ git commit -m "feat(monitoring): add Grafana dashboards with 22 panels (Paso 23)
 
 🤖 Generated with Claude Code"
 ```
-**Nos da paso a:** Implementar suite de tests completa (>80% coverage).
+**Nos da paso a:** Implementar medidas de seguridad críticas antes del testing.
+
+---
+
+### 🔒 Paso 23.5: Seguridad Crítica (✨ NUEVO - Prioridad P0)
+
+**Contexto:**
+Tras la auditoría de seguridad (ref: `docs/security-audit-report.md`), se identificaron **2 vulnerabilidades críticas** y **3 importantes** que impiden deployment seguro en producción. Este paso implementa las **Fases 1 y 2** del Plan de Mitigación.
+
+**¿Por qué AHORA (antes del Paso 24)?**
+- ✅ Tests de seguridad se integran desde el inicio (Paso 24)
+- ✅ CI/CD validará configuración segura desde el primer deploy (Paso 25)
+- ✅ Evita reescritura masiva de tests posterior (ahorro 4-6 días)
+- ✅ Elimina riesgo de deployment accidental inseguro
+- ✅ Portfolio demuestra que seguridad es prioritaria, no afterthought
+
+**Duración estimada:** 3 días (Fase 1: 2 días, Fase 2: 1 día)
+
+---
+
+#### **Fase 1: Mitigaciones Críticas P0 (2 días)**
+
+**¿Qué hacer?**
+
+1. **HC-001: Sistema de Autenticación JWT**
+   - Crear modelo `User` con roles (`admin`, `user`, `bot`)
+   - Migración Alembic para tabla `users` con índices
+   - Crear módulo `src/api/auth/` con:
+     - `jwt.py` - Generación y validación de tokens JWT
+     - `dependencies.py` - `get_current_user()`, `require_admin()`
+     - `routes.py` - Endpoints `/auth/login`, `/auth/refresh`
+   - Crear `src/repositories/user_repository.py`
+   - Aplicar `Depends(get_current_user)` en endpoints de modificación
+   - Aplicar `Depends(require_admin)` en endpoints DELETE
+   - Configurar CORS restrictivo (solo dominios específicos en prod)
+
+2. **HC-002: Mitigación de Prompt Injection**
+   - Reforzar system prompt con instrucciones anti-injection
+   - Crear `src/services/input_sanitizer.py`:
+     - Clase `InputSanitizer` con patrones de detección
+     - Métodos `sanitize_title()` y `sanitize_transcription()`
+     - Detección de patrones: `IGNORE`, `REVEAL`, `EXECUTE`, etc.
+   - Integrar en `SummarizationService`:
+     - Sanitizar `title` y `transcription` antes de enviar a DeepSeek
+     - Logging de intentos de injection detectados
+   - Implementar output validation:
+     - Validar longitud razonable del resumen
+     - Verificar idioma español (heurística básica)
+     - Detectar system prompt leaks
+
+3. **HI-001: Configuración Segura por Defecto**
+   - Modificar `src/core/config.py`:
+     - `ENVIRONMENT`: sin default (Field(...)) - obligatorio
+     - `DEBUG`: default=False (seguro por defecto)
+     - `CORS_ORIGINS`: restrictivo en producción
+   - Agregar validación en `src/api/main.py` (lifespan):
+     - Si `is_production`: assert DEBUG=False, CORS≠["*"], etc.
+     - App no arranca si configuración insegura en prod
+   - Actualizar `.env.example` con valores seguros
+
+**Validación Fase 1:**
+- ✅ Endpoint DELETE requiere token JWT válido + rol admin
+- ✅ POST `/videos/{id}/process` requiere autenticación
+- ✅ InputSanitizer detecta >90% de patrones de OWASP LLM Top 10
+- ✅ App falla al arrancar con DEBUG=True en ENVIRONMENT=production
+- ✅ Tests básicos de autenticación pasan (5 tests)
+
+**Git Fase 1:**
+```bash
+git commit -m "feat(security): add JWT authentication with role-based access (HC-001)
+
+- Create User model with admin/user/bot roles
+- Implement /auth/login and /auth/refresh endpoints
+- Add get_current_user and require_admin dependencies
+- Apply authentication to all modification endpoints
+- Restrict CORS to specific domains in production
+
+Ref: docs/security-audit-report.md#HC-001"
+
+git commit -m "feat(security): add InputSanitizer for prompt injection mitigation (HC-002)
+
+- Create InputSanitizer with pattern detection
+- Sanitize title and transcription before sending to LLM
+- Implement output validation for LLM responses
+- Add logging for detected injection attempts
+
+Ref: docs/security-audit-report.md#HC-002"
+
+git commit -m "fix(config): enforce secure defaults and production validation (HI-001)
+
+- Make ENVIRONMENT required (no default)
+- Change DEBUG default to False
+- Add startup validation for production config
+- Update .env.example with secure values
+
+Ref: docs/security-audit-report.md#HI-001"
+```
+
+---
+
+#### **Fase 2: Hardening P1 (1 día)**
+
+**¿Qué hacer?**
+
+4. **HI-002: Rate Limiting con SlowAPI**
+   - Instalar `slowapi` con Poetry
+   - Configurar limiter en `src/api/main.py`:
+     - Backend Redis para compartir contador entre workers
+     - Key function: `get_remote_address`
+   - Aplicar límites por endpoint:
+     - `POST /videos/{id}/process`: 5/min por IP
+     - `DELETE /summaries/{id}`: 10/min por IP
+     - `GET /summaries`: 100/min por IP
+     - `POST /summaries/search`: 30/min por IP
+   - Exception handler para `RateLimitExceeded`
+
+5. **HC-002 (continuación): Output Validation Estricta**
+   - Forzar JSON output con `response_format={"type": "json_object"}`
+   - Validar estructura del JSON (campos obligatorios)
+   - Verificar que no contiene system prompt leaked
+
+6. **Tests de Seguridad Básicos**
+   - Crear `tests/security/` (nueva carpeta)
+   - Implementar `test_authentication.py`:
+     - Test login exitoso retorna token
+     - Test token inválido retorna 401
+     - Test endpoint protegido sin token retorna 401
+     - Test endpoint DELETE sin rol admin retorna 403
+     - Test refresh token funciona
+   - Implementar `test_prompt_injection.py`:
+     - 10 casos adversariales (IGNORE, REVEAL, etc.)
+     - Verificar que InputSanitizer detecta patrones
+     - Test E2E: resumen no contiene instrucciones inyectadas
+   - Implementar `test_rate_limiting.py`:
+     - Test límite excedido retorna 429
+     - Test reset tras esperar período
+     - Test límites diferentes por endpoint
+
+**Validación Fase 2:**
+- ✅ Rate limiting bloquea >5 req/min en `/process`
+- ✅ LLM output valida estructura JSON correctamente
+- ✅ Tests de seguridad pasan (18+ tests totales)
+- ✅ Coverage de módulos de seguridad >85%
+
+**Git Fase 2:**
+```bash
+git commit -m "feat(security): add rate limiting with SlowAPI (HI-002)
+
+- Install slowapi with Redis backend
+- Configure rate limits on critical endpoints
+- Add exception handler for rate limit exceeded
+
+Ref: docs/security-audit-report.md#HI-002"
+
+git commit -m "feat(security): enforce strict JSON output validation (HC-002)
+
+- Force JSON response format from DeepSeek
+- Validate required fields in summary output
+- Detect system prompt leaks in responses
+
+Ref: docs/security-audit-report.md#HC-002"
+
+git commit -m "test(security): add comprehensive security test suite
+
+- Add tests/security/ directory
+- Implement authentication tests (5 tests)
+- Implement prompt injection tests (10+ adversarial cases)
+- Implement rate limiting tests (3 tests)
+- Achieve >85% coverage on security modules
+
+Ref: docs/security-audit-report.md#plan-de-mitigacion"
+```
+
+---
+
+**¿Por qué este orden de implementación?**
+
+1. **Autenticación primero** - Es la base de seguridad, otros componentes dependen de ella
+2. **Prompt Injection después** - Independiente de auth, se puede desarrollar en paralelo conceptualmente
+3. **Config segura inmediatamente** - Previene arranques accidentales inseguros
+4. **Rate Limiting al final** - Requiere auth implementada para límites por usuario
+5. **Tests continuamente** - Se escriben junto con cada feature
+
+---
+
+**Entregables del Paso 23.5:**
+
+```
+src/
+├── api/
+│   └── auth/                         # ← NUEVO
+│       ├── __init__.py
+│       ├── jwt.py                    # Generación/validación JWT
+│       ├── dependencies.py           # get_current_user, require_admin
+│       └── routes.py                 # /auth/login, /auth/refresh
+├── models/
+│   └── user.py                       # ← NUEVO (modelo User)
+├── repositories/
+│   └── user_repository.py            # ← NUEVO
+├── services/
+│   ├── input_sanitizer.py            # ← NUEVO (anti-injection)
+│   └── output_validator.py           # ← NUEVO (validación LLM)
+└── core/
+    ├── config.py                     # ← MODIFICADO (valores seguros)
+    └── security.py                   # ← NUEVO (password hashing, utils)
+
+tests/
+└── security/                         # ← NUEVO
+    ├── __init__.py
+    ├── test_authentication.py        # 5 tests
+    ├── test_prompt_injection.py      # 10+ tests
+    └── test_rate_limiting.py         # 3 tests
+
+migrations/
+└── versions/
+    └── xxxx_add_users_table.py       # ← NUEVO
+
+.env.example                          # ← MODIFICADO (nuevas vars)
+```
+
+---
+
+**Configuración Nueva (.env):**
+
+```bash
+# ==================== SEGURIDAD (NUEVO) ====================
+# JWT Configuration
+JWT_SECRET_KEY=your-secret-key-min-32-chars  # CAMBIAR EN PRODUCCIÓN
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Rate Limiting
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT_STORAGE_URI=${REDIS_URL}
+
+# Security Flags
+ENVIRONMENT=production  # Obligatorio en producción
+DEBUG=false             # NUNCA true en producción
+CORS_ORIGINS=https://yourdomain.com
+```
+
+---
+
+**Dependencias Nuevas (Poetry):**
+
+```bash
+poetry add python-jose[cryptography]  # JWT
+poetry add passlib[bcrypt]            # Password hashing
+poetry add slowapi                    # Rate limiting
+```
+
+---
+
+**Impacto en Paso 24 (Suite de Tests):**
+
+El Paso 24 ahora incluirá:
+- ✅ Tests de autenticación (ya implementados en 23.5)
+- ✅ Tests de seguridad (ya implementados en 23.5)
+- ⚡ Tests unitarios de servicios
+- ⚡ Tests de integración de API (con autenticación)
+- ⚡ Tests E2E del pipeline
+- ⚡ Coverage >80% (incluyendo módulos de seguridad)
+
+---
+
+**Impacto en Paso 25 (CI/CD):**
+
+El Paso 25 ahora incluirá validaciones de seguridad:
+- ✅ Tests de seguridad en CI/CD
+- ✅ Validación de configuración (DEBUG=false en main)
+- ✅ `pip-audit` para dependencias vulnerables
+- ✅ Fallar si coverage de seguridad <90%
+
+---
+
+**Criterios de Aceptación del Paso 23.5:**
+
+- [ ] **HC-001:** Autenticación JWT funcionando
+  - [ ] Endpoint `/auth/login` retorna token válido
+  - [ ] Token inválido retorna 401 en endpoints protegidos
+  - [ ] Endpoints DELETE requieren rol admin
+  - [ ] CORS restrictivo en producción
+
+- [ ] **HC-002:** Prompt Injection mitigado
+  - [ ] InputSanitizer detecta >90% de patrones OWASP
+  - [ ] System prompt reforzado
+  - [ ] Output validation rechaza respuestas anómalas
+  - [ ] Logging de intentos de injection
+
+- [ ] **HI-001:** Configuración segura
+  - [ ] ENVIRONMENT obligatorio (sin default)
+  - [ ] DEBUG=False por defecto
+  - [ ] App no arranca con config insegura en prod
+
+- [ ] **HI-002:** Rate Limiting funcionando
+  - [ ] SlowAPI configurado con Redis
+  - [ ] Límites aplicados en endpoints críticos
+  - [ ] Exceso de límite retorna 429
+
+- [ ] **Tests:** Suite de seguridad completa
+  - [ ] 18+ tests de seguridad pasan
+  - [ ] Coverage de módulos de seguridad >85%
+  - [ ] Tests integrados en CI
+
+---
+
+**Documentación Asociada:**
+
+- `docs/security-audit-report.md` (ya existe - 1575 líneas)
+- `docs/ADR/ADR-012-jwt-authentication.md` (a crear)
+- `docs/ADR/ADR-013-prompt-injection-mitigation.md` (a crear)
+- `.env.example` (actualizar con nuevas variables)
+
+---
+
+**Nos da paso a:** Paso 24 - Suite de Tests Completa (ahora incluye tests de seguridad desde el inicio).
 
 ---
 
@@ -992,19 +1308,23 @@ git commit -m "docs: finalize ADRs for key technical decisions"
 - **Jueves:** OpenAPI metadata + Tests API ✅
 - **Viernes:** Refinamiento y documentación API ✅
 
-### 📍 Semana 4: Bot Telegram Multi-Usuario (EN PROGRESO)
+### ✅ Semana 4: Bot Telegram Multi-Usuario (COMPLETADA)
 - **Lunes:** Bot - Setup básico + /start + /help ✅
 - **Martes:** Bot - Suscripciones interactivas con inline keyboards ✅
-- **Miércoles:** Bot - Historial y búsqueda (/recent, /search) ← 📍 AQUÍ ESTAMOS
-- **Jueves:** Worker de distribución personalizada (ADR-010)
-- **Viernes:** Logging estructurado
+- **Miércoles:** Bot - Historial y búsqueda (/recent, /search) ✅
+- **Jueves:** Worker de distribución personalizada (ADR-010) ✅
+- **Viernes:** Logging estructurado ✅
 
-### Semana 5: Observabilidad & Testing
-- **Lunes:** Métricas Prometheus + Monitoreo de costos DeepSeek
-- **Martes:** Dashboard Grafana completo
-- **Miércoles:** Suite de tests completa (>80% coverage)
-- **Jueves:** CI con GitHub Actions
-- **Viernes:** Dockerfile optimizado
+### ✅ Semana 5: Observabilidad (COMPLETADA)
+- **Lunes:** Métricas Prometheus + Monitoreo de costos DeepSeek ✅
+- **Martes:** Dashboard Grafana completo (Paso 22-23) ✅
+- **Miércoles-Viernes:** *(Días disponibles para Paso 23.5)*
+
+### 📍 Semana 5 (ACTUALIZADA): Seguridad Crítica + Testing
+- **Lunes (18/11):** Paso 23.5 Fase 1 - HC-001 Autenticación JWT ← 📍 SIGUIENTE
+- **Martes (19/11):** Paso 23.5 Fase 1 - HC-002 Prompt Injection + HI-001 Config Segura
+- **Miércoles (20/11):** Paso 23.5 Fase 2 - HI-002 Rate Limiting + Tests Seguridad
+- **Jueves-Viernes (21-22/11):** Paso 24 - Suite de Tests Completa (incluye tests de seguridad ya implementados)
 
 ### Semana 6: Deployment & Docs
 - **Lunes:** Dockerfile + Docker Compose prod
