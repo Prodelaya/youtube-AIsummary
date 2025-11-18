@@ -456,7 +456,7 @@ def telegram_user_with_subscriptions(db_session, sample_source) -> TelegramUser:
         username="subscribed_user",
         is_active=True
     )
-    user.subscribed_sources.append(sample_source)
+    user.sources.append(sample_source)
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)

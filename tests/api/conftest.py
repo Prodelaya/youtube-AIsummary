@@ -13,8 +13,10 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from src.api.dependencies import get_db
 from src.api.main import app
+from src.api.auth.jwt import create_access_token
 from src.models.base import Base
 from src.models.source import Source
+from src.models.user import User
 from src.models.video import Video, VideoStatus
 
 # ==================== DATABASE FIXTURES ====================
@@ -131,3 +133,34 @@ def sample_completed_video(db_session: Session, sample_source: Source) -> Video:
     db_session.commit()
     db_session.refresh(video)
     return video
+
+
+# ==================== AUTHENTICATION FIXTURES ====================
+
+
+@pytest.fixture(scope="function")
+def admin_user(db_session: Session) -> User:
+    """Crea un usuario admin para tests."""
+    user = User(
+        username="admin_test",
+        email="admin@test.com",
+        hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU8KQDpTMWBq",  # "password123"
+        role="admin",
+        is_active=True
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture(scope="function")
+def admin_token(admin_user: User) -> str:
+    """Genera un token JWT válido para usuario admin."""
+    return create_access_token(user_id=admin_user.id, role=admin_user.role)
+
+
+@pytest.fixture(scope="function")
+def auth_headers(admin_token: str) -> dict:
+    """Retorna headers HTTP con autenticación admin."""
+    return {"Authorization": f"Bearer {admin_token}"}

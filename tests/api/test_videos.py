@@ -187,30 +187,30 @@ def test_update_video_no_fields(client: TestClient, sample_video: Video):
 # ==================== DELETE /videos/{id} ====================
 
 
-def test_delete_video_success(client: TestClient, sample_video: Video):
+def test_delete_video_success(client: TestClient, sample_video: Video, auth_headers: dict):
     """Test eliminar video exitoso (soft delete)."""
-    response = client.delete(f"/api/v1/videos/{sample_video.id}")
+    response = client.delete(f"/api/v1/videos/{sample_video.id}", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
     assert "deleted successfully" in data["message"]
 
 
-def test_delete_video_not_found(client: TestClient):
+def test_delete_video_not_found(client: TestClient, auth_headers: dict):
     """Test eliminar video inexistente."""
     fake_id = "00000000-0000-0000-0000-000000000000"
-    response = client.delete(f"/api/v1/videos/{fake_id}")
+    response = client.delete(f"/api/v1/videos/{fake_id}", headers=auth_headers)
 
     assert response.status_code == 404
 
 
-def test_delete_video_already_deleted(client: TestClient, sample_video: Video):
+def test_delete_video_already_deleted(client: TestClient, sample_video: Video, auth_headers: dict):
     """Test eliminar video ya eliminado."""
     # Primera eliminacion
-    client.delete(f"/api/v1/videos/{sample_video.id}")
+    client.delete(f"/api/v1/videos/{sample_video.id}", headers=auth_headers)
 
     # Segunda eliminacion
-    response = client.delete(f"/api/v1/videos/{sample_video.id}")
+    response = client.delete(f"/api/v1/videos/{sample_video.id}", headers=auth_headers)
 
     assert response.status_code == 400
     assert "already deleted" in response.json()["detail"]
@@ -248,9 +248,9 @@ def test_process_video_pending(client: TestClient, sample_video: Video):
     pytest.skip("Requires Celery worker running")
 
 
-def test_process_video_invalid_state(client: TestClient, sample_completed_video: Video):
+def test_process_video_invalid_state(client: TestClient, sample_completed_video: Video, auth_headers: dict):
     """Test encolar video en estado invalido."""
-    response = client.post(f"/api/v1/videos/{sample_completed_video.id}/process")
+    response = client.post(f"/api/v1/videos/{sample_completed_video.id}/process", headers=auth_headers)
 
     assert response.status_code == 409  # Conflict
     assert (
