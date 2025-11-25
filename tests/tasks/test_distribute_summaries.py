@@ -37,9 +37,9 @@ def sample_source(db_session):
     """Fixture para crear una fuente de prueba."""
     source = Source(
         url="https://youtube.com/@test_channel",
-        platform="youtube",
+        source_type="youtube",
         name="Test Channel",
-        youtube_channel_id="UC123456",
+        extra_metadata={"youtube_channel_id": "UC123456"},
     )
     db_session.add(source)
     db_session.commit()

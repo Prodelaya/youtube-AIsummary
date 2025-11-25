@@ -1,0 +1,137 @@
+# GitHub Actions Workflow: Test Suite
+#
+# Este workflow ejecuta toda la suite de tests del proyecto con:
+# - PostgreSQL 15 y Redis 7 como service containers
+# - Validación de coverage ≥80%
+# - Cache de Poetry para optimizar tiempo de ejecución
+# - Upload de reportes de coverage y test results
+#
+# Triggers:
+# - Push a main, develop, feature/*
+# - Pull requests a main, develop
+
+name: Tests
+
+on:
+  push:
+    branches: [main, develop, 'feature/*']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    name: Run Test Suite
+    runs-on: ubuntu-latest
+
+    # Service containers: Postgres + Redis
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Variables de entorno para tests
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      REDIS_URL: redis://localhost:6379/0
+      ENVIRONMENT: test
+      DEBUG: false
+      JWT_SECRET_KEY: test-secret-key-for-ci-only-do-not-use-in-production
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
+    steps:
+      # 1. Checkout del código
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Python 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3. Cache de Poetry virtualenv
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      # 4. Instalar Poetry
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # 5. Configurar Poetry
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project false
+
+      # 6. Instalar dependencias
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction --no-ansi
+
+      # 7. Ejecutar migraciones de Alembic
+      - name: Run database migrations
+        run: |
+          poetry run alembic upgrade head
+
+      # 8. Ejecutar tests con coverage
+      - name: Run tests with coverage
+        run: |
+          poetry run pytest \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --junitxml=test-results.xml \
+            -v
+
+      # 9. Validar threshold de coverage (≥80%)
+      - name: Check coverage threshold
+        run: |
+          poetry run coverage report --fail-under=80
+
+      # 10. Upload coverage a Codecov (opcional, requiere CODECOV_TOKEN)
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      # 11. Upload test results como artifacts
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            test-results.xml
+            coverage.xml

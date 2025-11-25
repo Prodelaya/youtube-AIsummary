@@ -74,29 +74,25 @@ def test_create_summary_inherited(db_session, sample_transcription):
 
 def test_get_by_id_inherited(db_session, sample_summary):
     """
-    Test que valida que get_by_id() heredado de BaseRepository funciona.
+    Test que valida que get_by_id() de SummaryRepository funciona.
 
     Verifica:
     - Método get_by_id() encuentra el resumen por UUID
-    - Lanza NotFoundError si no existe
+    - Devuelve None si no existe (sobreescrito de BaseRepository)
     """
     from uuid import uuid4
-
-    from src.repositories.exceptions import NotFoundError
 
     repo = SummaryRepository(db_session)
 
     # Buscar resumen existente
-    found = repo.get_by_id(sample_summary.id)
+    found = repo.get_by_id(sample_summary.id, use_cache=False)
     assert found is not None
     assert found.id == sample_summary.id
     assert found.transcription_id == sample_summary.transcription_id
 
-    # Buscar resumen inexistente debe lanzar NotFoundError
-    with pytest.raises(NotFoundError) as exc_info:
-        repo.get_by_id(uuid4())
-
-    assert "Summary" in str(exc_info.value)
+    # Buscar resumen inexistente debe devolver None
+    not_found = repo.get_by_id(uuid4(), use_cache=False)
+    assert not_found is None
 
 
 def test_delete_summary_inherited(db_session, sample_summary):
