@@ -38,8 +38,7 @@ class OutputValidator:
     ]
 
     _compiled_leak_patterns = [
-        re.compile(pattern, re.IGNORECASE)
-        for pattern in PROMPT_LEAK_PATTERNS
+        re.compile(pattern, re.IGNORECASE) for pattern in PROMPT_LEAK_PATTERNS
     ]
 
     def validate_summary_structure(self, json_output: dict) -> bool:
@@ -109,10 +108,7 @@ class OutputValidator:
         """
         for pattern in self._compiled_leak_patterns:
             if pattern.search(text):
-                logger.warning(
-                    "Prompt leak detected in LLM output",
-                    text_preview=text[:200]
-                )
+                logger.warning("Prompt leak detected in LLM output", text_preview=text[:200])
                 return True
         return False
 
@@ -132,15 +128,27 @@ class OutputValidator:
         """
         # Palabras comunes en español
         spanish_indicators = [
-            r'\bel\b', r'\bla\b', r'\blos\b', r'\blas\b',
-            r'\bde\b', r'\bdel\b', r'\ben\b', r'\bcon\b',
-            r'\bque\b', r'\bpor\b', r'\bpara\b', r'\bun\b', r'\buna\b',
-            r'\beste\b', r'\besta\b', r'\bestos\b', r'\bestas\b',
+            r"\bel\b",
+            r"\bla\b",
+            r"\blos\b",
+            r"\blas\b",
+            r"\bde\b",
+            r"\bdel\b",
+            r"\ben\b",
+            r"\bcon\b",
+            r"\bque\b",
+            r"\bpor\b",
+            r"\bpara\b",
+            r"\bun\b",
+            r"\buna\b",
+            r"\beste\b",
+            r"\besta\b",
+            r"\bestos\b",
+            r"\bestas\b",
         ]
 
         spanish_matches = sum(
-            1 for pattern in spanish_indicators
-            if re.search(pattern, text, re.IGNORECASE)
+            1 for pattern in spanish_indicators if re.search(pattern, text, re.IGNORECASE)
         )
 
         # Si hay al menos 3 palabras comunes en español, consideramos que es español
@@ -150,7 +158,7 @@ class OutputValidator:
             logger.warning(
                 "Text might not be in Spanish",
                 spanish_matches=spanish_matches,
-                text_preview=text[:200]
+                text_preview=text[:200],
             )
 
         return is_spanish

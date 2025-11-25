@@ -127,9 +127,7 @@ class YouTubeScraperService:
             "logger": logger,
         }
 
-    def get_latest_videos(
-        self, channel_url: str, limit: int = 10
-    ) -> list[VideoMetadata]:
+    def get_latest_videos(self, channel_url: str, limit: int = 10) -> list[VideoMetadata]:
         """
         Obtiene los últimos N videos de un canal de YouTube.
 
@@ -159,9 +157,7 @@ class YouTubeScraperService:
             raise InvalidChannelURLError(f"URL inválida: {channel_url}")
 
         if "youtube.com" not in channel_url and "youtu.be" not in channel_url:
-            raise InvalidChannelURLError(
-                f"La URL no es de YouTube: {channel_url}"
-            )
+            raise InvalidChannelURLError(f"La URL no es de YouTube: {channel_url}")
 
         logger.info(f"🔍 Scraping canal: {channel_url} (limit={limit})")
 
@@ -194,40 +190,28 @@ class YouTubeScraperService:
                         video = self._parse_video_entry(entry)
                         videos.append(video)
                     except Exception as e:
-                        logger.warning(
-                            f"⚠️ Error parseando video {entry.get('id', 'unknown')}: {e}"
-                        )
+                        logger.warning(f"⚠️ Error parseando video {entry.get('id', 'unknown')}: {e}")
                         continue
 
-                logger.info(
-                    f"✅ Scrapeados {len(videos)} videos de {channel_url}"
-                )
+                logger.info(f"✅ Scrapeados {len(videos)} videos de {channel_url}")
                 return videos
 
         except yt_dlp.utils.DownloadError as e:
             error_msg = str(e).lower()
 
             if "private" in error_msg or "unavailable" in error_msg:
-                raise ChannelUnavailableError(
-                    f"Canal no disponible: {channel_url}"
-                ) from e
+                raise ChannelUnavailableError(f"Canal no disponible: {channel_url}") from e
 
             if "429" in error_msg or "rate" in error_msg:
-                raise RateLimitError(
-                    f"Rate limit de YouTube alcanzado para: {channel_url}"
-                ) from e
+                raise RateLimitError(f"Rate limit de YouTube alcanzado para: {channel_url}") from e
 
             # Error genérico
             logger.error(f"❌ Error descargando info de {channel_url}: {e}")
-            raise YouTubeScraperError(
-                f"Error al scrapear canal: {channel_url}"
-            ) from e
+            raise YouTubeScraperError(f"Error al scrapear canal: {channel_url}") from e
 
         except Exception as e:
             logger.error(f"❌ Error inesperado scrapeando {channel_url}: {e}")
-            raise YouTubeScraperError(
-                f"Error inesperado: {channel_url}"
-            ) from e
+            raise YouTubeScraperError(f"Error inesperado: {channel_url}") from e
 
     def _parse_video_entry(self, entry: dict[str, Any]) -> VideoMetadata:
         """
@@ -256,9 +240,7 @@ class YouTubeScraperService:
             try:
                 published_at = datetime.strptime(upload_date_str, "%Y%m%d")
             except ValueError:
-                logger.warning(
-                    f"⚠️ Fecha inválida para {video_id}: {upload_date_str}"
-                )
+                logger.warning(f"⚠️ Fecha inválida para {video_id}: {upload_date_str}")
                 published_at = datetime.now()
         else:
             published_at = datetime.now()

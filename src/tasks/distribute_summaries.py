@@ -171,9 +171,7 @@ def distribute_summary_task(self, summary_id_str: str) -> dict:
                 logger.bind(
                     sent_at=summary.sent_at.isoformat() if summary.sent_at else None,
                 ).info("summary_already_sent")
-                raise SummaryAlreadySentError(
-                    f"Summary {summary_id} was already sent to Telegram"
-                )
+                raise SummaryAlreadySentError(f"Summary {summary_id} was already sent to Telegram")
 
             # Obtener video y source relacionados (con eager loading)
             video = summary.transcription.video

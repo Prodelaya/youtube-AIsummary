@@ -143,7 +143,7 @@ class Settings(BaseSettings):
         ge=60,  # Mínimo 1 minuto
         le=7200,  # Máximo 2 horas
         description="Duración máxima de video para procesar (en segundos). "
-                    "Videos más largos se marcarán como SKIPPED para ahorrar recursos.",
+        "Videos más largos se marcarán como SKIPPED para ahorrar recursos.",
     )
 
     YOUTUBE_MAX_RESULTS_PER_CHANNEL: int = Field(
@@ -174,7 +174,7 @@ class Settings(BaseSettings):
     )
 
     # ==================== APLICACIÓN ====================
-    ENVIRONMENT: Literal["development", "staging", "production"] = Field(
+    ENVIRONMENT: Literal["development", "staging", "production", "test"] = Field(
         ...,  # Obligatorio, sin default
         description="Entorno de ejecución (afecta logs, debug, optimizaciones)",
     )

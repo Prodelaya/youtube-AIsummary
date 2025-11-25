@@ -54,11 +54,15 @@ def timed(operation: str):
             try:
                 result = func(*args, **kwargs)
                 duration = time.time() - start
-                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(duration)
+                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(
+                    duration
+                )
                 return result
             except Exception:
                 duration = time.time() - start
-                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(duration)
+                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(
+                    duration
+                )
                 raise
 
         return wrapper

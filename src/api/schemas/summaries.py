@@ -124,9 +124,7 @@ class SummarySearchRequest(BaseModel):
         max_length=200,
         description="Terminos de busqueda (full-text search)",
     )
-    limit: int = Field(
-        20, ge=1, le=100, description="Numero maximo de resultados"
-    )
+    limit: int = Field(20, ge=1, le=100, description="Numero maximo de resultados")
     cursor: UUID | None = Field(
         None, description="Cursor para paginacion (UUID del ultimo resultado)"
     )

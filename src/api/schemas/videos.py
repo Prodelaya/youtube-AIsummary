@@ -43,9 +43,7 @@ class VideoCreateRequest(BaseModel):
     )
     title: str = Field(..., min_length=1, max_length=500, description="Titulo del video")
     url: HttpUrl = Field(..., description="URL completa del video")
-    duration_seconds: int | None = Field(
-        None, gt=0, description="Duracion del video en segundos"
-    )
+    duration_seconds: int | None = Field(None, gt=0, description="Duracion del video en segundos")
     metadata: dict[str, Any] | None = Field(
         None, description="Metadata adicional (vistas, likes, etc.)"
     )
@@ -91,19 +89,13 @@ class VideoResponse(BaseModel):
     url: str = Field(..., description="URL completa del video")
     duration_seconds: int | None = Field(None, description="Duracion en segundos")
     status: VideoStatus = Field(..., description="Estado del procesamiento")
-    published_at: datetime | None = Field(
-        None, description="Fecha de publicacion en YouTube"
-    )
+    published_at: datetime | None = Field(None, description="Fecha de publicacion en YouTube")
     metadata: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Metadata adicional",
-        validation_alias="extra_metadata"
+        default_factory=dict, description="Metadata adicional", validation_alias="extra_metadata"
     )
     created_at: datetime = Field(..., description="Fecha de creacion en BD")
     updated_at: datetime = Field(..., description="Fecha de ultima actualizacion")
-    deleted_at: datetime | None = Field(
-        None, description="Fecha de soft delete (None = activo)"
-    )
+    deleted_at: datetime | None = Field(None, description="Fecha de soft delete (None = activo)")
 
     class Config:
         from_attributes = True  # Permite crear desde ORM models
@@ -178,9 +170,7 @@ class VideoDetailResponse(VideoResponse):
     transcription: TranscriptionSummary | None = Field(
         None, description="Transcripcion asociada (None si no existe)"
     )
-    summary: SummarySummary | None = Field(
-        None, description="Resumen asociado (None si no existe)"
-    )
+    summary: SummarySummary | None = Field(None, description="Resumen asociado (None si no existe)")
 
     class Config:
         from_attributes = True
@@ -307,9 +297,7 @@ class VideoStatsResponse(BaseModel):
 
     video_id: UUID = Field(..., description="UUID del video")
     duration_seconds: int | None = Field(None, description="Duracion del video")
-    transcription_word_count: int | None = Field(
-        None, description="Palabras en transcripcion"
-    )
+    transcription_word_count: int | None = Field(None, description="Palabras en transcripcion")
     summary_key_points_count: int | None = Field(
         None, description="Numero de puntos clave en resumen"
     )

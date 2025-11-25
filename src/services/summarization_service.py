@@ -214,6 +214,7 @@ class SummarizationService:
 
             # Parsear JSON response
             import json
+
             try:
                 parsed_response = json.loads(content)
                 summary_text = parsed_response.get("summary", "")

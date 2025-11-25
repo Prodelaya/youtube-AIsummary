@@ -101,6 +101,7 @@ def filter_sensitive_data(logger: Any, method_name: str, event_dict: EventDict) 
         if isinstance(value, str) and ("token=" in value or "api_key=" in value):
             # Sanitizar URLs: ?token=abc123 → ?token=***
             import re
+
             event_dict[key] = re.sub(
                 r"(token|api_key|secret)=[^&\s]+",
                 r"\1=***",
