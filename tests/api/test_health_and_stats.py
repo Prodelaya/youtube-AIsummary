@@ -103,7 +103,9 @@ def test_get_global_stats_source_breakdown(
 def test_get_source_stats_success(client: TestClient, sample_source: Source, sample_video: Video):
     """Test estadisticas de fuente especifica."""
     # Bypass cache para forzar query fresca a la BD
-    response = client.get(f"/api/v1/stats/sources/{sample_source.id}", headers={"X-Cache-Bypass": "true"})
+    response = client.get(
+        f"/api/v1/stats/sources/{sample_source.id}", headers={"X-Cache-Bypass": "true"}
+    )
 
     assert response.status_code == 200
     data = response.json()
@@ -144,7 +146,9 @@ def test_get_source_stats_with_multiple_videos(
     db_session.commit()
 
     # Bypass cache para forzar query fresca a la BD
-    response = client.get(f"/api/v1/stats/sources/{sample_source.id}", headers={"X-Cache-Bypass": "true"})
+    response = client.get(
+        f"/api/v1/stats/sources/{sample_source.id}", headers={"X-Cache-Bypass": "true"}
+    )
 
     assert response.status_code == 200
     data = response.json()

@@ -20,16 +20,15 @@ Pero SÍ se valida:
 
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
 
 import pytest
 
-from src.models import Summary, Transcription, Video
+from src.models import Summary, Video
 from src.models.video import VideoStatus
 from src.repositories.summary_repository import SummaryRepository
 from src.repositories.transcription_repository import TranscriptionRepository
 from src.repositories.video_repository import VideoRepository
-from src.services.downloader_service import InvalidURLError, NetworkError
+from src.services.downloader_service import InvalidURLError
 from src.services.summarization_service import DeepSeekAPIError
 from src.services.transcription_service import (
     TranscriptionFailedError,
@@ -37,10 +36,8 @@ from src.services.transcription_service import (
 )
 from src.services.video_processing_service import (
     InvalidVideoStateError,
-    VideoNotFoundError,
     VideoProcessingService,
 )
-
 
 # ==================== TESTS ====================
 
@@ -105,7 +102,7 @@ async def test_process_video_full_pipeline_with_db(
     async def mock_generate_summary(session, transcription_id):
         # Obtener transcription
         trans_repo = TranscriptionRepository(session)
-        transcription = trans_repo.get_by_id(transcription_id)
+        trans_repo.get_by_id(transcription_id)
 
         # Crear summary
         summary = Summary(
@@ -141,7 +138,9 @@ async def test_process_video_full_pipeline_with_db(
         transcription = trans_repo.get_by_video_id(created_video.id)
         assert transcription is not None
         assert transcription.video_id == created_video.id
-        assert transcription.text == "This is an integration test transcription of the video content."
+        assert (
+            transcription.text == "This is an integration test transcription of the video content."
+        )
         assert transcription.language == "en"
         assert transcription.model_used == "whisper-base"
 
@@ -189,9 +188,7 @@ async def test_process_video_download_failure_persists_state(
 
     # Configurar servicio con downloader que falla
     service = VideoProcessingService()
-    service.downloader.download_audio = AsyncMock(
-        side_effect=InvalidURLError("URL inválida")
-    )
+    service.downloader.download_audio = AsyncMock(side_effect=InvalidURLError("URL inválida"))
 
     # Ejecutar pipeline (debe fallar)
     with pytest.raises(InvalidURLError):

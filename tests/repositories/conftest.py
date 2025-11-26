@@ -5,12 +5,12 @@ Este módulo proporciona fixtures de pytest para tests de integración
 que usan la base de datos real con transacciones y rollback automático.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from src.core.config import settings
 from src.models import Source, Summary, TelegramUser, Transcription, Video, VideoStatus
@@ -195,7 +195,7 @@ def sample_video(db_session, sample_source) -> Video:
         url="https://youtube.com/watch?v=test123",
         duration_seconds=600,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
         extra_metadata={"view_count": 1000, "like_count": 50},
     )
     db_session.add(video)
@@ -251,7 +251,7 @@ def video_factory(db_session):
             url=url,
             duration_seconds=duration_seconds,
             status=status,
-            published_at=published_at or datetime.now(timezone.utc),
+            published_at=published_at or datetime.now(UTC),
             extra_metadata=extra_metadata or {},
         )
         db_session.add(video)

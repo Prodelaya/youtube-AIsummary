@@ -55,7 +55,9 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     # Registrar usuario en BD (async wrapper con asyncio.to_thread)
     try:
-        user_created = await asyncio.to_thread(_create_or_update_user, telegram_id, username, first_name)
+        user_created = await asyncio.to_thread(
+            _create_or_update_user, telegram_id, username, first_name
+        )
 
         # Mensaje de bienvenida personalizado
         welcome_message = f"""👋 ¡Hola **{first_name}**!

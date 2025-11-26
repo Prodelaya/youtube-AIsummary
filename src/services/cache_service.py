@@ -9,12 +9,14 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 import redis
 from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import RedisError, TimeoutError as RedisTimeoutError
+from redis.exceptions import RedisError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from src.core.config import settings
 from src.core.metrics import metrics
@@ -54,11 +56,15 @@ def timed(operation: str):
             try:
                 result = func(*args, **kwargs)
                 duration = time.time() - start
-                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(duration)
+                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(
+                    duration
+                )
                 return result
             except Exception:
                 duration = time.time() - start
-                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(duration)
+                metrics.cache_operation_duration_seconds.labels(operation=operation).observe(
+                    duration
+                )
                 raise
 
         return wrapper
@@ -444,7 +450,7 @@ class CacheService:
 
             # Construir diccionario de resultados
             results = {}
-            for key, value in zip(keys, values):
+            for key, value in zip(keys, values, strict=False):
                 if value is not None:
                     try:
                         results[key] = json.loads(value)

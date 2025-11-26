@@ -248,9 +248,13 @@ def test_process_video_pending(client: TestClient, sample_video: Video):
     pytest.skip("Requires Celery worker running")
 
 
-def test_process_video_invalid_state(client: TestClient, sample_completed_video: Video, auth_headers: dict):
+def test_process_video_invalid_state(
+    client: TestClient, sample_completed_video: Video, auth_headers: dict
+):
     """Test encolar video en estado invalido."""
-    response = client.post(f"/api/v1/videos/{sample_completed_video.id}/process", headers=auth_headers)
+    response = client.post(
+        f"/api/v1/videos/{sample_completed_video.id}/process", headers=auth_headers
+    )
 
     assert response.status_code == 409  # Conflict
     assert (

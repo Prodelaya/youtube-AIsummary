@@ -5,7 +5,7 @@ Usa mocks de SQLAlchemy Session y un modelo fake simple
 para evitar dependencias de modelos reales.
 """
 
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import MagicMock, call
 from uuid import uuid4
 
 import pytest

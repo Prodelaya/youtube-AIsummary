@@ -11,27 +11,25 @@ IMPORTANTE: Requiere PostgreSQL corriendo en Docker.
 Ejecutar antes de los tests: docker-compose up -d postgres
 """
 
-import pytest
 import os
-from datetime import datetime, UTC
-from uuid import uuid4
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import NullPool
+
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
-from src.models import Base, Source, Video, Transcription, Summary, User
-from src.models.video import VideoStatus
-from src.api.main import create_app
-from src.api.dependencies import get_db  # ← Importar desde dependencies, no desde database
 from src.api.auth.jwt import create_access_token
-
+from src.api.dependencies import get_db  # ← Importar desde dependencies, no desde database
+from src.api.main import create_app
+from src.models import Base, Source, Summary, Transcription, User, Video
+from src.models.video import VideoStatus
 
 # ==================== CONFIGURACIÓN DE BD DE TESTS ====================
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql://iamonitor:iamonitor_dev_password@localhost:5432/iamonitor_test"
+    "postgresql://iamonitor:iamonitor_dev_password@localhost:5432/iamonitor_test",
 )
 
 
@@ -73,7 +71,11 @@ def db_session(db_engine_session) -> Session:
 
     # Limpiar todas las tablas antes del test
     try:
-        session.execute(text("TRUNCATE TABLE summaries, transcriptions, videos, sources, telegram_users, users CASCADE"))
+        session.execute(
+            text(
+                "TRUNCATE TABLE summaries, transcriptions, videos, sources, telegram_users, users CASCADE"
+            )
+        )
         session.commit()
     except Exception:
         session.rollback()
@@ -137,7 +139,7 @@ def admin_user(db_session) -> User:
         email="admin@test.com",
         hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU8KQDpTMWBq",  # "password123"
         role="admin",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
@@ -153,7 +155,7 @@ def regular_user(db_session) -> User:
         email="user@test.com",
         hashed_password="$2b$12$hashed_password",
         role="user",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
@@ -213,7 +215,7 @@ def sample_source(db_session) -> Source:
         name="Test Channel",
         source_type="youtube",
         url="https://youtube.com/@testchannel",
-        active=True
+        active=True,
     )
     db_session.add(source)
     db_session.commit()
@@ -238,7 +240,7 @@ def sample_video(db_session, sample_source) -> Video:
         title="Test Video",
         url="https://youtube.com/watch?v=test_video_123",
         duration_seconds=300,
-        status=VideoStatus.PENDING
+        status=VideoStatus.PENDING,
     )
     db_session.add(video)
     db_session.commit()
@@ -255,7 +257,7 @@ def completed_video(db_session, sample_source) -> Video:
         title="Completed Video",
         url="https://youtube.com/watch?v=completed_video_456",
         duration_seconds=600,
-        status=VideoStatus.COMPLETED
+        status=VideoStatus.COMPLETED,
     )
     db_session.add(video)
     db_session.commit()
@@ -263,10 +265,7 @@ def completed_video(db_session, sample_source) -> Video:
 
     # Añadir transcripción
     transcription = Transcription(
-        video_id=video.id,
-        text="This is a test transcription",
-        language="en",
-        duration_seconds=600
+        video_id=video.id, text="This is a test transcription", language="en", duration_seconds=600
     )
     db_session.add(transcription)
     db_session.commit()
@@ -276,7 +275,7 @@ def completed_video(db_session, sample_source) -> Video:
     summary = Summary(
         transcription_id=transcription.id,
         summary_text="This is a test summary",
-        keywords=["test", "integration", "api"]
+        keywords=["test", "integration", "api"],
     )
     db_session.add(summary)
     db_session.commit()
@@ -303,7 +302,7 @@ def multiple_videos(db_session, sample_source) -> list[Video]:
         VideoStatus.SKIPPED,
         VideoStatus.PENDING,
         VideoStatus.COMPLETED,
-        VideoStatus.PENDING
+        VideoStatus.PENDING,
     ]
 
     for i, status in enumerate(statuses):
@@ -313,7 +312,7 @@ def multiple_videos(db_session, sample_source) -> list[Video]:
             title=f"Video {i}",
             url=f"https://youtube.com/watch?v=video_{i}",
             duration_seconds=60 * (i + 1),
-            status=status
+            status=status,
         )
         db_session.add(video)
         videos.append(video)

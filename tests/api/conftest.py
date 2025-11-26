@@ -11,9 +11,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
+from src.api.auth.jwt import create_access_token
 from src.api.dependencies import get_db
 from src.api.main import app
-from src.api.auth.jwt import create_access_token
 from src.models.base import Base
 from src.models.source import Source
 from src.models.user import User
@@ -146,7 +146,7 @@ def admin_user(db_session: Session) -> User:
         email="admin@test.com",
         hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU8KQDpTMWBq",  # "password123"
         role="admin",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()

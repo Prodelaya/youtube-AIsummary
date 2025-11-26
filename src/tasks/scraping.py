@@ -133,9 +133,7 @@ def sync_youtube_sources_task(self: Task) -> dict:
                 stats["sources_scanned"] += 1
                 stats["videos_found"] += len(videos)
 
-                logger.info(
-                    f"📹 {len(videos)} videos encontrados en {source.name}"
-                )
+                logger.info(f"📹 {len(videos)} videos encontrados en {source.name}")
 
                 # Procesar cada video
                 for video_meta in videos:
@@ -144,36 +142,26 @@ def sync_youtube_sources_task(self: Task) -> dict:
                         existing = video_repo.get_by_url(video_meta.url)
 
                         if existing:
-                            logger.debug(
-                                f"⏭️ Video ya existe: {video_meta.title[:50]}..."
-                            )
+                            logger.debug(f"⏭️ Video ya existe: {video_meta.title[:50]}...")
                             continue
 
                         # Crear nuevo video
-                        new_video = _create_video_from_metadata(
-                            video_meta, source.id
-                        )
+                        new_video = _create_video_from_metadata(video_meta, source.id)
                         db.add(new_video)
                         db.flush()  # Obtener el ID sin commit
 
                         stats["videos_new"] += 1
 
-                        logger.info(
-                            f"✅ Nuevo video detectado: {new_video.title[:60]}..."
-                        )
+                        logger.info(f"✅ Nuevo video detectado: {new_video.title[:60]}...")
 
                         # Encolar procesamiento automático
                         process_video_task.delay(str(new_video.id))
                         stats["videos_enqueued"] += 1
 
-                        logger.info(
-                            f"📤 Video encolado para procesamiento: {new_video.id}"
-                        )
+                        logger.info(f"📤 Video encolado para procesamiento: {new_video.id}")
 
                     except Exception as e:
-                        logger.error(
-                            f"❌ Error procesando video {video_meta.video_id}: {e}"
-                        )
+                        logger.error(f"❌ Error procesando video {video_meta.video_id}: {e}")
                         stats["errors"] += 1
                         continue
 
@@ -205,9 +193,7 @@ def sync_youtube_sources_task(self: Task) -> dict:
                 continue
 
             except Exception as e:
-                logger.exception(
-                    f"❌ Error inesperado procesando fuente {source.name}: {e}"
-                )
+                logger.exception(f"❌ Error inesperado procesando fuente {source.name}: {e}")
                 stats["errors"] += 1
                 continue
 
@@ -234,9 +220,7 @@ def sync_youtube_sources_task(self: Task) -> dict:
 # ==================== HELPERS ====================
 
 
-def _create_video_from_metadata(
-    meta: VideoMetadata, source_id: uuid.UUID
-) -> Video:
+def _create_video_from_metadata(meta: VideoMetadata, source_id: uuid.UUID) -> Video:
     """
     Crea una instancia de Video desde VideoMetadata.
 

@@ -8,12 +8,13 @@ Estrategia de testing:
 - Validación de queries de filtrado
 """
 
-import pytest
 from uuid import uuid4
 
-from src.repositories.source_repository import SourceRepository
-from src.repositories.exceptions import NotFoundError
+import pytest
+
 from src.models import Source
+from src.repositories.exceptions import NotFoundError
+from src.repositories.source_repository import SourceRepository
 
 
 class TestSourceRepositoryCRUD:
@@ -31,7 +32,7 @@ class TestSourceRepositoryCRUD:
             name="New Channel",
             source_type="youtube",
             url="https://youtube.com/@newchannel",
-            active=True
+            active=True,
         )
 
         # Act
@@ -225,7 +226,7 @@ class TestSourceRepositoryEdgeCases:
             source_type="youtube",
             url="https://youtube.com/@metadata",
             active=True,
-            extra_metadata={"subscriber_count": 500000, "language": "es"}
+            extra_metadata={"subscriber_count": 500000, "language": "es"},
         )
 
         # Act
@@ -255,8 +256,12 @@ class TestSourceRepositoryEdgeCases:
         """Test 20: get_active_sources() solo retorna sources con active=True"""
         # Arrange - crear mix de activas e inactivas
         sources = [
-            Source(name=f"S{i}", source_type="youtube",
-                   url=f"https://youtube.com/@s{i}", active=(i % 2 == 0))
+            Source(
+                name=f"S{i}",
+                source_type="youtube",
+                url=f"https://youtube.com/@s{i}",
+                active=(i % 2 == 0),
+            )
             for i in range(6)
         ]
         for s in sources:

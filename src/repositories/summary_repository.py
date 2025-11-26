@@ -221,10 +221,14 @@ class SummaryRepository(BaseRepository[Summary]):
                         "keywords": summary.keywords,
                         "model_used": summary.model_used,
                         "sent_to_telegram": summary.sent_to_telegram,
-                        "created_at": summary.created_at.isoformat() if summary.created_at else None,
+                        "created_at": (
+                            summary.created_at.isoformat() if summary.created_at else None
+                        ),
                         "sent_at": summary.sent_at.isoformat() if summary.sent_at else None,
                     }
-                    cache_service.set(summary_cache_key, summary_dict, ttl=86400, cache_type="summary")
+                    cache_service.set(
+                        summary_cache_key, summary_dict, ttl=86400, cache_type="summary"
+                    )
 
         return summaries
 

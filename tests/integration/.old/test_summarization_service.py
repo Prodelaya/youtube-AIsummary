@@ -15,7 +15,7 @@ import pytest
 
 from src.core.config import settings
 from src.core.database import get_db
-from src.models import Summary, Transcription, Video
+from src.models import Transcription, Video
 from src.repositories.exceptions import AlreadyExistsError, NotFoundError
 from src.repositories.summary_repository import SummaryRepository
 from src.repositories.transcription_repository import TranscriptionRepository
@@ -306,8 +306,8 @@ async def test_generate_summary_with_database(skip_if_no_token):
 
     try:
         # Crear source, video y transcripción de prueba
-        from src.repositories.source_repository import SourceRepository
         from src.models.source import Source
+        from src.repositories.source_repository import SourceRepository
 
         source_repo = SourceRepository(session)
         video_repo = VideoRepository(session)
@@ -376,7 +376,7 @@ async def test_generate_summary_with_database(skip_if_no_token):
         assert retrieved_summary is not None
         assert retrieved_summary.id == summary.id
 
-        print(f"\n✅ Resumen guardado en BD:")
+        print("\n✅ Resumen guardado en BD:")
         print(f"   ID: {summary.id}")
         print(f"   Keywords: {summary.keywords}")
         print(f"   Categoría: {summary.category}")
@@ -425,8 +425,8 @@ async def test_generate_summary_duplicate_error(skip_if_no_token):
 
     try:
         # Crear source, video y transcripción de prueba
-        from src.repositories.source_repository import SourceRepository
         from src.models.source import Source
+        from src.repositories.source_repository import SourceRepository
 
         source_repo = SourceRepository(session)
         video_repo = VideoRepository(session)
@@ -505,7 +505,9 @@ def test_extract_keywords_with_acronyms():
     """
     Test: Extracción de acrónimos (API, LLM, etc.)
     """
-    sample = "Los modelos LLM como GPT y BERT usan la API REST para comunicarse con sistemas externos."
+    sample = (
+        "Los modelos LLM como GPT y BERT usan la API REST para comunicarse con sistemas externos."
+    )
 
     keywords = extract_keywords(sample)
 

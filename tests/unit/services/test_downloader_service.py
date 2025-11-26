@@ -8,18 +8,18 @@ Estrategia de testing:
 - Manejo de errores (URLs inválidas, red, videos privados)
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, mock_open
 
 from src.services.downloader_service import (
-    DownloaderService,
-    DownloadError,
-    InvalidURLError,
-    VideoNotAvailableError,
-    NetworkError,
     AudioExtractionError,
+    DownloadError,
+    DownloaderService,
+    InvalidURLError,
+    NetworkError,
     VideoMetadata,
+    VideoNotAvailableError,
 )
 
 

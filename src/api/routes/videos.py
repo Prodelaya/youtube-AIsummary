@@ -23,7 +23,6 @@ from slowapi.util import get_remote_address
 
 from src.api.auth.dependencies import get_current_user, require_admin
 from src.api.dependencies import DBSession, SummaryRepo, TranscriptionRepo, VideoRepo
-from src.models.user import User
 from src.api.schemas.common import CursorInfo, MessageResponse
 from src.api.schemas.summaries import SummaryResponse
 from src.api.schemas.transcriptions import TranscriptionResponse
@@ -35,6 +34,7 @@ from src.api.schemas.videos import (
     VideoResponse,
     VideoStatsResponse,
 )
+from src.models.user import User
 from src.models.video import VideoStatus
 from src.services.video_processing_service import (
     InvalidVideoStateError,
@@ -76,10 +76,10 @@ limiter = Limiter(key_func=get_remote_address)
                         "metadata": {"view_count": 1000000},
                         "created_at": "2025-01-15T10:30:00Z",
                         "updated_at": "2025-01-15T10:30:00Z",
-                        "deleted_at": None
+                        "deleted_at": None,
                     }
                 }
-            }
+            },
         },
         400: {
             "description": "Video with youtube_id already exists",
@@ -87,10 +87,10 @@ limiter = Limiter(key_func=get_remote_address)
                 "application/json": {
                     "example": {
                         "detail": "Video with youtube_id 'dQw4w9WgXcQ' already exists",
-                        "error_code": "BAD_REQUEST"
+                        "error_code": "BAD_REQUEST",
                     }
                 }
-            }
+            },
         },
         422: {
             "description": "Validation error",
@@ -101,14 +101,14 @@ limiter = Limiter(key_func=get_remote_address)
                             {
                                 "loc": ["body", "youtube_id"],
                                 "msg": "field required",
-                                "type": "value_error.missing"
+                                "type": "value_error.missing",
                             }
                         ]
                     }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 @limiter.limit("10/minute")  # Límite para creación de videos
 def create_video(
@@ -186,19 +186,19 @@ def create_video(
                                 "metadata": {"view_count": 1000000},
                                 "created_at": "2025-01-15T10:30:00Z",
                                 "updated_at": "2025-01-15T11:45:00Z",
-                                "deleted_at": None
+                                "deleted_at": None,
                             }
                         ],
                         "cursor": {
                             "has_next": True,
                             "next_cursor": "123e4567-e89b-12d3-a456-426614174000",
-                            "count": 1
-                        }
+                            "count": 1,
+                        },
                     }
                 }
-            }
+            },
         }
-    }
+    },
 )
 def list_videos(
     video_repo: VideoRepo,
@@ -268,12 +268,12 @@ def list_videos(
                 "application/json": {
                     "example": {
                         "detail": "Video 123e4567-e89b-12d3-a456-426614174000 not found",
-                        "error_code": "VIDEO_NOT_FOUND"
+                        "error_code": "VIDEO_NOT_FOUND",
                     }
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 def get_video(
     video_id: UUID,
@@ -328,10 +328,10 @@ def get_video(
                 "application/json": {
                     "example": {"detail": "At least one field must be provided to update"}
                 }
-            }
+            },
         },
-        404: {"description": "Video not found"}
-    }
+        404: {"description": "Video not found"},
+    },
 )
 def update_video(
     video_id: UUID,
@@ -388,15 +388,11 @@ def update_video(
     responses={
         200: {
             "description": "Video deleted successfully",
-            "content": {
-                "application/json": {
-                    "example": {"message": "Video deleted successfully"}
-                }
-            }
+            "content": {"application/json": {"example": {"message": "Video deleted successfully"}}},
         },
         400: {"description": "Video already deleted"},
-        404: {"description": "Video not found"}
-    }
+        404: {"description": "Video not found"},
+    },
 )
 def delete_video(
     video_id: UUID,
@@ -448,10 +444,10 @@ def delete_video(
                 "application/json": {
                     "example": {
                         "message": "Video queued for processing",
-                        "task_id": "550e8400-e29b-41d4-a716-446655440000"
+                        "task_id": "550e8400-e29b-41d4-a716-446655440000",
                     }
                 }
-            }
+            },
         },
         404: {"description": "Video not found"},
         409: {
@@ -460,9 +456,9 @@ def delete_video(
                 "application/json": {
                     "example": {"detail": "Video is already completed or in progress"}
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 @limiter.limit("3/minute")  # Límite más restrictivo para procesamiento (costoso)
 def process_video(
@@ -604,9 +600,7 @@ def get_video_stats(
 
     # Calcular tiempo de procesamiento (created_at -> updated_at)
     if video.status == VideoStatus.COMPLETED:
-        processing_time_seconds = (
-            video.updated_at - video.created_at
-        ).total_seconds()
+        processing_time_seconds = (video.updated_at - video.created_at).total_seconds()
 
     return VideoStatsResponse(
         video_id=video_id,

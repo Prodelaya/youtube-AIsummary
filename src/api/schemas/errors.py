@@ -50,9 +50,7 @@ class ValidationErrorResponse(BaseModel):
         ... )
     """
 
-    detail: list[ErrorDetail] = Field(
-        ..., description="Lista de errores de validacion"
-    )
+    detail: list[ErrorDetail] = Field(..., description="Lista de errores de validacion")
 
     class Config:
         json_schema_extra = {

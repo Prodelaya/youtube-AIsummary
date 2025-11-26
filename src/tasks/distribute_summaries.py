@@ -15,7 +15,7 @@ Características:
 """
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from celery import Task
@@ -171,9 +171,7 @@ def distribute_summary_task(self, summary_id_str: str) -> dict:
                 logger.bind(
                     sent_at=summary.sent_at.isoformat() if summary.sent_at else None,
                 ).info("summary_already_sent")
-                raise SummaryAlreadySentError(
-                    f"Summary {summary_id} was already sent to Telegram"
-                )
+                raise SummaryAlreadySentError(f"Summary {summary_id} was already sent to Telegram")
 
             # Obtener video y source relacionados (con eager loading)
             video = summary.transcription.video
@@ -201,7 +199,7 @@ def distribute_summary_task(self, summary_id_str: str) -> dict:
             # Si no hay usuarios activos, marcar como enviado y terminar
             if len(active_users) == 0:
                 summary.sent_to_telegram = True
-                summary.sent_at = datetime.now(timezone.utc)
+                summary.sent_at = datetime.now(UTC)
                 summary.telegram_message_ids = {}
                 self.db.commit()
 
@@ -231,7 +229,7 @@ def distribute_summary_task(self, summary_id_str: str) -> dict:
             # Actualizar summary con IDs de mensajes enviados
             summary.telegram_message_ids = sent_message_ids
             summary.sent_to_telegram = True
-            summary.sent_at = datetime.now(timezone.utc)
+            summary.sent_at = datetime.now(UTC)
             self.db.commit()
 
             logger.bind(

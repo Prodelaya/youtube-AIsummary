@@ -15,8 +15,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.models.user import User
-from src.repositories.user_repository import UserRepository
 from src.repositories.exceptions import NotFoundError
+from src.repositories.user_repository import UserRepository
 
 
 class TestUserRepositoryCRUD:
@@ -34,7 +34,7 @@ class TestUserRepositoryCRUD:
             username="johndoe",
             email="john@example.com",
             hashed_password="$2b$12$hashed_password_here",
-            role="user"
+            role="user",
         )
 
         # Act
@@ -189,7 +189,7 @@ class TestUserRepositoryConstraints:
             username="admin",  # Username ya existe
             email="different@example.com",
             hashed_password="$2b$12$hash",
-            role="user"
+            role="user",
         )
 
         # Act & Assert
@@ -205,7 +205,7 @@ class TestUserRepositoryConstraints:
             username="different_user",
             email="admin@test.com",  # Email ya existe
             hashed_password="$2b$12$hash",
-            role="user"
+            role="user",
         )
 
         # Act & Assert
@@ -230,7 +230,7 @@ class TestUserRepositoryEdgeCases:
             username="minimal",
             email="minimal@example.com",
             hashed_password="$2b$12$hash",
-            role="user"  # Role tiene default pero lo especificamos
+            role="user",  # Role tiene default pero lo especificamos
         )
 
         # Act
@@ -253,7 +253,7 @@ class TestUserRepositoryEdgeCases:
                 username=f"user_{role}",
                 email=f"{role}@example.com",
                 hashed_password="$2b$12$hash",
-                role=role
+                role=role,
             )
             created = repository.create(user)
             created_users.append(created)
@@ -271,7 +271,7 @@ class TestUserRepositoryEdgeCases:
             username="secure_user",
             email="secure@example.com",
             hashed_password=hashed_password,
-            role="user"
+            role="user",
         )
 
         # Act
@@ -291,7 +291,7 @@ class TestUserRepositoryEdgeCases:
                 email=f"user{i}@example.com",
                 hashed_password="$2b$12$hash",
                 role="user",
-                is_active=(i < 3)  # Primeros 3 activos, últimos 2 inactivos
+                is_active=(i < 3),  # Primeros 3 activos, últimos 2 inactivos
             )
             db_session.add(user)
         db_session.commit()

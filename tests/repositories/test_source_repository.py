@@ -173,9 +173,7 @@ class TestSourceRepositoryGetByUrl:
         """get_by_url() debe hacer match exacto (case-sensitive)."""
         # Arrange
         repo = SourceRepository(db_session)
-        source = source_factory(
-            name="Exact Match", url="https://youtube.com/@ExactMatch"
-        )
+        source = source_factory(name="Exact Match", url="https://youtube.com/@ExactMatch")
 
         # Act - Buscar con URL exacta
         found_exact = repo.get_by_url("https://youtube.com/@ExactMatch")
@@ -192,9 +190,9 @@ class TestSourceRepositoryGetByUrl:
         """get_by_url() debe retornar solo la source correcta entre múltiples."""
         # Arrange
         repo = SourceRepository(db_session)
-        source1 = source_factory(name="Channel 1", url="https://youtube.com/@ch1")
+        source_factory(name="Channel 1", url="https://youtube.com/@ch1")
         source2 = source_factory(name="Channel 2", url="https://youtube.com/@ch2")
-        source3 = source_factory(name="Channel 3", url="https://youtube.com/@ch3")
+        source_factory(name="Channel 3", url="https://youtube.com/@ch3")
 
         # Act
         found = repo.get_by_url(source2.url)

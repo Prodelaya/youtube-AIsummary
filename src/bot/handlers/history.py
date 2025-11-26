@@ -59,9 +59,7 @@ async def recent_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     try:
         # Obtener resúmenes recientes filtrados por suscripciones
-        summaries = await asyncio.to_thread(
-            _get_user_recent_summaries, telegram_id, limit=10
-        )
+        summaries = await asyncio.to_thread(_get_user_recent_summaries, telegram_id, limit=10)
 
         if not summaries:
             await update.message.reply_text(
@@ -135,9 +133,7 @@ async def recent_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # ==================== CALLBACK HANDLER ====================
 
 
-async def view_transcript_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
+async def view_transcript_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Maneja clicks en botón "Ver transcripción completa".
 
@@ -168,7 +164,7 @@ async def view_transcript_callback(
     try:
         summary_id_str = callback_data.split(":", 1)[1]
         summary_id = UUID(summary_id_str)
-    except (IndexError, ValueError) as e:
+    except (IndexError, ValueError):
         logger.error(
             f"Callback data inválido: {callback_data}",
             exc_info=True,
@@ -187,14 +183,10 @@ async def view_transcript_callback(
 
     try:
         # Obtener transcripción completa
-        transcription_text = await asyncio.to_thread(
-            _get_transcription_by_summary_id, summary_id
-        )
+        transcription_text = await asyncio.to_thread(_get_transcription_by_summary_id, summary_id)
 
         if not transcription_text:
-            await query.answer(
-                "⚠️ Transcripción no encontrada.", show_alert=True
-            )
+            await query.answer("⚠️ Transcripción no encontrada.", show_alert=True)
             logger.warning(
                 f"Transcripción no encontrada para resumen {summary_id}",
                 extra={"telegram_id": telegram_id, "summary_id": str(summary_id)},
@@ -290,11 +282,13 @@ def _get_user_recent_summaries(telegram_id: int, limit: int) -> list[dict]:
                     if summary_with_relations:
                         video = summary_with_relations.transcription.video
                         source = video.source
-                        results.append({
-                            "summary": summary_with_relations,
-                            "video": video,
-                            "source": source,
-                        })
+                        results.append(
+                            {
+                                "summary": summary_with_relations,
+                                "video": video,
+                                "source": source,
+                            }
+                        )
 
             return results
 
@@ -345,11 +339,13 @@ def _get_user_recent_summaries(telegram_id: int, limit: int) -> list[dict]:
             video = summary.transcription.video
             source = video.source
 
-            results.append({
-                "summary": summary,
-                "video": video,
-                "source": source,
-            })
+            results.append(
+                {
+                    "summary": summary,
+                    "video": video,
+                    "source": source,
+                }
+            )
 
             summary_ids.append(str(summary.id))
 
@@ -399,7 +395,7 @@ def _get_transcription_by_summary_id(summary_id: UUID) -> str | None:
     """
     session = SessionLocal()
     try:
-        summary_repo = SummaryRepository(session)
+        SummaryRepository(session)
 
         # Obtener summary con eager loading de transcription
         summary = (

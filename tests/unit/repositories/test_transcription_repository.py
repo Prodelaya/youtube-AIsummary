@@ -8,12 +8,13 @@ Estrategia de testing:
 - Validación de queries por video_id y language
 """
 
-import pytest
 from uuid import uuid4
 
-from src.repositories.transcription_repository import TranscriptionRepository
-from src.repositories.exceptions import NotFoundError
+import pytest
+
 from src.models import Transcription
+from src.repositories.exceptions import NotFoundError
+from src.repositories.transcription_repository import TranscriptionRepository
 
 
 class TestTranscriptionRepositoryCRUD:
@@ -32,7 +33,7 @@ class TestTranscriptionRepositoryCRUD:
             text="Esta es una transcripción de prueba del video.",
             language="es",
             model_used="whisper-base",
-            duration_seconds=300
+            duration_seconds=300,
         )
 
         # Act
@@ -125,12 +126,13 @@ class TestTranscriptionRepositoryVideoQueries:
         """Test 8: Buscar por video_id sin transcripción retorna None"""
         # Arrange - sample_video sin transcripción (crear nuevo video sin transcripción)
         from src.models import Video, VideoStatus
+
         video_without_transcription = Video(
             source_id=sample_video.source_id,
             youtube_id="no_transcription",
             title="Video sin transcripción",
             url="https://youtube.com/watch?v=no_transcription",
-            status=VideoStatus.PENDING
+            status=VideoStatus.PENDING,
         )
         repository.session.add(video_without_transcription)
         repository.session.commit()
@@ -154,12 +156,13 @@ class TestTranscriptionRepositoryVideoQueries:
         """Test 10: exists_by_video_id() retorna False para video sin transcripción"""
         # Arrange - crear video sin transcripción
         from src.models import Video, VideoStatus
+
         video_without_transcription = Video(
             source_id=sample_video.source_id,
             youtube_id="no_transcription2",
             title="Video sin transcripción",
             url="https://youtube.com/watch?v=no_transcription2",
-            status=VideoStatus.PENDING
+            status=VideoStatus.PENDING,
         )
         repository.session.add(video_without_transcription)
         repository.session.commit()
@@ -208,6 +211,7 @@ class TestTranscriptionRepositoryLanguageQueries:
         """Test 14: Múltiples transcripciones del mismo idioma"""
         # Arrange - crear varias transcripciones en español
         from src.models import Video, VideoStatus
+
         videos = []
         transcriptions = []
 
@@ -217,7 +221,7 @@ class TestTranscriptionRepositoryLanguageQueries:
                 youtube_id=f"video_es_{i}",
                 title=f"Video {i}",
                 url=f"https://youtube.com/watch?v=video_es_{i}",
-                status=VideoStatus.COMPLETED
+                status=VideoStatus.COMPLETED,
             )
             repository.session.add(video)
             videos.append(video)
@@ -230,7 +234,7 @@ class TestTranscriptionRepositoryLanguageQueries:
                 video_id=video.id,
                 text=f"Transcripción {video.youtube_id}",
                 language="es",
-                model_used="whisper-base"
+                model_used="whisper-base",
             )
             repository.session.add(trans)
             transcriptions.append(trans)
@@ -300,7 +304,7 @@ class TestTranscriptionRepositoryEdgeCases:
         segments = {
             "segments": [
                 {"start": 0.0, "end": 5.2, "text": "Hola mundo"},
-                {"start": 5.2, "end": 10.5, "text": "Esto es un test"}
+                {"start": 5.2, "end": 10.5, "text": "Esto es un test"},
             ]
         }
         transcription = Transcription(
@@ -309,7 +313,7 @@ class TestTranscriptionRepositoryEdgeCases:
             language="es",
             model_used="whisper-small",
             segments=segments,
-            confidence_score=0.92
+            confidence_score=0.92,
         )
 
         # Act
@@ -336,17 +340,18 @@ class TestTranscriptionRepositoryEdgeCases:
         # Assert
         assert updated.confidence_score == 0.95
 
-    def test_transcription_unique_per_video(self, repository, sample_video, sample_transcription, db_session):
+    def test_transcription_unique_per_video(
+        self, repository, sample_video, sample_transcription, db_session
+    ):
         """Test 20: No se puede crear segunda transcripción para el mismo video (violación UNIQUE)"""
         # Arrange - intentar crear segunda transcripción para el mismo video
         duplicate_transcription = Transcription(
-            video_id=sample_video.id,  # Mismo video_id
-            text="Intento de duplicado",
-            language="es"
+            video_id=sample_video.id, text="Intento de duplicado", language="es"  # Mismo video_id
         )
 
         # Act & Assert
         from sqlalchemy.exc import IntegrityError
+
         with pytest.raises(IntegrityError):
             repository.create(duplicate_transcription)
             db_session.commit()

@@ -5,7 +5,7 @@ Verifica que los usuarios puedan buscar en su historial de
 resúmenes usando keywords.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
@@ -99,9 +99,7 @@ class TestSearchHandler:
             assert "5" in header_text  # Count de resultados
 
     @pytest.mark.asyncio
-    async def test_search_command_no_results(
-        self, mock_update, mock_context_with_args
-    ):
+    async def test_search_command_no_results(self, mock_update, mock_context_with_args):
         """
         Verifica mensaje cuando búsqueda no tiene resultados.
 
@@ -110,9 +108,7 @@ class TestSearchHandler:
         """
         mock_context_with_args.args = ["NonExistentKeyword"]
 
-        with patch(
-            "src.bot.handlers.search._search_user_summaries", return_value=[]
-        ):
+        with patch("src.bot.handlers.search._search_user_summaries", return_value=[]):
             await search_handler(mock_update, mock_context_with_args)
 
             # Verificar que se envió solo 1 mensaje (el informativo)
@@ -145,9 +141,7 @@ class TestSearchHandler:
         assert "Ejemplos" in message_text
 
     @pytest.mark.asyncio
-    async def test_search_command_query_too_short(
-        self, mock_update, mock_context_with_args
-    ):
+    async def test_search_command_query_too_short(self, mock_update, mock_context_with_args):
         """
         Verifica validación de query muy corta.
 
@@ -267,9 +261,7 @@ class TestSearchHandler:
             assert "10" in header_text  # Shown results
 
     @pytest.mark.asyncio
-    async def test_search_command_handles_exception(
-        self, mock_update, mock_context_with_args
-    ):
+    async def test_search_command_handles_exception(self, mock_update, mock_context_with_args):
         """
         Verifica manejo de errores en /search.
 
@@ -291,9 +283,7 @@ class TestSearchHandler:
             assert "error" in message_text.lower()
 
     @pytest.mark.asyncio
-    async def test_search_command_without_user(
-        self, mock_update, mock_context_with_args
-    ):
+    async def test_search_command_without_user(self, mock_update, mock_context_with_args):
         """
         Verifica que handler maneja ausencia de effective_user.
 

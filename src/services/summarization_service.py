@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from src.core.config import settings
-from src.models import Summary, Transcription, Video
+from src.models import Summary, Video
 from src.repositories.exceptions import AlreadyExistsError, NotFoundError
 from src.repositories.summary_repository import SummaryRepository
 from src.repositories.transcription_repository import TranscriptionRepository
@@ -214,6 +214,7 @@ class SummarizationService:
 
             # Parsear JSON response
             import json
+
             try:
                 parsed_response = json.loads(content)
                 summary_text = parsed_response.get("summary", "")

@@ -12,13 +12,12 @@ Tests de operaciones básicas de caché con Redis:
 - manejo de errores
 """
 
-import json
-import pytest
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
-from src.services.cache_service import CacheService, hash_query
+import pytest
 
+from src.services.cache_service import CacheService, hash_query
 
 # ==================== FIXTURES ====================
 
@@ -244,7 +243,7 @@ def test_get_many(cache_service):
     values = ["value1", "value2", "value3"]
 
     # Cachear valores
-    for key, value in zip(keys, values):
+    for key, value in zip(keys, values, strict=False):
         cache_service.set(key, value, ttl=60, cache_type="test")
 
     # Get many

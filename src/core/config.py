@@ -94,9 +94,10 @@ class Settings(BaseSettings):
     )
 
     # ==================== TELEGRAM BOT ====================
-    TELEGRAM_BOT_TOKEN: str = Field(
+    TELEGRAM_BOT_TOKEN: str | None = Field(
+        default=None,
         min_length=30,
-        description="Token del bot de Telegram obtenido desde @BotFather",
+        description="Token del bot de Telegram obtenido desde @BotFather (opcional en tests)",
         examples=["123456789:ABCdefGHIjklMNOpqrsTUVwxyz"],
     )
 
@@ -139,11 +140,11 @@ class Settings(BaseSettings):
 
     # ==================== LÍMITES DE PROCESAMIENTO ====================
     MAX_VIDEO_DURATION_SECONDS: int = Field(
-        default=2159,  # 35:59 en segundos
-        ge=60,  # Mínimo 1 minuto
+        default=2400,  # 40:00 en segundos
+        ge=30,  # Mínimo 30 segundos
         le=7200,  # Máximo 2 horas
         description="Duración máxima de video para procesar (en segundos). "
-                    "Videos más largos se marcarán como SKIPPED para ahorrar recursos.",
+        "Videos más largos se marcarán como SKIPPED para ahorrar recursos.",
     )
 
     YOUTUBE_MAX_RESULTS_PER_CHANNEL: int = Field(
@@ -174,7 +175,7 @@ class Settings(BaseSettings):
     )
 
     # ==================== APLICACIÓN ====================
-    ENVIRONMENT: Literal["development", "staging", "production"] = Field(
+    ENVIRONMENT: Literal["development", "staging", "production", "test"] = Field(
         ...,  # Obligatorio, sin default
         description="Entorno de ejecución (afecta logs, debug, optimizaciones)",
     )

@@ -128,10 +128,26 @@ section-order = ["future", "standard-library", "third-party", "first-party", "lo
 # MyPy: Verificador de tipos
 [tool.mypy]
 python_version = "3.11"
+strict = false  # Empezar permisivo, ir aumentando progresivamente
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false  # Por ahora flexible, endurecer después
-ignore_missing_imports = true  # Algunas libs no tienen tipos
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = false  # Habilitar cuando coverage tipo >70%
+ignore_missing_imports = true  # Permitir librerías sin stubs
+show_error_codes = true
+pretty = true
+
+# Ignorar módulos específicos sin type hints
+[[tool.mypy.overrides]]
+module = [
+    "celery.*",
+    "whisper.*",
+    "yt_dlp.*",
+    "prometheus_client.*",
+    "structlog.*",
+]
+ignore_missing_imports = true
 
 # Pytest: Framework de testing
 [tool.pytest.ini_options]
@@ -145,7 +161,9 @@ addopts = [
     "--cov=src",             # Medir cobertura del código en src/
     "--cov-report=term-missing",  # Mostrar líneas sin cubrir
     "--cov-report=html",     # Generar reporte HTML
-    "--cov-fail-under=80",   # Fallar si cobertura <80%
+    "--cov-report=xml",      # Generar reporte XML
+    "--cov-branch",          # Medir cobertura de ramas
+    "--cov-fail-under=80",   # Fallar si cobertura <80%\
 ]
 asyncio_mode = "auto"        # Detectar tests async automáticamente
 markers = [

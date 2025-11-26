@@ -39,7 +39,6 @@ from src.services.summarization_service import SummarizationService
 from src.services.transcription_service import TranscriptionService
 from src.services.video_processing_service import VideoProcessingService
 
-
 # ==================== DATABASE SESSION ====================
 
 
@@ -195,13 +194,7 @@ def get_summarization_service() -> SummarizationService:
 
 
 # Type aliases para servicios
-VideoProcessingServiceDep = Annotated[
-    VideoProcessingService, Depends(get_video_processing_service)
-]
+VideoProcessingServiceDep = Annotated[VideoProcessingService, Depends(get_video_processing_service)]
 DownloaderServiceDep = Annotated[DownloaderService, Depends(get_downloader_service)]
-TranscriptionServiceDep = Annotated[
-    TranscriptionService, Depends(get_transcription_service)
-]
-SummarizationServiceDep = Annotated[
-    SummarizationService, Depends(get_summarization_service)
-]
+TranscriptionServiceDep = Annotated[TranscriptionService, Depends(get_transcription_service)]
+SummarizationServiceDep = Annotated[SummarizationService, Depends(get_summarization_service)]

@@ -23,11 +23,25 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """
-    Añade el valor 'skipped' al enum video_status.
+    Crea el enum video_status si no existe, y añade el valor 'skipped'.
 
-    PostgreSQL permite añadir valores a ENUMs existentes sin recrear la tabla.
-    IF NOT EXISTS previene errores si el valor ya existe.
+    Nota: En migraciones anteriores se usó native_enum=False, lo que no crea
+    el tipo ENUM real en PostgreSQL. Esta migración lo crea si es necesario.
     """
+    # Crear el tipo ENUM si no existe (para compatibilidad con native_enum=False)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE video_status AS ENUM (
+                'PENDING', 'DOWNLOADING', 'DOWNLOADED',
+                'TRANSCRIBING', 'TRANSCRIBED',
+                'SUMMARIZING', 'COMPLETED', 'FAILED'
+            );
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
+
+    # Añadir el nuevo valor 'skipped' al enum
     op.execute("ALTER TYPE video_status ADD VALUE IF NOT EXISTS 'skipped'")
 
 

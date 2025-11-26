@@ -68,4 +68,6 @@ _IA Monitor - Tu asistente personal de contenido sobre IA_
 """
 
     await update.message.reply_text(help_message, parse_mode="Markdown")
-    logger.debug(f"Mensaje de ayuda enviado a usuario {telegram_user.id if telegram_user else 'desconocido'}")
+    logger.debug(
+        f"Mensaje de ayuda enviado a usuario {telegram_user.id if telegram_user else 'desconocido'}"
+    )

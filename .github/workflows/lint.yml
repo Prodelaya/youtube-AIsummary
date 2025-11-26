@@ -1,0 +1,73 @@
+# GitHub Actions Workflow: Code Quality (Linting)
+#
+# Este workflow valida calidad de código con:
+# - Black: Verificación de formato (sin cambios automáticos)
+# - Ruff: Linting moderno (import order, code smells, security básica)
+# - Mypy: Type checking estático
+#
+# Falla si encuentra errores en cualquiera de las herramientas.
+#
+# Triggers:
+# - Push a main, develop, feature/*
+# - Pull requests a main, develop
+
+name: Code Quality
+
+on:
+  push:
+    branches: [main, develop, 'feature/*']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout del código
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Python 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3. Cache de Poetry virtualenv
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-lint-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-lint-
+
+      # 4. Instalar Poetry
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # 5. Instalar solo dependencias de desarrollo
+      - name: Install dependencies (dev group only)
+        run: |
+          poetry install --no-interaction --only dev
+
+      # 6. Black: Verificar formato de código
+      - name: Check code formatting with Black
+        run: |
+          poetry run black --check --diff src/ tests/
+        continue-on-error: false
+
+      # 7. Ruff: Linting completo (ignorando warnings non-críticos B904, B017)
+      - name: Run Ruff linter
+        run: |
+          poetry run ruff check src/ tests/ --output-format=github --ignore=B904,B017
+
+      # 8. Mypy: Type checking estático (no bloqueante, solo informativo)
+      - name: Type checking with mypy
+        run: |
+          poetry run mypy src/ --show-error-codes --pretty
+        continue-on-error: true  # No bloquear CI por warnings de tipado

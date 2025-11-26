@@ -21,13 +21,9 @@ class SourceStats(BaseModel):
     source_id: UUID = Field(..., description="UUID de la fuente")
     source_name: str = Field(..., description="Nombre de la fuente")
     total_videos: int = Field(..., ge=0, description="Total de videos de esta fuente")
-    completed_videos: int = Field(
-        ..., ge=0, description="Videos completamente procesados"
-    )
+    completed_videos: int = Field(..., ge=0, description="Videos completamente procesados")
     failed_videos: int = Field(..., ge=0, description="Videos con procesamiento fallido")
-    pending_videos: int = Field(
-        ..., ge=0, description="Videos pendientes de procesar"
-    )
+    pending_videos: int = Field(..., ge=0, description="Videos pendientes de procesar")
 
     class Config:
         json_schema_extra = {
@@ -61,18 +57,12 @@ class GlobalStatsResponse(BaseModel):
     """
 
     total_videos: int = Field(..., ge=0, description="Total de videos en el sistema")
-    completed_videos: int = Field(
-        ..., ge=0, description="Videos completamente procesados"
-    )
+    completed_videos: int = Field(..., ge=0, description="Videos completamente procesados")
     failed_videos: int = Field(..., ge=0, description="Videos con errores")
     pending_videos: int = Field(..., ge=0, description="Videos pendientes")
-    total_transcriptions: int = Field(
-        ..., ge=0, description="Total de transcripciones generadas"
-    )
+    total_transcriptions: int = Field(..., ge=0, description="Total de transcripciones generadas")
     total_summaries: int = Field(..., ge=0, description="Total de resumenes generados")
-    sources: list[SourceStats] = Field(
-        ..., description="Desglose de estadisticas por fuente"
-    )
+    sources: list[SourceStats] = Field(..., description="Desglose de estadisticas por fuente")
 
     class Config:
         json_schema_extra = {

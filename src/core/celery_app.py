@@ -104,7 +104,7 @@ celery_app.conf.broker_transport_options = {
 # ==================== BEAT SCHEDULE ====================
 # Tareas programadas (cron-like)
 
-from celery.schedules import crontab
+from celery.schedules import crontab  # noqa: E402
 
 celery_app.conf.beat_schedule = {
     "sync-youtube-channels": {
@@ -120,10 +120,7 @@ celery_app.conf.beat_schedule = {
 # ==================== LOGGING ====================
 
 celery_app.conf.worker_hijack_root_logger = False  # No sobrescribir logging config
-celery_app.conf.worker_log_format = (
-    "[%(asctime)s: %(levelname)s/%(processName)s] %(message)s"
-)
+celery_app.conf.worker_log_format = "[%(asctime)s: %(levelname)s/%(processName)s] %(message)s"
 celery_app.conf.worker_task_log_format = (
-    "[%(asctime)s: %(levelname)s/%(processName)s] "
-    "[%(task_name)s(%(task_id)s)] %(message)s"
+    "[%(asctime)s: %(levelname)s/%(processName)s] " "[%(task_name)s(%(task_id)s)] %(message)s"
 )

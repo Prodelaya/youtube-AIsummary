@@ -53,9 +53,7 @@ async def sources_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
     try:
         # Obtener datos de BD (async wrapper)
-        sources_data = await asyncio.to_thread(
-            _get_sources_with_subscription_status, telegram_id
-        )
+        sources_data = await asyncio.to_thread(_get_sources_with_subscription_status, telegram_id)
 
         if not sources_data:
             await update.message.reply_text(
@@ -77,9 +75,7 @@ async def sources_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"_Tus suscripciones activas: {sum(1 for _, subscribed in sources_data if subscribed)}/{len(sources_data)}_"
         )
 
-        await update.message.reply_text(
-            message_text, reply_markup=keyboard, parse_mode="Markdown"
-        )
+        await update.message.reply_text(message_text, reply_markup=keyboard, parse_mode="Markdown")
 
         logger.info(
             f"Teclado de fuentes enviado a usuario {telegram_id} ({len(sources_data)} canales)",
@@ -104,9 +100,7 @@ async def sources_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 # ==================== CALLBACK HANDLER ====================
 
 
-async def toggle_subscription_callback(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
+async def toggle_subscription_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Maneja los clicks en botones del teclado inline (toggle de suscripciones).
 
@@ -137,7 +131,7 @@ async def toggle_subscription_callback(
     try:
         source_id_str = callback_data.split(":", 1)[1]
         source_id = UUID(source_id_str)
-    except (IndexError, ValueError) as e:
+    except (IndexError, ValueError):
         logger.error(
             f"Callback data inválido: {callback_data}",
             exc_info=True,
@@ -157,14 +151,10 @@ async def toggle_subscription_callback(
 
     try:
         # Ejecutar toggle en BD (async wrapper)
-        result = await asyncio.to_thread(
-            _toggle_user_subscription, telegram_id, source_id
-        )
+        result = await asyncio.to_thread(_toggle_user_subscription, telegram_id, source_id)
 
         # Actualizar teclado inline
-        sources_data = await asyncio.to_thread(
-            _get_sources_with_subscription_status, telegram_id
-        )
+        sources_data = await asyncio.to_thread(_get_sources_with_subscription_status, telegram_id)
         new_keyboard = _build_sources_keyboard(sources_data)
 
         # Actualizar texto del mensaje con el contador actualizado
@@ -176,9 +166,7 @@ async def toggle_subscription_callback(
         )
 
         await query.edit_message_text(
-            text=updated_message_text,
-            reply_markup=new_keyboard,
-            parse_mode="Markdown"
+            text=updated_message_text, reply_markup=new_keyboard, parse_mode="Markdown"
         )
 
         # Feedback inmediato al usuario
@@ -331,9 +319,7 @@ def _toggle_user_subscription(telegram_id: int, source_id: UUID) -> dict:
         session.close()
 
 
-def _build_sources_keyboard(
-    sources_data: list[tuple[dict, bool]]
-) -> InlineKeyboardMarkup:
+def _build_sources_keyboard(sources_data: list[tuple[dict, bool]]) -> InlineKeyboardMarkup:
     """
     Construye teclado inline con botones de suscripción.
 

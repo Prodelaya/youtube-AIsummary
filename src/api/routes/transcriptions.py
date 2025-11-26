@@ -49,19 +49,19 @@ router = APIRouter(prefix="/transcriptions", tags=["Transcriptions"])
                                 "model_used": "whisper-large-v3",
                                 "duration_seconds": 212.5,
                                 "confidence_score": 0.95,
-                                "created_at": "2025-01-15T11:30:00Z"
+                                "created_at": "2025-01-15T11:30:00Z",
                             }
                         ],
                         "cursor": {
                             "has_next": True,
                             "next_cursor": "123e4567-e89b-12d3-a456-426614174000",
-                            "count": 1
-                        }
+                            "count": 1,
+                        },
                     }
                 }
-            }
+            },
         }
-    }
+    },
 )
 def list_transcriptions(
     transcription_repo: TranscriptionRepo,
@@ -90,9 +90,7 @@ def list_transcriptions(
     next_cursor = transcriptions[-1].id if has_next and transcriptions else None
 
     # Convertir a schemas
-    transcription_responses = [
-        TranscriptionResponse.model_validate(t) for t in transcriptions
-    ]
+    transcription_responses = [TranscriptionResponse.model_validate(t) for t in transcriptions]
 
     return TranscriptionListResponse(
         data=transcription_responses,

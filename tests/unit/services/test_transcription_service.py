@@ -8,19 +8,18 @@ Estrategia de testing:
 - Manejo de errores (archivos no encontrados, formatos inválidos)
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
 
 from src.services.transcription_service import (
-    TranscriptionService,
-    TranscriptionError,
     AudioFileNotFoundError,
     InvalidAudioFormatError,
     ModelLoadError,
     TranscriptionFailedError,
     TranscriptionResult,
     TranscriptionSegment,
+    TranscriptionService,
 )
 
 
