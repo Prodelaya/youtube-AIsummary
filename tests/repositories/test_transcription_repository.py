@@ -295,9 +295,7 @@ def test_unique_constraint_video_id(db_session, sample_video, transcription_fact
     TranscriptionRepository(db_session)
 
     # Crear primera transcripción
-    transcription_factory(
-        video_id=sample_video.id, language="en", text="First transcription"
-    )
+    transcription_factory(video_id=sample_video.id, language="en", text="First transcription")
 
     # Intentar crear segunda transcripción para el mismo video
     with pytest.raises(IntegrityError) as exc_info:

@@ -104,7 +104,7 @@ celery_app.conf.broker_transport_options = {
 # ==================== BEAT SCHEDULE ====================
 # Tareas programadas (cron-like)
 
-from celery.schedules import crontab
+from celery.schedules import crontab  # noqa: E402
 
 celery_app.conf.beat_schedule = {
     "sync-youtube-channels": {

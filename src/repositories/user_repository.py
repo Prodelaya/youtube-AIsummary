@@ -5,7 +5,6 @@ Gestiona el acceso a datos de la tabla users, incluyendo
 búsquedas por username, email y operaciones de autenticación.
 """
 
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

@@ -8,7 +8,6 @@ Tests basicos que verifican:
 """
 
 
-
 class TestHealthEndpoint:
     """Tests para el endpoint de health check."""
 

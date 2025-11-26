@@ -1,7 +1,6 @@
 """Tests de integracion para Videos API."""
 
 
-
 class TestVideosAPI:
     """Tests para endpoints de videos."""
 
