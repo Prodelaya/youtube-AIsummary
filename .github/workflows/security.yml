@@ -99,7 +99,7 @@ jobs:
         run: |
           poetry run alembic upgrade head
 
-      # 7. Ejecutar tests de seguridad
+      # 7. Ejecutar tests de seguridad (sin fail-under global)
       - name: Run security tests
         run: |
           poetry run pytest tests/security/ \
@@ -108,6 +108,8 @@ jobs:
             --cov=src/services/output_validator \
             --cov-report=term-missing \
             --cov-report=xml \
+            --cov-fail-under=0 \
+            --no-cov-on-fail \
             -v
 
       # 8. Validar coverage de seguridad (≥90%)
