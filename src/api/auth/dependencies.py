@@ -11,12 +11,12 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
+from sqlalchemy.orm import Session
 
 from src.api.auth.jwt import decode_access_token
 from src.api.dependencies import get_db
 from src.models.user import User
 from src.repositories.user_repository import UserRepository
-from sqlalchemy.orm import Session
 
 # OAuth2 scheme con Bearer token
 # Los clientes deben enviar: Authorization: Bearer <token>

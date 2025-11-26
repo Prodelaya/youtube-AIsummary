@@ -11,17 +11,15 @@ IMPORTANTE: Requiere PostgreSQL corriendo en Docker.
 Ejecutar antes de los tests: docker-compose up -d postgres
 """
 
-import pytest
 import os
-from datetime import datetime, UTC
-from uuid import uuid4
+
+import pytest
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
-from src.models import Base, Source, Video, Transcription, Summary, TelegramUser, User
+from src.models import Base, Source, Summary, TelegramUser, Transcription, User, Video
 from src.models.video import VideoStatus
-
 
 # ==================== CONFIGURACIÓN DE BD DE TESTS ====================
 
@@ -362,9 +360,9 @@ def multiple_summaries(db_session, multiple_videos) -> list[Summary]:
     ]
 
     summaries = []
-    for i, (text, keywords) in enumerate(summaries_data):
+    for i, (summary_text, keywords) in enumerate(summaries_data):
         summary = Summary(
-            transcription_id=transcriptions[i].id, summary_text=text, keywords=keywords
+            transcription_id=transcriptions[i].id, summary_text=summary_text, keywords=keywords
         )
         db_session.add(summary)
         summaries.append(summary)

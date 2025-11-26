@@ -16,7 +16,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
-from src.api.schemas.common import CursorInfo, PaginatedResponse
+from src.api.schemas.common import PaginatedResponse
 from src.models.video import VideoStatus
 
 

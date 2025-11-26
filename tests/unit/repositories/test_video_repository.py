@@ -10,15 +10,16 @@ Estrategia de testing:
 - Validación de invalidación de caché
 """
 
-import pytest
-from uuid import uuid4
-from datetime import datetime, UTC
+from datetime import datetime
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
-from src.repositories.video_repository import VideoRepository
-from src.repositories.exceptions import NotFoundError
+import pytest
+
 from src.models import Video
 from src.models.video import VideoStatus
+from src.repositories.exceptions import NotFoundError
+from src.repositories.video_repository import VideoRepository
 
 
 class TestVideoRepositoryCRUD:

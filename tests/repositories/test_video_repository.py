@@ -6,7 +6,7 @@ usando una base de datos real de PostgreSQL con transacciones
 que se revierten automáticamente al finalizar cada test.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -30,7 +30,7 @@ class TestVideoRepositoryInheritance:
             url="https://youtube.com/watch?v=new123",
             duration_seconds=450,
             status=VideoStatus.PENDING,
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
         )
 
         # Act
@@ -264,7 +264,7 @@ class TestVideoRepositoryGetBySource:
         """get_by_source() debe ordenar por published_at DESC (más recientes primero)."""
         # Arrange
         repo = VideoRepository(db_session)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Crear videos con fechas diferentes
         old_video = video_factory(
@@ -307,7 +307,7 @@ class TestVideoRepositoryGetBySource:
         """get_by_source() debe respetar limit y offset personalizados."""
         # Arrange
         repo = VideoRepository(db_session)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # Crear 5 videos con fechas diferentes para orden predecible
         videos_created = []
@@ -484,9 +484,9 @@ class TestVideoRepositoryGetByYoutubeId:
         """get_by_youtube_id() debe retornar solo el video correcto entre múltiples."""
         # Arrange
         repo = VideoRepository(db_session)
-        video1 = video_factory(source_id=sample_source.id, youtube_id="vid1")
+        video_factory(source_id=sample_source.id, youtube_id="vid1")
         video2 = video_factory(source_id=sample_source.id, youtube_id="vid2")
-        video3 = video_factory(source_id=sample_source.id, youtube_id="vid3")
+        video_factory(source_id=sample_source.id, youtube_id="vid3")
 
         # Act
         found = repo.get_by_youtube_id("vid2")

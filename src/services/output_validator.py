@@ -5,8 +5,8 @@ Valida que las respuestas de DeepSeek API cumplan con la estructura esperada
 y no contengan filtraciones del system prompt o contenido inesperado.
 """
 
-import json
 import re
+
 import structlog
 
 logger = structlog.get_logger(__name__)

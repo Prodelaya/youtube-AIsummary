@@ -11,9 +11,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
+from src.api.auth.jwt import create_access_token
 from src.api.dependencies import get_db
 from src.api.main import app
-from src.api.auth.jwt import create_access_token
 from src.models.base import Base
 from src.models.source import Source
 from src.models.user import User

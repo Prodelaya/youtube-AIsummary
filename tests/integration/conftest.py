@@ -11,21 +11,19 @@ IMPORTANTE: Requiere PostgreSQL corriendo en Docker.
 Ejecutar antes de los tests: docker-compose up -d postgres
 """
 
-import pytest
 import os
-from datetime import datetime, UTC
-from uuid import uuid4
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import NullPool
+
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
-from src.models import Base, Source, Video, Transcription, Summary, User
-from src.models.video import VideoStatus
-from src.api.main import create_app
-from src.api.dependencies import get_db  # ← Importar desde dependencies, no desde database
 from src.api.auth.jwt import create_access_token
-
+from src.api.dependencies import get_db  # ← Importar desde dependencies, no desde database
+from src.api.main import create_app
+from src.models import Base, Source, Summary, Transcription, User, Video
+from src.models.video import VideoStatus
 
 # ==================== CONFIGURACIÓN DE BD DE TESTS ====================
 

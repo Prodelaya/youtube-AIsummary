@@ -164,7 +164,7 @@ async def view_transcript_callback(update: Update, context: ContextTypes.DEFAULT
     try:
         summary_id_str = callback_data.split(":", 1)[1]
         summary_id = UUID(summary_id_str)
-    except (IndexError, ValueError) as e:
+    except (IndexError, ValueError):
         logger.error(
             f"Callback data inválido: {callback_data}",
             exc_info=True,
@@ -395,7 +395,7 @@ def _get_transcription_by_summary_id(summary_id: UUID) -> str | None:
     """
     session = SessionLocal()
     try:
-        summary_repo = SummaryRepository(session)
+        SummaryRepository(session)
 
         # Obtener summary con eager loading de transcription
         summary = (

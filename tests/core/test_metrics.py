@@ -10,7 +10,7 @@ Verifica que:
 """
 
 import pytest
-from prometheus_client import REGISTRY, CollectorRegistry, Counter, Gauge, Histogram
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram
 
 from src.core.metrics import PrometheusMetrics, get_metrics, metrics
 
@@ -420,7 +420,6 @@ class TestMetricsLabels:
     def test_status_label_values_are_consistent(self):
         """Verifica que los valores de label 'status' son consistentes."""
         # Los valores comunes de status deben ser: success, failed, completed, retry
-        valid_statuses = ["success", "failed", "completed", "retry"]
 
         # Estas métricas usan el label 'status'
         metrics.celery_task_total.labels(task_name="test", status="success").inc()

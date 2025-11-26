@@ -9,12 +9,12 @@ Estos tests validan el correcto funcionamiento de distribute_summary_task:
 - Manejo de rate limits de Telegram
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
-from telegram.error import Forbidden, TimedOut
+from telegram.error import Forbidden
 
 from src.models import Source, Summary, TelegramUser, Transcription, Video
 from src.tasks.distribute_summaries import (
@@ -183,7 +183,7 @@ def test_skip_if_already_sent(
     """
     # Marcar resumen como ya enviado
     sample_summary.sent_to_telegram = True
-    sample_summary.sent_at = datetime.now(timezone.utc)
+    sample_summary.sent_at = datetime.now(UTC)
     sample_summary.telegram_message_ids = {"123456789": 999}
     db_session.commit()
 

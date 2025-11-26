@@ -9,13 +9,13 @@ Estrategia de testing:
 - Validación de invalidación de caché
 """
 
-import pytest
-from uuid import uuid4
 from unittest.mock import Mock, patch
+from uuid import uuid4
 
-from src.repositories.summary_repository import SummaryRepository
-from src.repositories.exceptions import NotFoundError
+import pytest
+
 from src.models import Summary
+from src.repositories.summary_repository import SummaryRepository
 
 
 class TestSummaryRepositoryCRUD:
@@ -203,7 +203,7 @@ class TestSummaryRepositoryCategoryAndKeywords:
     def test_get_by_category(self, repository, db_session, sample_transcription):
         """Test 12: Filtrar resúmenes por categoría"""
         # Arrange - crear resúmenes con diferentes categorías
-        from src.models import Video, VideoStatus, Transcription
+        from src.models import Transcription, Video, VideoStatus
 
         categories_data = [
             ("framework", ["FastAPI"]),
@@ -373,7 +373,7 @@ class TestSummaryRepositoryVideoQueries:
     def test_get_by_video_id_not_found(self, repository, db_session):
         """Test 20: Buscar por video_id sin resumen retorna None"""
         # Arrange - crear video sin resumen
-        from src.models import Video, VideoStatus, Source
+        from src.models import Source, Video, VideoStatus
 
         source = Source(
             name="Test Source", source_type="youtube", url="https://youtube.com/@test", active=True

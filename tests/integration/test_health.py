@@ -7,7 +7,6 @@ Tests basicos que verifican:
 - Retorna estructura JSON correcta
 """
 
-import pytest
 
 
 class TestHealthEndpoint:

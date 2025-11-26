@@ -9,12 +9,13 @@ Valida:
 - Campo JSONB segments (None o dict complejo)
 """
 
+from datetime import UTC
+
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.models import Transcription
 from src.repositories.transcription_repository import TranscriptionRepository
-
 
 # ==================== TEST HERENCIA CRUD ====================
 
@@ -133,8 +134,9 @@ def test_get_by_video_id_not_found(db_session, sample_video):
 
     # sample_video no tiene transcripción todavía (solo sample_transcription tiene)
     # Crear un video nuevo sin transcripción
+    from datetime import datetime
+
     from src.models import Video, VideoStatus
-    from datetime import datetime, timezone
 
     video_without_transcription = Video(
         source_id=sample_video.source_id,
@@ -143,7 +145,7 @@ def test_get_by_video_id_not_found(db_session, sample_video):
         url="https://youtube.com/watch?v=no_trans",
         duration_seconds=300,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video_without_transcription)
     db_session.commit()
@@ -177,8 +179,9 @@ def test_exists_by_video_id_false(db_session, sample_video):
     repo = TranscriptionRepository(db_session)
 
     # Crear video nuevo sin transcripción
+    from datetime import datetime
+
     from src.models import Video, VideoStatus
-    from datetime import datetime, timezone
 
     video_without_transcription = Video(
         source_id=sample_video.source_id,
@@ -187,7 +190,7 @@ def test_exists_by_video_id_false(db_session, sample_video):
         url="https://youtube.com/watch?v=no_exists",
         duration_seconds=200,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video_without_transcription)
     db_session.commit()
@@ -209,8 +212,9 @@ def test_get_by_language_filters_correctly(db_session, sample_video, transcripti
     repo = TranscriptionRepository(db_session)
 
     # Crear múltiples videos con diferentes idiomas
+    from datetime import datetime
+
     from src.models import Video, VideoStatus
-    from datetime import datetime, timezone
 
     video_es = Video(
         source_id=sample_video.source_id,
@@ -219,7 +223,7 @@ def test_get_by_language_filters_correctly(db_session, sample_video, transcripti
         url="https://youtube.com/watch?v=es",
         duration_seconds=300,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     video_en = Video(
         source_id=sample_video.source_id,
@@ -228,7 +232,7 @@ def test_get_by_language_filters_correctly(db_session, sample_video, transcripti
         url="https://youtube.com/watch?v=en",
         duration_seconds=400,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     video_fr = Video(
         source_id=sample_video.source_id,
@@ -237,7 +241,7 @@ def test_get_by_language_filters_correctly(db_session, sample_video, transcripti
         url="https://youtube.com/watch?v=fr",
         duration_seconds=500,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add_all([video_es, video_en, video_fr])
     db_session.commit()
@@ -260,7 +264,7 @@ def test_get_by_language_filters_correctly(db_session, sample_video, transcripti
     spanish_transcriptions = repo.get_by_language("es")
     assert len(spanish_transcriptions) == 2
     assert all(t.language == "es" for t in spanish_transcriptions)
-    assert set(t.id for t in spanish_transcriptions) == {trans_es_1.id, trans_es_2.id}
+    assert {t.id for t in spanish_transcriptions} == {trans_es_1.id, trans_es_2.id}
 
     # Buscar por idioma inglés
     english_transcriptions = repo.get_by_language("en")
@@ -288,10 +292,10 @@ def test_unique_constraint_video_id(db_session, sample_video, transcription_fact
     - No se pueden crear 2 transcripciones para el mismo video
     - Lanza IntegrityError al intentar duplicar video_id
     """
-    repo = TranscriptionRepository(db_session)
+    TranscriptionRepository(db_session)
 
     # Crear primera transcripción
-    trans1 = transcription_factory(
+    transcription_factory(
         video_id=sample_video.id, language="en", text="First transcription"
     )
 

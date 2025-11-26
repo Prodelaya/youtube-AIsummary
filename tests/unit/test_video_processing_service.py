@@ -16,18 +16,16 @@ Los tests verifican:
 """
 
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
-from uuid import UUID, uuid4
+from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import pytest
 
 from src.models import Summary, Transcription, Video
 from src.models.video import VideoStatus
 from src.services.downloader_service import (
-    AudioExtractionError,
     InvalidURLError,
     NetworkError,
-    VideoNotAvailableError,
 )
 from src.services.summarization_service import DeepSeekAPIError
 from src.services.transcription_service import (
@@ -39,7 +37,6 @@ from src.services.video_processing_service import (
     VideoNotFoundError,
     VideoProcessingService,
 )
-
 
 # ==================== FIXTURES ====================
 
@@ -378,7 +375,7 @@ async def test_process_video_transcription_failed(
 
     with (
         patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo,
-        patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo,
+        patch("src.services.video_processing_service.TranscriptionRepository"),
     ):
 
         mock_video_repo = MockVideoRepo.return_value

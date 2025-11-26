@@ -5,7 +5,6 @@ Gestiona el acceso a datos de la tabla users, incluyendo
 búsquedas por username, email y operaciones de autenticación.
 """
 
-from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -74,7 +73,7 @@ class UserRepository:
             raise NotFoundError(resource_type="User", resource_id=user_id)
         return user
 
-    def get_by_username(self, username: str) -> Optional[User]:
+    def get_by_username(self, username: str) -> User | None:
         """
         Busca un usuario por nombre de usuario.
 
@@ -91,7 +90,7 @@ class UserRepository:
         stmt = select(User).where(User.username == username)
         return self.session.scalars(stmt).first()
 
-    def get_by_email(self, email: str) -> Optional[User]:
+    def get_by_email(self, email: str) -> User | None:
         """
         Busca un usuario por email.
 

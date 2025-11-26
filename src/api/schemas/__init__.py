@@ -21,22 +21,11 @@ from src.api.schemas.errors import (
     ValidationErrorResponse,
 )
 
-# Video schemas
-from src.api.schemas.videos import (
-    ProcessVideoResponse,
-    SummarySummary,
-    TranscriptionSummary,
-    VideoCreateRequest,
-    VideoDetailResponse,
-    VideoListResponse,
-    VideoResponse,
-    VideoStatsResponse,
-)
-
-# Transcription schemas
-from src.api.schemas.transcriptions import (
-    TranscriptionListResponse,
-    TranscriptionResponse,
+# Stats schemas
+from src.api.schemas.stats import (
+    GlobalStatsResponse,
+    SourceStats,
+    SourceStatsResponse,
 )
 
 # Summary schemas
@@ -48,11 +37,22 @@ from src.api.schemas.summaries import (
     SummarySearchResult,
 )
 
-# Stats schemas
-from src.api.schemas.stats import (
-    GlobalStatsResponse,
-    SourceStats,
-    SourceStatsResponse,
+# Transcription schemas
+from src.api.schemas.transcriptions import (
+    TranscriptionListResponse,
+    TranscriptionResponse,
+)
+
+# Video schemas
+from src.api.schemas.videos import (
+    ProcessVideoResponse,
+    SummarySummary,
+    TranscriptionSummary,
+    VideoCreateRequest,
+    VideoDetailResponse,
+    VideoListResponse,
+    VideoResponse,
+    VideoStatsResponse,
 )
 
 __all__ = [

@@ -5,7 +5,7 @@ Verifica que los formateadores generen mensajes correctos con
 markdown, truncamiento y manejo de edge cases.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -118,7 +118,7 @@ class TestFormatSummaryMessage:
         video.title = "FastAPI Tutorial - Building Modern APIs"
         video.url = "https://youtube.com/watch?v=dQw4w9WgXcQ"
         video.duration_seconds = 720  # 12 minutos
-        video.published_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=timezone.utc)
+        video.published_at = datetime(2024, 1, 15, 10, 30, 0, tzinfo=UTC)
         video.extra_metadata = {"view_count": 150000}
         return video
 

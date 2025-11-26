@@ -8,17 +8,16 @@ Estrategia de testing:
 - Validación de sanitización y validación de seguridad
 """
 
-import pytest
 import json
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from uuid import uuid4
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import pytest
 
 from src.services.summarization_service import (
-    SummarizationService,
-    SummarizationError,
     DeepSeekAPIError,
-    InvalidResponseError,
+    SummarizationError,
     SummarizationResult,
+    SummarizationService,
 )
 
 

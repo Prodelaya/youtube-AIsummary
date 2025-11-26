@@ -23,7 +23,6 @@ from slowapi.util import get_remote_address
 
 from src.api.auth.dependencies import get_current_user, require_admin
 from src.api.dependencies import DBSession, SummaryRepo, TranscriptionRepo, VideoRepo
-from src.models.user import User
 from src.api.schemas.common import CursorInfo, MessageResponse
 from src.api.schemas.summaries import SummaryResponse
 from src.api.schemas.transcriptions import TranscriptionResponse
@@ -35,6 +34,7 @@ from src.api.schemas.videos import (
     VideoResponse,
     VideoStatsResponse,
 )
+from src.models.user import User
 from src.models.video import VideoStatus
 from src.services.video_processing_service import (
     InvalidVideoStateError,

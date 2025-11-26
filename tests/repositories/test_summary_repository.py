@@ -19,14 +19,13 @@ Se requiere migración de BD para agregar estos campos.
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.models import Summary, Transcription, Video, VideoStatus
 from src.repositories.summary_repository import SummaryRepository
-
 
 # ==================== TEST HERENCIA CRUD ====================
 
@@ -146,7 +145,6 @@ def test_get_by_transcription_id_not_found(db_session, sample_transcription):
     repo = SummaryRepository(db_session)
 
     # Crear transcripción nueva sin resumen
-    from src.models import Video
 
     video_without_summary = Video(
         source_id=sample_transcription.video.source_id,
@@ -155,7 +153,7 @@ def test_get_by_transcription_id_not_found(db_session, sample_transcription):
         url="https://youtube.com/watch?v=no_sum",
         duration_seconds=300,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video_without_summary)
     db_session.commit()
@@ -200,7 +198,7 @@ def test_get_recent_returns_ordered_by_created_at_desc(
             url=f"https://youtube.com/watch?v=recent_{i}",
             duration_seconds=300,
             status=VideoStatus.PENDING,
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
         )
         db_session.add(video)
         db_session.commit()
@@ -245,7 +243,6 @@ def test_get_recent_respects_limit(
     repo = SummaryRepository(db_session)
 
     # Crear 12 resúmenes
-    from src.models import Video
 
     for i in range(12):
         video = Video(
@@ -255,7 +252,7 @@ def test_get_recent_respects_limit(
             url=f"https://youtube.com/watch?v=limit_{i}",
             duration_seconds=300,
             status=VideoStatus.PENDING,
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
         )
         db_session.add(video)
         db_session.commit()
@@ -302,7 +299,6 @@ def test_search_by_text_full_text_search(
     repo = SummaryRepository(db_session)
 
     # Crear transcripciones y resúmenes con textos específicos
-    from src.models import Video
 
     # Resumen 1: FastAPI
     video1 = Video(
@@ -312,7 +308,7 @@ def test_search_by_text_full_text_search(
         url="https://youtube.com/watch?v=fastapi",
         duration_seconds=300,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video1)
     db_session.commit()
@@ -333,7 +329,7 @@ def test_search_by_text_full_text_search(
         url="https://youtube.com/watch?v=async",
         duration_seconds=400,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video2)
     db_session.commit()
@@ -354,7 +350,7 @@ def test_search_by_text_full_text_search(
         url="https://youtube.com/watch?v=docker",
         duration_seconds=500,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video3)
     db_session.commit()
@@ -399,7 +395,6 @@ def test_search_by_text_respects_limit(
     repo = SummaryRepository(db_session)
 
     # Crear 10 resúmenes que contienen "Python"
-    from src.models import Video
 
     for i in range(10):
         video = Video(
@@ -409,7 +404,7 @@ def test_search_by_text_respects_limit(
             url=f"https://youtube.com/watch?v=search_limit_{i}",
             duration_seconds=300,
             status=VideoStatus.PENDING,
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
         )
         db_session.add(video)
         db_session.commit()
@@ -440,7 +435,6 @@ def test_get_by_category_filters_correctly(
     repo = SummaryRepository(db_session)
 
     # Crear resúmenes de diferentes categorías
-    from src.models import Video
 
     # Category: framework
     video_fw = Video(
@@ -450,7 +444,7 @@ def test_get_by_category_filters_correctly(
         url="https://youtube.com/watch?v=fw",
         duration_seconds=300,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video_fw)
     db_session.commit()
@@ -471,7 +465,7 @@ def test_get_by_category_filters_correctly(
         url="https://youtube.com/watch?v=lang",
         duration_seconds=400,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video_lang)
     db_session.commit()
@@ -494,7 +488,7 @@ def test_get_by_category_filters_correctly(
         url="https://youtube.com/watch?v=tool",
         duration_seconds=500,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video_tool)
     db_session.commit()
@@ -545,7 +539,6 @@ def test_search_by_keyword_array_search(
     repo = SummaryRepository(db_session)
 
     # Crear resúmenes con diferentes keywords
-    from src.models import Video
 
     # Summary 1: ["fastapi", "python"]
     video1 = Video(
@@ -555,7 +548,7 @@ def test_search_by_keyword_array_search(
         url="https://youtube.com/watch?v=kw_fastapi",
         duration_seconds=300,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video1)
     db_session.commit()
@@ -576,7 +569,7 @@ def test_search_by_keyword_array_search(
         url="https://youtube.com/watch?v=kw_docker",
         duration_seconds=400,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video2)
     db_session.commit()
@@ -597,7 +590,7 @@ def test_search_by_keyword_array_search(
         url="https://youtube.com/watch?v=kw_async",
         duration_seconds=500,
         status=VideoStatus.PENDING,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
     db_session.add(video3)
     db_session.commit()
@@ -644,7 +637,7 @@ def test_unique_constraint_transcription_id(db_session, sample_transcription, su
     - Lanza IntegrityError al intentar duplicar transcription_id
     """
     # Crear primer resumen
-    sum1 = summary_factory(
+    summary_factory(
         transcription_id=sample_transcription.id,
         summary_text="First summary",
         category="concept",

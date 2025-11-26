@@ -15,8 +15,8 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.models.user import User
-from src.repositories.user_repository import UserRepository
 from src.repositories.exceptions import NotFoundError
+from src.repositories.user_repository import UserRepository
 
 
 class TestUserRepositoryCRUD:

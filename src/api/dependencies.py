@@ -39,7 +39,6 @@ from src.services.summarization_service import SummarizationService
 from src.services.transcription_service import TranscriptionService
 from src.services.video_processing_service import VideoProcessingService
 
-
 # ==================== DATABASE SESSION ====================
 
 

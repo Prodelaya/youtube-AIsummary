@@ -8,19 +8,19 @@ Estrategia de testing:
 - Manejo de errores en cada fase del pipeline
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from uuid import uuid4
 from pathlib import Path
+from unittest.mock import Mock, patch
+from uuid import uuid4
 
-from src.services.video_processing_service import (
-    VideoProcessingService,
-    VideoProcessingError,
-    VideoNotFoundError,
-    InvalidVideoStateError,
-)
-from src.models.video import VideoStatus
+import pytest
+
 from src.models import Video
+from src.models.video import VideoStatus
+from src.services.video_processing_service import (
+    InvalidVideoStateError,
+    VideoNotFoundError,
+    VideoProcessingService,
+)
 
 
 class TestVideoProcessingServiceInitialization:

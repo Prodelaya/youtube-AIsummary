@@ -10,6 +10,7 @@ Referencias:
 """
 
 import re
+
 import structlog
 
 logger = structlog.get_logger(__name__)

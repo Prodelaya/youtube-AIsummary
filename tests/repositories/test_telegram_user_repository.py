@@ -14,10 +14,9 @@ Este es el ÚLTIMO repository del sistema. Requiere cobertura exhaustiva de:
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from src.models import Source, TelegramUser
+from src.models import TelegramUser
 from src.repositories.exceptions import AlreadyExistsError, NotFoundError
 from src.repositories.telegram_user_repository import TelegramUserRepository
-
 
 # ==================== TEST HERENCIA CRUD ====================
 
@@ -173,7 +172,7 @@ def test_unique_constraint_telegram_id(db_session, telegram_user_factory):
     - Lanza IntegrityError al intentar duplicar telegram_id
     """
     # Crear primer usuario
-    user1 = telegram_user_factory(telegram_id=111111111, username="user1")
+    telegram_user_factory(telegram_id=111111111, username="user1")
 
     # Intentar crear segundo usuario con mismo telegram_id
     with pytest.raises(IntegrityError) as exc_info:

@@ -140,8 +140,8 @@ class Settings(BaseSettings):
 
     # ==================== LÍMITES DE PROCESAMIENTO ====================
     MAX_VIDEO_DURATION_SECONDS: int = Field(
-        default=2159,  # 35:59 en segundos
-        ge=60,  # Mínimo 1 minuto
+        default=2400,  # 40:00 en segundos
+        ge=30,  # Mínimo 30 segundos
         le=7200,  # Máximo 2 horas
         description="Duración máxima de video para procesar (en segundos). "
         "Videos más largos se marcarán como SKIPPED para ahorrar recursos.",

@@ -24,11 +24,11 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-# Local (módulos propios)
-from src.api.middleware.request_id import RequestIDMiddleware
-
 # Importar routers
 from src.api.auth import routes as auth_routes
+
+# Local (módulos propios)
+from src.api.middleware.request_id import RequestIDMiddleware
 from src.api.routes import stats, summaries, transcriptions, videos
 from src.api.schemas.errors import ErrorResponse, ValidationErrorResponse
 from src.core.config import settings

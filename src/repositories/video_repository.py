@@ -283,7 +283,7 @@ class VideoRepository(BaseRepository[Video]):
         self._invalidate_stats_cache(source_id)
 
         logger.info(
-            f"Video created and stats cache invalidated",
+            "Video created and stats cache invalidated",
             extra={"video_id": str(created_video.id), "source_id": str(source_id)},
         )
 
@@ -329,7 +329,7 @@ class VideoRepository(BaseRepository[Video]):
         if status_changed:
             self._invalidate_stats_cache(video.source_id)
             logger.info(
-                f"Video status updated and stats cache invalidated",
+                "Video status updated and stats cache invalidated",
                 extra={
                     "video_id": str(video_id),
                     "new_status": (
@@ -411,4 +411,4 @@ class VideoRepository(BaseRepository[Video]):
 
         result = self.session.query(Video.status, func.count(Video.id)).group_by(Video.status).all()
 
-        return {status: count for status, count in result}
+        return dict(result)

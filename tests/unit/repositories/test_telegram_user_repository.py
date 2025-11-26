@@ -12,14 +12,14 @@ Cubre:
 Requiere PostgreSQL en Docker: docker-compose up -d postgres
 """
 
-import pytest
 from uuid import uuid4
+
+import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.models.telegram_user import TelegramUser
-from src.models.source import Source
+from src.repositories.exceptions import AlreadyExistsError, NotFoundError
 from src.repositories.telegram_user_repository import TelegramUserRepository
-from src.repositories.exceptions import NotFoundError, AlreadyExistsError
 
 
 class TestTelegramUserRepositoryCRUD:

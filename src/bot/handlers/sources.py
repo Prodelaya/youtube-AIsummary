@@ -131,7 +131,7 @@ async def toggle_subscription_callback(update: Update, context: ContextTypes.DEF
     try:
         source_id_str = callback_data.split(":", 1)[1]
         source_id = UUID(source_id_str)
-    except (IndexError, ValueError) as e:
+    except (IndexError, ValueError):
         logger.error(
             f"Callback data inválido: {callback_data}",
             exc_info=True,

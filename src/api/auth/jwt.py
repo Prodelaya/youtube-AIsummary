@@ -6,7 +6,7 @@ usando la librería python-jose.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from jose import JWTError, jwt
@@ -41,7 +41,7 @@ def create_access_token(user_id: int, role: str, expires_delta: timedelta | None
     if expires_delta is None:
         expires_delta = timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expire = now + expires_delta
 
     payload = {
@@ -73,7 +73,7 @@ def create_refresh_token(user_id: int, role: str) -> str:
         - Solo se usa para obtener nuevos access tokens, no para acceso directo.
     """
     expires_delta = timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expire = now + expires_delta
 
     payload = {

@@ -8,12 +8,13 @@ Estrategia de testing:
 - Validación de queries por video_id y language
 """
 
-import pytest
 from uuid import uuid4
 
-from src.repositories.transcription_repository import TranscriptionRepository
-from src.repositories.exceptions import NotFoundError
+import pytest
+
 from src.models import Transcription
+from src.repositories.exceptions import NotFoundError
+from src.repositories.transcription_repository import TranscriptionRepository
 
 
 class TestTranscriptionRepositoryCRUD:

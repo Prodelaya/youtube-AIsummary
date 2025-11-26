@@ -9,9 +9,7 @@ Incluye caché optimizado para búsquedas frecuentes.
 
 import asyncio
 import logging
-from uuid import UUID
 
-from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -20,7 +18,6 @@ from telegram.ext import ContextTypes
 from src.bot.utils.formatters import format_summary_message
 from src.core.database import SessionLocal
 from src.models import Source, Summary, Transcription, Video
-from src.repositories.summary_repository import SummaryRepository
 from src.repositories.telegram_user_repository import TelegramUserRepository
 
 logger = logging.getLogger(__name__)

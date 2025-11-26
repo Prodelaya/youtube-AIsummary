@@ -5,8 +5,9 @@ Verifica que videos que exceden MAX_VIDEO_DURATION_SECONDS se marcan
 como SKIPPED en lugar de procesarse.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from src.core.config import settings
 from src.models.video import VideoStatus

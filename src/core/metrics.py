@@ -18,8 +18,9 @@ Convenciones de nombres:
 - labels con valores de baja cardinalidad (max 10-20 valores)
 """
 
-from prometheus_client import Counter, Gauge, Histogram, Summary, REGISTRY, CollectorRegistry
 from typing import Optional
+
+from prometheus_client import REGISTRY, CollectorRegistry, Counter, Gauge, Histogram
 
 
 class PrometheusMetrics:
@@ -32,13 +33,13 @@ class PrometheusMetrics:
 
     _instance: Optional["PrometheusMetrics"] = None
 
-    def __new__(cls, registry: Optional[CollectorRegistry] = None):
+    def __new__(cls, registry: CollectorRegistry | None = None):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, registry: Optional[CollectorRegistry] = None):
+    def __init__(self, registry: CollectorRegistry | None = None):
         # Evitar re-inicialización del singleton
         if self._initialized:
             return

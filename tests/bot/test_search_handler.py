@@ -5,7 +5,7 @@ Verifica que los usuarios puedan buscar en su historial de
 resúmenes usando keywords.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest

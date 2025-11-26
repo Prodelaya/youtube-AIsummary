@@ -19,7 +19,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, 
 
 from src.api.auth.dependencies import require_admin
 from src.api.dependencies import SummaryRepo
-from src.models.user import User
 from src.api.schemas.common import CursorInfo
 from src.api.schemas.summaries import (
     SummaryListResponse,
@@ -28,6 +27,7 @@ from src.api.schemas.summaries import (
     SummarySearchResponse,
     SummarySearchResult,
 )
+from src.models.user import User
 from src.services.cache_service import cache_service
 
 # ==================== ROUTER ====================

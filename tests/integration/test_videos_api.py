@@ -1,6 +1,5 @@
 """Tests de integracion para Videos API."""
 
-import pytest
 
 
 class TestVideosAPI:
