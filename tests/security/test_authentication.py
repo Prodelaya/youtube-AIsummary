@@ -111,10 +111,11 @@ def test_refresh_token_works():
 
 def test_token_without_user_id():
     """Test 6: Token JWT sin user_id retorna 401."""
-    from src.api.auth.jwt import create_access_token
+    from datetime import UTC, datetime, timedelta
+
     from jose import jwt
+
     from src.core.config import settings
-    from datetime import datetime, timedelta, UTC
 
     # Crear token JWT malformado sin user_id
     now = datetime.now(UTC)
@@ -317,9 +318,11 @@ def test_refresh_token_with_inactive_user():
 
 def test_refresh_token_without_user_id():
     """Test 12: Refresh token sin user_id retorna 401."""
+    from datetime import UTC, datetime, timedelta
+
     from jose import jwt
+
     from src.core.config import settings
-    from datetime import datetime, timedelta, UTC
 
     # Crear refresh token malformado sin user_id
     now = datetime.now(UTC)
