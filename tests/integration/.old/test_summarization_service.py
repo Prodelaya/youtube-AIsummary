@@ -505,7 +505,9 @@ def test_extract_keywords_with_acronyms():
     """
     Test: Extracción de acrónimos (API, LLM, etc.)
     """
-    sample = "Los modelos LLM como GPT y BERT usan la API REST para comunicarse con sistemas externos."
+    sample = (
+        "Los modelos LLM como GPT y BERT usan la API REST para comunicarse con sistemas externos."
+    )
 
     keywords = extract_keywords(sample)
 

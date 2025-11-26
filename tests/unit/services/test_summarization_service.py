@@ -50,7 +50,9 @@ class TestSummarizationServiceGetSummaryResult:
     def service(self):
         """Fixture que crea una instancia mockeada del servicio."""
         with patch("src.services.summarization_service.AsyncOpenAI"):
-            with patch("src.services.summarization_service.load_prompt", return_value="System prompt"):
+            with patch(
+                "src.services.summarization_service.load_prompt", return_value="System prompt"
+            ):
                 return SummarizationService()
 
     @pytest.fixture
@@ -62,10 +64,12 @@ class TestSummarizationServiceGetSummaryResult:
         mock_usage = MagicMock()
 
         # Configurar contenido JSON
-        summary_json = json.dumps({
-            "summary": "Este es un resumen de prueba del video sobre FastAPI.",
-            "keywords": ["FastAPI", "Python", "API"]
-        })
+        summary_json = json.dumps(
+            {
+                "summary": "Este es un resumen de prueba del video sobre FastAPI.",
+                "keywords": ["FastAPI", "Python", "API"],
+            }
+        )
         mock_message.content = summary_json
         mock_choice.message = mock_message
         mock_response.choices = [mock_choice]
@@ -249,9 +253,11 @@ class TestSummarizationServiceGetSummaryResult:
 
         # Act
         await service.get_summary_result(
-            title, duration, transcription,
+            title,
+            duration,
+            transcription,
             max_tokens=custom_max_tokens,
-            temperature=custom_temperature
+            temperature=custom_temperature,
         )
 
         # Assert
@@ -288,7 +294,9 @@ class TestSummarizationServiceContextManager:
         """Test 11: Context manager funciona correctamente"""
         # Arrange
         with patch("src.services.summarization_service.AsyncOpenAI") as mock_openai:
-            with patch("src.services.summarization_service.load_prompt", return_value="System prompt"):
+            with patch(
+                "src.services.summarization_service.load_prompt", return_value="System prompt"
+            ):
                 mock_client = MagicMock()
                 mock_client.close = AsyncMock()
                 mock_openai.return_value = mock_client

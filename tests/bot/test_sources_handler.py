@@ -230,9 +230,12 @@ class TestToggleSubscriptionCallback:
         source_name = mock_sources_data[0][0]["name"]
         mock_update_with_callback.callback_query.data = f"toggle_source:{source_id}"
 
-        with patch("src.bot.handlers.sources._toggle_user_subscription") as mock_toggle, patch(
-            "src.bot.handlers.sources._get_sources_with_subscription_status"
-        ) as mock_get_sources:
+        with (
+            patch("src.bot.handlers.sources._toggle_user_subscription") as mock_toggle,
+            patch(
+                "src.bot.handlers.sources._get_sources_with_subscription_status"
+            ) as mock_get_sources,
+        ):
             mock_toggle.return_value = {"action": "subscribed", "source_name": source_name}
             # Simular estado después del toggle (ahora suscrito)
             updated_sources = mock_sources_data.copy()
@@ -270,9 +273,12 @@ class TestToggleSubscriptionCallback:
         source_name = mock_sources_data[1][0]["name"]
         mock_update_with_callback.callback_query.data = f"toggle_source:{source_id}"
 
-        with patch("src.bot.handlers.sources._toggle_user_subscription") as mock_toggle, patch(
-            "src.bot.handlers.sources._get_sources_with_subscription_status"
-        ) as mock_get_sources:
+        with (
+            patch("src.bot.handlers.sources._toggle_user_subscription") as mock_toggle,
+            patch(
+                "src.bot.handlers.sources._get_sources_with_subscription_status"
+            ) as mock_get_sources,
+        ):
             mock_toggle.return_value = {"action": "unsubscribed", "source_name": source_name}
             # Simular estado después del toggle (ahora desuscrito)
             updated_sources = mock_sources_data.copy()

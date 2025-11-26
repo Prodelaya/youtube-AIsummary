@@ -38,7 +38,7 @@ class TestVideoRepositoryCRUD:
             title="Test Video",
             url="https://youtube.com/watch?v=test123",
             duration_seconds=300,
-            status=VideoStatus.PENDING
+            status=VideoStatus.PENDING,
         )
 
         # Act
@@ -284,7 +284,9 @@ class TestVideoRepositorySoftDelete:
         video_ids = [v.id for v in videos]
         assert sample_video.id not in video_ids
 
-    def test_list_paginated_includes_deleted_when_requested(self, repository, sample_video, db_session):
+    def test_list_paginated_includes_deleted_when_requested(
+        self, repository, sample_video, db_session
+    ):
         """Test 22: list_paginated() incluye soft-deleted si se solicita"""
         # Arrange - soft delete el video
         repository.soft_delete(sample_video.id)
@@ -369,7 +371,7 @@ class TestVideoRepositoryCreateVideo:
                 youtube_id="test456",
                 title="Test Video",
                 url="https://youtube.com/watch?v=test456",
-                duration_seconds=300
+                duration_seconds=300,
             )
             db_session.commit()
 
@@ -391,7 +393,7 @@ class TestVideoRepositoryCreateVideo:
             youtube_id="test789",
             title="Test Video",
             url="https://youtube.com/watch?v=test789",
-            metadata=metadata
+            metadata=metadata,
         )
         db_session.commit()
         db_session.refresh(video)
@@ -416,10 +418,7 @@ class TestVideoRepositoryUpdateVideo:
             mock_cache.delete = Mock()
 
             # Act
-            updated = repository.update_video(
-                sample_video.id,
-                status=VideoStatus.COMPLETED
-            )
+            updated = repository.update_video(sample_video.id, status=VideoStatus.COMPLETED)
 
             # Assert
             assert updated.status == VideoStatus.COMPLETED
@@ -427,17 +426,16 @@ class TestVideoRepositoryUpdateVideo:
             assert mock_cache.delete.call_count == 2
             mock_cache.delete.assert_any_call("stats:global")
 
-    def test_update_video_title_does_not_invalidate_cache(self, repository, sample_video, db_session):
+    def test_update_video_title_does_not_invalidate_cache(
+        self, repository, sample_video, db_session
+    ):
         """Test 30: update_video() sin cambio de status NO invalida caché"""
         # Arrange
         with patch("src.services.cache_service.cache_service") as mock_cache:
             mock_cache.delete = Mock()
 
             # Act
-            updated = repository.update_video(
-                sample_video.id,
-                title="New Title"
-            )
+            updated = repository.update_video(sample_video.id, title="New Title")
 
             # Assert
             assert updated.title == "New Title"
@@ -470,7 +468,7 @@ class TestVideoRepositorySkippedVideos:
             title="Skipped Video",
             url="https://youtube.com/watch?v=skipped1",
             duration_seconds=10000,  # Video muy largo
-            status=VideoStatus.SKIPPED
+            status=VideoStatus.SKIPPED,
         )
         repository.create(video)
         db_session.commit()
@@ -490,7 +488,7 @@ class TestVideoRepositorySkippedVideos:
             youtube_id="skipped2",
             title="Skipped Video",
             url="https://youtube.com/watch?v=skipped2",
-            status=VideoStatus.SKIPPED
+            status=VideoStatus.SKIPPED,
         )
         repository.create(video)
         db_session.commit()

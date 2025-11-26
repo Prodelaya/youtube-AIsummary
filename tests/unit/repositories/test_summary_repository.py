@@ -33,7 +33,7 @@ class TestSummaryRepositoryCRUD:
             transcription_id=sample_transcription.id,
             summary_text="Este es un resumen de prueba del video sobre FastAPI.",
             keywords=["FastAPI", "Python", "API"],
-            category="framework"
+            category="framework",
         )
 
         # Act
@@ -133,16 +133,14 @@ class TestSummaryRepositoryTranscriptionQueries:
             youtube_id="no_summary",
             title="Video sin resumen",
             url="https://youtube.com/watch?v=no_summary",
-            status=VideoStatus.COMPLETED
+            status=VideoStatus.COMPLETED,
         )
         repository.session.add(video)
         repository.session.commit()
         repository.session.refresh(video)
 
         transcription = Transcription(
-            video_id=video.id,
-            text="Transcripción sin resumen",
-            language="es"
+            video_id=video.id, text="Transcripción sin resumen", language="es"
         )
         repository.session.add(transcription)
         repository.session.commit()
@@ -211,7 +209,7 @@ class TestSummaryRepositoryCategoryAndKeywords:
             ("framework", ["FastAPI"]),
             ("framework", ["Django"]),
             ("language", ["Python"]),
-            ("tool", ["Docker"])
+            ("tool", ["Docker"]),
         ]
 
         for i, (category, keywords) in enumerate(categories_data):
@@ -220,17 +218,13 @@ class TestSummaryRepositoryCategoryAndKeywords:
                 youtube_id=f"cat_test_{i}",
                 title=f"Video {i}",
                 url=f"https://youtube.com/watch?v=cat_test_{i}",
-                status=VideoStatus.COMPLETED
+                status=VideoStatus.COMPLETED,
             )
             repository.session.add(video)
             repository.session.commit()
             repository.session.refresh(video)
 
-            trans = Transcription(
-                video_id=video.id,
-                text=f"Transcription {i}",
-                language="es"
-            )
+            trans = Transcription(video_id=video.id, text=f"Transcription {i}", language="es")
             repository.session.add(trans)
             repository.session.commit()
             repository.session.refresh(trans)
@@ -239,7 +233,7 @@ class TestSummaryRepositoryCategoryAndKeywords:
                 transcription_id=trans.id,
                 summary_text=f"Summary {i}",
                 keywords=keywords,
-                category=category
+                category=category,
             )
             repository.session.add(summary)
 
@@ -290,25 +284,19 @@ class TestSummaryRepositoryTelegram:
             youtube_id="unsent_test",
             title="Unsent Video",
             url="https://youtube.com/watch?v=unsent_test",
-            status=VideoStatus.COMPLETED
+            status=VideoStatus.COMPLETED,
         )
         repository.session.add(video)
         db_session.commit()
         db_session.refresh(video)
 
-        trans = Transcription(
-            video_id=video.id,
-            text="Transcription for unsent",
-            language="es"
-        )
+        trans = Transcription(video_id=video.id, text="Transcription for unsent", language="es")
         repository.session.add(trans)
         db_session.commit()
         db_session.refresh(trans)
 
         unsent_summary = Summary(
-            transcription_id=trans.id,
-            summary_text="This should be sent",
-            sent_to_telegram=False
+            transcription_id=trans.id, summary_text="This should be sent", sent_to_telegram=False
         )
         repository.session.add(unsent_summary)
         db_session.commit()
@@ -388,10 +376,7 @@ class TestSummaryRepositoryVideoQueries:
         from src.models import Video, VideoStatus, Source
 
         source = Source(
-            name="Test Source",
-            source_type="youtube",
-            url="https://youtube.com/@test",
-            active=True
+            name="Test Source", source_type="youtube", url="https://youtube.com/@test", active=True
         )
         repository.session.add(source)
         db_session.commit()
@@ -402,7 +387,7 @@ class TestSummaryRepositoryVideoQueries:
             youtube_id="no_summary_vid",
             title="Video without summary",
             url="https://youtube.com/watch?v=no_summary_vid",
-            status=VideoStatus.PENDING
+            status=VideoStatus.PENDING,
         )
         repository.session.add(video)
         db_session.commit()
@@ -532,11 +517,7 @@ class TestSummaryRepositoryEdgeCases:
     def test_create_with_metadata(self, repository, sample_transcription, db_session):
         """Test 28: Crear resumen con metadata JSONB completa"""
         # Arrange
-        metadata = {
-            "temperature": 0.7,
-            "max_tokens": 1000,
-            "model_version": "v2"
-        }
+        metadata = {"temperature": 0.7, "max_tokens": 1000, "model_version": "v2"}
         summary = Summary(
             transcription_id=sample_transcription.id,
             summary_text="Resumen con metadata completa",
@@ -546,7 +527,7 @@ class TestSummaryRepositoryEdgeCases:
             input_tokens=700,
             output_tokens=150,
             processing_time_ms=2500,
-            extra_metadata=metadata
+            extra_metadata=metadata,
         )
 
         # Act
@@ -560,16 +541,19 @@ class TestSummaryRepositoryEdgeCases:
         assert created.tokens_used == 850
         assert created.processing_time_ms == 2500
 
-    def test_summary_unique_per_transcription(self, repository, sample_transcription, sample_summary, db_session):
+    def test_summary_unique_per_transcription(
+        self, repository, sample_transcription, sample_summary, db_session
+    ):
         """Test 29: No se puede crear segundo resumen para misma transcripción (violación UNIQUE)"""
         # Arrange - intentar crear segundo resumen para misma transcripción
         duplicate_summary = Summary(
             transcription_id=sample_transcription.id,  # Mismo transcription_id
-            summary_text="Intento de duplicado"
+            summary_text="Intento de duplicado",
         )
 
         # Act & Assert
         from sqlalchemy.exc import IntegrityError
+
         with pytest.raises(IntegrityError):
             repository.create(duplicate_summary)
             db_session.commit()

@@ -29,7 +29,7 @@ from src.models.video import VideoStatus
 # Usa una BD separada para tests para evitar conflictos
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql://iamonitor:iamonitor_dev_password@localhost:5432/iamonitor_test"
+    "postgresql://iamonitor:iamonitor_dev_password@localhost:5432/iamonitor_test",
 )
 
 
@@ -91,7 +91,11 @@ def db_session(db_engine) -> Session:
     # Limpiar todas las tablas antes del test
     # Orden importante: eliminar primero tablas con FK
     try:
-        session.execute(text("TRUNCATE TABLE summaries, transcriptions, videos, sources, telegram_users, users CASCADE"))
+        session.execute(
+            text(
+                "TRUNCATE TABLE summaries, transcriptions, videos, sources, telegram_users, users CASCADE"
+            )
+        )
         session.commit()
     except Exception:
         session.rollback()
@@ -118,7 +122,7 @@ def sample_source(db_session) -> Source:
         name="Test Channel",
         source_type="youtube",
         url="https://youtube.com/@testchannel",
-        active=True
+        active=True,
     )
     db_session.add(source)
     db_session.commit()
@@ -133,7 +137,7 @@ def inactive_source(db_session) -> Source:
         name="Inactive Channel",
         source_type="youtube",
         url="https://youtube.com/@inactive",
-        active=False
+        active=False,
     )
     db_session.add(source)
     db_session.commit()
@@ -154,7 +158,7 @@ def multiple_sources(db_session) -> list[Source]:
             name=f"Channel {i}",
             source_type="youtube",
             url=f"https://youtube.com/@channel{i}",
-            active=(i % 3 != 0)  # Cada 3era está inactiva
+            active=(i % 3 != 0),  # Cada 3era está inactiva
         )
         for i in range(5)
     ]
@@ -182,7 +186,7 @@ def sample_video(db_session, sample_source) -> Video:
         title="Test Video Title",
         duration_seconds=300,
         source_id=sample_source.id,
-        status=VideoStatus.PENDING
+        status=VideoStatus.PENDING,
     )
     db_session.add(video)
     db_session.commit()
@@ -199,7 +203,7 @@ def completed_video(db_session, sample_source) -> Video:
         title="Completed Video",
         duration_seconds=600,
         source_id=sample_source.id,
-        status=VideoStatus.COMPLETED
+        status=VideoStatus.COMPLETED,
     )
     db_session.add(video)
     db_session.commit()
@@ -216,7 +220,7 @@ def failed_video(db_session, sample_source) -> Video:
         title="Failed Video",
         duration_seconds=200,
         source_id=sample_source.id,
-        status=VideoStatus.FAILED
+        status=VideoStatus.FAILED,
     )
     db_session.add(video)
     db_session.commit()
@@ -242,7 +246,7 @@ def multiple_videos(db_session, sample_source) -> list[Video]:
         VideoStatus.COMPLETED,
         VideoStatus.PENDING,
         VideoStatus.SKIPPED,
-        VideoStatus.FAILED
+        VideoStatus.FAILED,
     ]
 
     videos = [
@@ -252,7 +256,7 @@ def multiple_videos(db_session, sample_source) -> list[Video]:
             title=f"Video {i}",
             duration_seconds=100 + (i * 50),
             source_id=sample_source.id,
-            status=statuses[i]
+            status=statuses[i],
         )
         for i in range(10)
     ]
@@ -279,7 +283,7 @@ def sample_transcription(db_session, sample_video) -> Transcription:
         video_id=sample_video.id,
         text="Este es un texto de transcripción de prueba. Contiene información sobre testing en Python.",
         language="es",
-        duration_seconds=300
+        duration_seconds=300,
     )
     db_session.add(transcription)
     db_session.commit()
@@ -294,7 +298,7 @@ def english_transcription(db_session, completed_video) -> Transcription:
         video_id=completed_video.id,
         text="This is an English transcription for testing purposes.",
         language="en",
-        duration_seconds=600
+        duration_seconds=600,
     )
     db_session.add(transcription)
     db_session.commit()
@@ -316,7 +320,7 @@ def sample_summary(db_session, sample_transcription) -> Summary:
     summary = Summary(
         transcription_id=sample_transcription.id,
         summary_text="Resumen de prueba del video sobre testing en Python. Se cubren conceptos de pytest y mocking.",
-        keywords=["Python", "pytest", "testing", "mocking"]
+        keywords=["Python", "pytest", "testing", "mocking"],
     )
     db_session.add(summary)
     db_session.commit()
@@ -339,7 +343,7 @@ def multiple_summaries(db_session, multiple_videos) -> list[Summary]:
             video_id=video.id,
             text=f"Transcription {i}",
             language="es",
-            duration_seconds=video.duration_seconds
+            duration_seconds=video.duration_seconds,
         )
         db_session.add(trans)
         transcriptions.append(trans)
@@ -354,15 +358,13 @@ def multiple_summaries(db_session, multiple_videos) -> list[Summary]:
         ("Tutorial de Django para principiantes", ["Django", "Python", "Web"]),
         ("Machine Learning con TensorFlow", ["ML", "TensorFlow", "AI", "Python"]),
         ("Deployment con Docker y Kubernetes", ["Docker", "Kubernetes", "DevOps"]),
-        ("Testing automatizado con pytest", ["pytest", "testing", "Python", "QA"])
+        ("Testing automatizado con pytest", ["pytest", "testing", "Python", "QA"]),
     ]
 
     summaries = []
     for i, (text, keywords) in enumerate(summaries_data):
         summary = Summary(
-            transcription_id=transcriptions[i].id,
-            summary_text=text,
-            keywords=keywords
+            transcription_id=transcriptions[i].id, summary_text=text, keywords=keywords
         )
         db_session.add(summary)
         summaries.append(summary)
@@ -388,7 +390,7 @@ def sample_user(db_session) -> User:
         username="admin",
         email="admin@test.com",
         hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU8KQDpTMWBq",  # "password123"
-        role="admin"
+        role="admin",
     )
     db_session.add(user)
     db_session.commit()
@@ -403,7 +405,7 @@ def regular_user(db_session) -> User:
         username="user",
         email="user@test.com",
         hashed_password="$2b$12$hashed_password",
-        role="user"
+        role="user",
     )
     db_session.add(user)
     db_session.commit()
@@ -425,7 +427,7 @@ def sample_telegram_user(db_session) -> TelegramUser:
         first_name="Test",
         last_name="User",
         is_active=True,
-        language_code="es"
+        language_code="es",
     )
     db_session.add(user)
     db_session.commit()
@@ -437,10 +439,7 @@ def sample_telegram_user(db_session) -> TelegramUser:
 def inactive_telegram_user(db_session) -> TelegramUser:
     """Usuario de Telegram inactivo (bot bloqueado)."""
     user = TelegramUser(
-        telegram_id=987654321,
-        username="inactive",
-        is_active=False,
-        bot_blocked=True
+        telegram_id=987654321, username="inactive", is_active=False, bot_blocked=True
     )
     db_session.add(user)
     db_session.commit()
@@ -451,11 +450,7 @@ def inactive_telegram_user(db_session) -> TelegramUser:
 @pytest.fixture
 def telegram_user_with_subscriptions(db_session, sample_source) -> TelegramUser:
     """Usuario de Telegram con suscripciones a fuentes."""
-    user = TelegramUser(
-        telegram_id=111222333,
-        username="subscribed_user",
-        is_active=True
-    )
+    user = TelegramUser(telegram_id=111222333, username="subscribed_user", is_active=True)
     user.sources.append(sample_source)
     db_session.add(user)
     db_session.commit()

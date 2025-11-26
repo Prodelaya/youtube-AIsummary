@@ -141,9 +141,11 @@ async def test_process_video_success(
     4. El archivo de audio se limpia al final
     """
     # Configurar mocks de repositorios
-    with patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo, \
-         patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo, \
-         patch("src.services.video_processing_service.Path") as MockPath:
+    with (
+        patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo,
+        patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo,
+        patch("src.services.video_processing_service.Path") as MockPath,
+    ):
 
         # Mock de VideoRepository
         mock_video_repo = MockVideoRepo.return_value
@@ -173,9 +175,7 @@ async def test_process_video_success(
         )
 
         # Verificar que se llamaron todos los servicios
-        video_processing_service.downloader.download_audio.assert_called_once_with(
-            sample_video.url
-        )
+        video_processing_service.downloader.download_audio.assert_called_once_with(sample_video.url)
         video_processing_service.transcriber.transcribe_audio.assert_called_once()
         video_processing_service.summarizer.generate_summary.assert_called_once()
 
@@ -207,9 +207,11 @@ async def test_process_video_state_transitions(
 
     mock_db_session.commit.side_effect = capture_state
 
-    with patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo, \
-         patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo, \
-         patch("src.services.video_processing_service.Path"):
+    with (
+        patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo,
+        patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo,
+        patch("src.services.video_processing_service.Path"),
+    ):
 
         mock_video_repo = MockVideoRepo.return_value
         mock_video_repo.get_by_id.return_value = sample_video
@@ -332,8 +334,10 @@ async def test_process_video_download_failed_network_error(
         side_effect=NetworkError("Connection timeout")
     )
 
-    with patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo, \
-         patch("src.services.video_processing_service.Path") as MockPath:
+    with (
+        patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo,
+        patch("src.services.video_processing_service.Path") as MockPath,
+    ):
 
         mock_video_repo = MockVideoRepo.return_value
         mock_video_repo.get_by_id.return_value = sample_video
@@ -372,8 +376,10 @@ async def test_process_video_transcription_failed(
         side_effect=TranscriptionFailedError("Whisper crashed")
     )
 
-    with patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo, \
-         patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo:
+    with (
+        patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo,
+        patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo,
+    ):
 
         mock_video_repo = MockVideoRepo.return_value
         mock_video_repo.get_by_id.return_value = sample_video
@@ -411,9 +417,11 @@ async def test_process_video_summarization_failed(
         side_effect=DeepSeekAPIError("API rate limit", status_code=429)
     )
 
-    with patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo, \
-         patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo, \
-         patch("src.services.video_processing_service.Path") as MockPath:
+    with (
+        patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo,
+        patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo,
+        patch("src.services.video_processing_service.Path") as MockPath,
+    ):
 
         mock_video_repo = MockVideoRepo.return_value
         mock_video_repo.get_by_id.return_value = sample_video
@@ -460,9 +468,11 @@ async def test_cleanup_audio_file_on_success(
     """
     Test: Archivo de audio se borra al completar exitosamente.
     """
-    with patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo, \
-         patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo, \
-         patch.object(video_processing_service, "_cleanup_audio_file") as mock_cleanup:
+    with (
+        patch("src.services.video_processing_service.VideoRepository") as MockVideoRepo,
+        patch("src.services.video_processing_service.TranscriptionRepository") as MockTransRepo,
+        patch.object(video_processing_service, "_cleanup_audio_file") as mock_cleanup,
+    ):
 
         mock_video_repo = MockVideoRepo.return_value
         mock_video_repo.get_by_id.return_value = sample_video

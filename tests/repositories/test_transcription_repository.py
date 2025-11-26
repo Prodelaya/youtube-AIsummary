@@ -249,8 +249,12 @@ def test_get_by_language_filters_correctly(db_session, sample_video, transcripti
     trans_es_2 = transcription_factory(
         video_id=sample_video.id, language="es", text="Transcripción en español dos"
     )
-    trans_en = transcription_factory(video_id=video_en.id, language="en", text="English transcription")
-    trans_fr = transcription_factory(video_id=video_fr.id, language="fr", text="Transcription française")
+    trans_en = transcription_factory(
+        video_id=video_en.id, language="en", text="English transcription"
+    )
+    trans_fr = transcription_factory(
+        video_id=video_fr.id, language="fr", text="Transcription française"
+    )
 
     # Buscar por idioma español
     spanish_transcriptions = repo.get_by_language("es")
@@ -324,7 +328,9 @@ def test_relationship_with_video(db_session, sample_transcription):
     assert transcription.video.title == "Test Video"  # De sample_video en conftest
 
 
-def test_cascade_delete_video_deletes_transcription(db_session, sample_video, transcription_factory):
+def test_cascade_delete_video_deletes_transcription(
+    db_session, sample_video, transcription_factory
+):
     """
     Test que valida que eliminar Video elimina su Transcription (CASCADE).
 
@@ -358,7 +364,10 @@ def test_segments_field_accepts_none(db_session, sample_video, transcription_fac
     - Campo JSONB segments acepta None sin error
     """
     trans = transcription_factory(
-        video_id=sample_video.id, language="en", text="Transcription without segments", segments=None
+        video_id=sample_video.id,
+        language="en",
+        text="Transcription without segments",
+        segments=None,
     )
 
     assert trans.segments is None

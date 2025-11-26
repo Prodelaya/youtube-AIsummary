@@ -66,7 +66,9 @@ def cleanup_downloads():
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.skip(reason="Requiere video de YouTube válido y disponible - ejecutar manualmente si es necesario")
+@pytest.mark.skip(
+    reason="Requiere video de YouTube válido y disponible - ejecutar manualmente si es necesario"
+)
 async def test_download_audio_success(service, cleanup_downloads):
     """
     Test: Descarga exitosa de audio de YouTube.
@@ -98,7 +100,9 @@ async def test_download_audio_success(service, cleanup_downloads):
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.skip(reason="Requiere video de YouTube válido y disponible - ejecutar manualmente si es necesario")
+@pytest.mark.skip(
+    reason="Requiere video de YouTube válido y disponible - ejecutar manualmente si es necesario"
+)
 async def test_get_metadata_only(service):
     """
     Test: Extracción de metadata sin descargar el video.
@@ -175,7 +179,9 @@ async def test_private_video_fails(service):
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@pytest.mark.skip(reason="Requiere video de YouTube válido y disponible - ejecutar manualmente si es necesario")
+@pytest.mark.skip(
+    reason="Requiere video de YouTube válido y disponible - ejecutar manualmente si es necesario"
+)
 async def test_audio_file_format_is_mp3(service, cleanup_downloads):
     """
     Test: El archivo descargado debe ser MP3 válido.

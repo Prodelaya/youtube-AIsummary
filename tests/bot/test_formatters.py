@@ -180,9 +180,7 @@ class TestFormatSummaryMessage:
         # Debe truncarse y no exceder límite
         assert len(result) <= 4096
 
-    def test_format_summary_with_special_characters(
-        self, mock_summary, mock_video, mock_source
-    ):
+    def test_format_summary_with_special_characters(self, mock_summary, mock_video, mock_source):
         """Verifica manejo de caracteres especiales de Markdown."""
         mock_video.title = "API Testing: Unit & Integration [2024]"
         mock_source.name = "Tech & Code (Official)"

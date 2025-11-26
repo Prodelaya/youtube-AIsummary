@@ -193,9 +193,7 @@ class TestVideoRepositoryGetByStatus:
         # Arrange
         repo = VideoRepository(db_session)
         # Crear solo videos PENDING
-        video_factory(
-            source_id=sample_source.id, youtube_id="pend1", status=VideoStatus.PENDING
-        )
+        video_factory(source_id=sample_source.id, youtube_id="pend1", status=VideoStatus.PENDING)
 
         # Act - Buscar videos en DOWNLOADING (no existen)
         downloading_videos = repo.get_by_status(VideoStatus.DOWNLOADING)
@@ -349,9 +347,7 @@ class TestVideoRepositoryGetBySource:
 class TestVideoRepositoryGetBySourceAndStatus:
     """Tests para el método get_by_source_and_status()."""
 
-    def test_get_by_source_and_status_filters_both(
-        self, db_session, sample_source, video_factory
-    ):
+    def test_get_by_source_and_status_filters_both(self, db_session, sample_source, video_factory):
         """get_by_source_and_status() debe filtrar por source_id Y status."""
         # Arrange
         repo = VideoRepository(db_session)
@@ -367,9 +363,7 @@ class TestVideoRepositoryGetBySourceAndStatus:
         )
 
         # Act
-        pending_videos = repo.get_by_source_and_status(
-            sample_source.id, VideoStatus.PENDING
-        )
+        pending_videos = repo.get_by_source_and_status(sample_source.id, VideoStatus.PENDING)
 
         # Assert
         pending_ids = [v.id for v in pending_videos]
@@ -402,16 +396,12 @@ class TestVideoRepositoryGetBySourceAndStatus:
         assert video_sample.id in video_ids
         assert video_other.id not in video_ids
 
-    def test_get_by_source_and_status_empty_result(
-        self, db_session, sample_source, video_factory
-    ):
+    def test_get_by_source_and_status_empty_result(self, db_session, sample_source, video_factory):
         """get_by_source_and_status() debe retornar lista vacía si no hay match."""
         # Arrange
         repo = VideoRepository(db_session)
         # Crear video PENDING
-        video_factory(
-            source_id=sample_source.id, youtube_id="pend1", status=VideoStatus.PENDING
-        )
+        video_factory(source_id=sample_source.id, youtube_id="pend1", status=VideoStatus.PENDING)
 
         # Act - Buscar COMPLETED (no existe)
         videos = repo.get_by_source_and_status(sample_source.id, VideoStatus.COMPLETED)
@@ -490,9 +480,7 @@ class TestVideoRepositoryGetByYoutubeId:
         # SQLAlchemy String es case-sensitive por defecto
         assert found_different is None
 
-    def test_get_by_youtube_id_with_multiple_videos(
-        self, db_session, sample_source, video_factory
-    ):
+    def test_get_by_youtube_id_with_multiple_videos(self, db_session, sample_source, video_factory):
         """get_by_youtube_id() debe retornar solo el video correcto entre múltiples."""
         # Arrange
         repo = VideoRepository(db_session)
@@ -535,9 +523,7 @@ class TestVideoRepositoryExistsByYoutubeId:
         # Assert
         assert exists is False
 
-    def test_exists_by_youtube_id_exact_match(
-        self, db_session, sample_source, video_factory
-    ):
+    def test_exists_by_youtube_id_exact_match(self, db_session, sample_source, video_factory):
         """exists_by_youtube_id() debe hacer match exacto (case-sensitive)."""
         # Arrange
         repo = VideoRepository(db_session)

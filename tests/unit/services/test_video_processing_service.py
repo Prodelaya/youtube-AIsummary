@@ -134,16 +134,16 @@ class TestVideoProcessingServiceValidation:
                 with patch.object(service.downloader, "download_audio") as mock_download:
                     with patch.object(service.transcriber, "transcribe_audio") as mock_transcribe:
                         with patch("src.services.video_processing_service.TranscriptionRepository"):
-                            with patch.object(service.summarizer, "generate_summary") as mock_summarize:
+                            with patch.object(
+                                service.summarizer, "generate_summary"
+                            ) as mock_summarize:
                                 # Setup mocks
                                 mock_repo_instance = Mock()
                                 mock_repo.return_value = mock_repo_instance
                                 mock_repo_instance.get_by_id.return_value = video
 
                                 mock_metadata.return_value = Mock(
-                                    video_id="test123",
-                                    title="Test Video",
-                                    duration_seconds=300
+                                    video_id="test123", title="Test Video", duration_seconds=300
                                 )
 
                                 mock_download.return_value = Path("/tmp/audio.mp3")
@@ -162,7 +162,9 @@ class TestVideoProcessingServiceValidation:
                                 try:
                                     await service.process_video(mock_session, video_id)
                                 except InvalidVideoStateError:
-                                    pytest.fail("No debería lanzar InvalidVideoStateError para pending")
+                                    pytest.fail(
+                                        "No debería lanzar InvalidVideoStateError para pending"
+                                    )
                                 except Exception:
                                     # Otros errores son esperados en este test simplificado
                                     pass

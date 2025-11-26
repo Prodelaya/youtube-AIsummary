@@ -232,7 +232,9 @@ def test_get_recent_returns_ordered_by_created_at_desc(
         assert recent[i].created_at >= recent[i + 1].created_at
 
 
-def test_get_recent_respects_limit(db_session, sample_transcription, transcription_factory, summary_factory):
+def test_get_recent_respects_limit(
+    db_session, sample_transcription, transcription_factory, summary_factory
+):
     """
     Test que valida que get_recent() respeta el parámetro limit.
 
@@ -474,7 +476,9 @@ def test_get_by_category_filters_correctly(
     db_session.add(video_lang)
     db_session.commit()
 
-    trans_lang = transcription_factory(video_id=video_lang.id, text="Language content", language="es")
+    trans_lang = transcription_factory(
+        video_id=video_lang.id, text="Language content", language="es"
+    )
     sum_lang = summary_factory(
         transcription_id=trans_lang.id,
         summary_text="Language summary",

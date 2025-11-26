@@ -314,9 +314,7 @@ def test_telegram_rate_limit_retry(
     # Mock send_message: lanza error de rate limit
     from telegram.error import RetryAfter
 
-    mock_bot.send_message = AsyncMock(
-        side_effect=RetryAfter(retry_after=30)
-    )
+    mock_bot.send_message = AsyncMock(side_effect=RetryAfter(retry_after=30))
 
     # Ejecutar tarea (debe lanzar excepción para retry)
     with pytest.raises(RetryAfter):

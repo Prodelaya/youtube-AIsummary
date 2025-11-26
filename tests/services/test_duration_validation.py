@@ -62,7 +62,9 @@ class TestDurationValidation:
             assert result.status == VideoStatus.SKIPPED
             assert result.extra_metadata["skip_reason"] == "duration_exceeded"
             assert result.extra_metadata["actual_duration_seconds"] == 2400
-            assert result.extra_metadata["max_allowed_seconds"] == settings.MAX_VIDEO_DURATION_SECONDS
+            assert (
+                result.extra_metadata["max_allowed_seconds"] == settings.MAX_VIDEO_DURATION_SECONDS
+            )
 
     @pytest.mark.asyncio
     async def test_valid_video_is_processed(self, mock_video_valid):

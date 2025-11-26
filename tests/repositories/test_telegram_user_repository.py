@@ -189,9 +189,7 @@ def test_unique_constraint_telegram_id(db_session, telegram_user_factory):
 # ==================== TEST SUSCRIPCIONES M:N ====================
 
 
-def test_subscribe_to_source_creates_subscription(
-    db_session, sample_telegram_user, sample_source
-):
+def test_subscribe_to_source_creates_subscription(db_session, sample_telegram_user, sample_source):
     """
     Test que valida que subscribe_to_source() crea entrada en tabla intermedia.
 
@@ -463,9 +461,7 @@ def test_is_subscribed_returns_false_if_source_not_exists(db_session, sample_tel
 # ==================== TEST RELACIÓN M:N COMPLETA ====================
 
 
-def test_many_to_many_relationship_complete(
-    db_session, telegram_user_factory, source_factory
-):
+def test_many_to_many_relationship_complete(db_session, telegram_user_factory, source_factory):
     """
     Test EXHAUSTIVO que valida la relación M:N completa.
 
@@ -538,9 +534,7 @@ def test_many_to_many_relationship_complete(
     assert source3_subscribers[0].id == user3.id
 
 
-def test_cascade_delete_user_removes_subscriptions(
-    db_session, sample_telegram_user, sample_source
-):
+def test_cascade_delete_user_removes_subscriptions(db_session, sample_telegram_user, sample_source):
     """
     Test que valida que eliminar usuario elimina sus suscripciones (CASCADE).
 

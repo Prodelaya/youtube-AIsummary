@@ -39,7 +39,7 @@ class TestTelegramUserRepositoryCRUD:
             first_name="Test",
             last_name="User",
             is_active=True,
-            language_code="en"
+            language_code="en",
         )
 
         # Act
@@ -103,7 +103,9 @@ class TestTelegramUserRepositoryCRUD:
         found = db_session.get(TelegramUser, user_id)
         assert found is None  # Eliminación física (BaseRepository.delete)
 
-    def test_list_all_telegram_users(self, repository, sample_telegram_user, inactive_telegram_user):
+    def test_list_all_telegram_users(
+        self, repository, sample_telegram_user, inactive_telegram_user
+    ):
         """Test listar todos los usuarios (activos e inactivos)."""
         # Act
         users = repository.list_all()
@@ -194,7 +196,9 @@ class TestTelegramUserRepositorySubscriptions:
         with pytest.raises(NotFoundError):
             repository.subscribe_to_source(sample_telegram_user.id, fake_uuid)
 
-    def test_subscribe_to_source_already_subscribed(self, repository, telegram_user_with_subscriptions, sample_source):
+    def test_subscribe_to_source_already_subscribed(
+        self, repository, telegram_user_with_subscriptions, sample_source
+    ):
         """Test suscripción duplicada lanza AlreadyExistsError."""
         # Arrange - telegram_user_with_subscriptions ya está suscrito a sample_source
 
@@ -202,7 +206,9 @@ class TestTelegramUserRepositorySubscriptions:
         with pytest.raises(AlreadyExistsError):
             repository.subscribe_to_source(telegram_user_with_subscriptions.id, sample_source.id)
 
-    def test_unsubscribe_from_source(self, repository, telegram_user_with_subscriptions, sample_source, db_session):
+    def test_unsubscribe_from_source(
+        self, repository, telegram_user_with_subscriptions, sample_source, db_session
+    ):
         """Test cancelación exitosa de suscripción."""
         # Arrange - Verificar que está suscrito inicialmente
         assert sample_source in telegram_user_with_subscriptions.sources
@@ -215,7 +221,9 @@ class TestTelegramUserRepositorySubscriptions:
         assert len(telegram_user_with_subscriptions.sources) == 0
         assert sample_source not in telegram_user_with_subscriptions.sources
 
-    def test_unsubscribe_from_source_not_subscribed(self, repository, sample_telegram_user, sample_source):
+    def test_unsubscribe_from_source_not_subscribed(
+        self, repository, sample_telegram_user, sample_source
+    ):
         """Test cancelar suscripción inexistente lanza NotFoundError."""
         # Arrange - sample_telegram_user NO está suscrito
 
@@ -223,7 +231,9 @@ class TestTelegramUserRepositorySubscriptions:
         with pytest.raises(NotFoundError):
             repository.unsubscribe_from_source(sample_telegram_user.id, sample_source.id)
 
-    def test_get_user_subscriptions(self, repository, telegram_user_with_subscriptions, sample_source):
+    def test_get_user_subscriptions(
+        self, repository, telegram_user_with_subscriptions, sample_source
+    ):
         """Test obtener fuentes suscritas de un usuario."""
         # Act
         subscriptions = repository.get_user_subscriptions(telegram_user_with_subscriptions.id)
@@ -240,7 +250,9 @@ class TestTelegramUserRepositorySubscriptions:
         # Assert
         assert len(subscriptions) == 0
 
-    def test_get_source_subscribers(self, repository, sample_source, telegram_user_with_subscriptions, db_session):
+    def test_get_source_subscribers(
+        self, repository, sample_source, telegram_user_with_subscriptions, db_session
+    ):
         """Test obtener usuarios suscritos a una fuente."""
         # Act
         subscribers = repository.get_source_subscribers(sample_source.id)
@@ -258,7 +270,9 @@ class TestTelegramUserRepositorySubscriptions:
         # Assert
         assert len(subscribers) == 0
 
-    def test_get_users_subscribed_to_source_alias(self, repository, sample_source, telegram_user_with_subscriptions):
+    def test_get_users_subscribed_to_source_alias(
+        self, repository, sample_source, telegram_user_with_subscriptions
+    ):
         """Test método alias get_users_subscribed_to_source funciona igual."""
         # Act
         subscribers = repository.get_users_subscribed_to_source(sample_source.id)
@@ -297,9 +311,7 @@ class TestTelegramUserRepositoryConstraints:
         """Test que telegram_id debe ser único (IntegrityError en duplicado)."""
         # Arrange - Intentar crear usuario con telegram_id duplicado
         duplicate_user = TelegramUser(
-            telegram_id=123456789,  # Ya existe
-            username="different_user",
-            first_name="Different"
+            telegram_id=123456789, username="different_user", first_name="Different"  # Ya existe
         )
 
         # Act & Assert
@@ -341,10 +353,7 @@ class TestTelegramUserRepositoryEdgeCases:
         """Test gestión del flag bot_blocked."""
         # Arrange
         user = TelegramUser(
-            telegram_id=444555666,
-            username="blocked_user",
-            bot_blocked=True,
-            is_active=False
+            telegram_id=444555666, username="blocked_user", bot_blocked=True, is_active=False
         )
 
         # Act
@@ -354,7 +363,9 @@ class TestTelegramUserRepositoryEdgeCases:
         assert created.bot_blocked is True
         assert created.is_active is False
 
-    def test_multiple_subscriptions(self, repository, sample_telegram_user, multiple_sources, db_session):
+    def test_multiple_subscriptions(
+        self, repository, sample_telegram_user, multiple_sources, db_session
+    ):
         """Test usuario con múltiples suscripciones."""
         # Arrange - Suscribir a 3 fuentes
         for source in multiple_sources[:3]:
@@ -375,10 +386,7 @@ class TestTelegramUserRepositoryEdgeCases:
 
         # Act
         for i, lang in enumerate(languages):
-            user = TelegramUser(
-                telegram_id=100000000 + i,
-                language_code=lang
-            )
+            user = TelegramUser(telegram_id=100000000 + i, language_code=lang)
             created = repository.create(user)
             created_users.append(created)
 
@@ -390,11 +398,7 @@ class TestTelegramUserRepositoryEdgeCases:
     def test_full_name_property(self, repository, db_session):
         """Test propiedad full_name del modelo."""
         # Arrange
-        user = TelegramUser(
-            telegram_id=777888999,
-            first_name="John",
-            last_name="Doe"
-        )
+        user = TelegramUser(telegram_id=777888999, first_name="John", last_name="Doe")
         created = repository.create(user)
 
         # Act & Assert
@@ -403,26 +407,20 @@ class TestTelegramUserRepositoryEdgeCases:
     def test_display_name_property(self, repository, db_session):
         """Test propiedad display_name del modelo."""
         # Arrange - Usuario con username
-        user1 = TelegramUser(
-            telegram_id=111222333,
-            username="john_doe",
-            first_name="John"
-        )
+        user1 = TelegramUser(telegram_id=111222333, username="john_doe", first_name="John")
         created1 = repository.create(user1)
 
         # Arrange - Usuario sin username
-        user2 = TelegramUser(
-            telegram_id=444555666,
-            first_name="Jane",
-            last_name="Smith"
-        )
+        user2 = TelegramUser(telegram_id=444555666, first_name="Jane", last_name="Smith")
         created2 = repository.create(user2)
 
         # Act & Assert
         assert created1.display_name == "@john_doe"
         assert created2.display_name == "Jane Smith"
 
-    def test_subscription_count_property(self, repository, sample_telegram_user, multiple_sources, db_session):
+    def test_subscription_count_property(
+        self, repository, sample_telegram_user, multiple_sources, db_session
+    ):
         """Test propiedad subscription_count del modelo."""
         # Arrange - Sin suscripciones
         assert sample_telegram_user.subscription_count == 0
@@ -435,7 +433,9 @@ class TestTelegramUserRepositoryEdgeCases:
         # Assert
         assert sample_telegram_user.subscription_count == 2
 
-    def test_has_subscriptions_property(self, repository, sample_telegram_user, sample_source, db_session):
+    def test_has_subscriptions_property(
+        self, repository, sample_telegram_user, sample_source, db_session
+    ):
         """Test propiedad has_subscriptions del modelo."""
         # Arrange - Sin suscripciones
         assert sample_telegram_user.has_subscriptions is False

@@ -126,9 +126,7 @@ class TestRecentHandler:
         Scenario: Usuario sin suscripciones o sin resúmenes ejecuta /recent
         Expected: Mensaje informativo mostrado
         """
-        with patch(
-            "src.bot.handlers.history._get_user_recent_summaries", return_value=[]
-        ):
+        with patch("src.bot.handlers.history._get_user_recent_summaries", return_value=[]):
             await recent_handler(mock_update, mock_context)
 
             # Verificar que se envió solo 1 mensaje (el informativo)
@@ -180,9 +178,7 @@ class TestViewTranscriptCallback:
     """Tests para el callback handler view_transcript."""
 
     @pytest.mark.asyncio
-    async def test_view_transcript_callback_success(
-        self, mock_update_with_callback, mock_context
-    ):
+    async def test_view_transcript_callback_success(self, mock_update_with_callback, mock_context):
         """
         Verifica que callback muestra transcripción correctamente.
 

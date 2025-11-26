@@ -94,9 +94,10 @@ class Settings(BaseSettings):
     )
 
     # ==================== TELEGRAM BOT ====================
-    TELEGRAM_BOT_TOKEN: str = Field(
+    TELEGRAM_BOT_TOKEN: str | None = Field(
+        default=None,
         min_length=30,
-        description="Token del bot de Telegram obtenido desde @BotFather",
+        description="Token del bot de Telegram obtenido desde @BotFather (opcional en tests)",
         examples=["123456789:ABCdefGHIjklMNOpqrsTUVwxyz"],
     )
 

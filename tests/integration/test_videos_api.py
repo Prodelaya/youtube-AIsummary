@@ -31,6 +31,7 @@ class TestVideosAPI:
     def test_get_video_not_found(self, client):
         """Test video inexistente retorna 404."""
         from uuid import uuid4
+
         fake_id = uuid4()
         response = client.get(f"/api/v1/videos/{fake_id}")
         assert response.status_code == 404
@@ -42,7 +43,7 @@ class TestVideosAPI:
             "youtube_id": "dQw4w9WgXcQ",  # 11 caracteres (YouTube ID valido)
             "title": "New Video",
             "url": "https://youtube.com/watch?v=dQw4w9WgXcQ",
-            "duration_seconds": 300
+            "duration_seconds": 300,
         }
         response = client.post("/api/v1/videos", json=payload)
         assert response.status_code == 201
@@ -54,7 +55,7 @@ class TestVideosAPI:
             "youtube_id": "xvFZjo5PgG0",  # 11 caracteres (YouTube ID valido)
             "title": "New Video",
             "url": "https://youtube.com/watch?v=xvFZjo5PgG0",
-            "duration_seconds": 300
+            "duration_seconds": 300,
         }
         response = client.post("/api/v1/videos", json=payload)
         assert response.status_code == 201

@@ -146,7 +146,7 @@ def admin_user(db_session: Session) -> User:
         email="admin@test.com",
         hashed_password="$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NU8KQDpTMWBq",  # "password123"
         role="admin",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
