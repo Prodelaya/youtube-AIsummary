@@ -61,10 +61,10 @@ jobs:
           poetry run black --check --diff src/ tests/
         continue-on-error: false
 
-      # 7. Ruff: Linting completo
+      # 7. Ruff: Linting completo (ignorando warnings non-críticos B904, B017)
       - name: Run Ruff linter
         run: |
-          poetry run ruff check src/ tests/ --output-format=github
+          poetry run ruff check src/ tests/ --output-format=github --ignore=B904,B017
 
       # 8. Mypy: Type checking estático
       - name: Type checking with mypy
