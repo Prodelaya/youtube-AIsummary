@@ -25,9 +25,13 @@ from src.models.video import VideoStatus
 
 # URL de conexión a PostgreSQL de tests
 # Usa una BD separada para tests para evitar conflictos
+# En CI usa DATABASE_URL, en local usa TEST_DATABASE_URL
 TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql://iamonitor:iamonitor_dev_password@localhost:5432/iamonitor_test",
+    "DATABASE_URL",  # CI provee DATABASE_URL con credenciales correctas
+    os.getenv(
+        "TEST_DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/test_db",
+    ),
 )
 
 
