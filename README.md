@@ -173,80 +173,80 @@ Este proyecto fue diseñado específicamente para aprender y practicar:
 
 ### Backend Core
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **Python** | 3.11+ | Lenguaje principal |
-| **FastAPI** | 0.115+ | Framework web asíncrono |
-| **Uvicorn** | 0.32+ | Servidor ASGI |
-| **Pydantic** | 2.10+ | Validación de datos |
+| Tecnología   | Versión | Propósito               |
+| ------------ | ------- | ----------------------- |
+| **Python**   | 3.11+   | Lenguaje principal      |
+| **FastAPI**  | 0.115+  | Framework web asíncrono |
+| **Uvicorn**  | 0.32+   | Servidor ASGI           |
+| **Pydantic** | 2.10+   | Validación de datos     |
 
 ### Base de Datos y Persistencia
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **PostgreSQL** | 15 | Base de datos relacional |
-| **SQLAlchemy** | 2.0.36+ | ORM con async |
-| **Alembic** | 1.14+ | Migraciones de BD |
-| **psycopg2-binary** | 2.9+ | Driver PostgreSQL |
+| Tecnología          | Versión | Propósito                |
+| ------------------- | ------- | ------------------------ |
+| **PostgreSQL**      | 15      | Base de datos relacional |
+| **SQLAlchemy**      | 2.0.36+ | ORM con async            |
+| **Alembic**         | 1.14+   | Migraciones de BD        |
+| **psycopg2-binary** | 2.9+    | Driver PostgreSQL        |
 
 ### Cache y Cola de Tareas
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **Redis** | 7 | Cache + broker Celery |
-| **Celery** | 5.4+ | Cola de tareas distribuida |
-| **Celery Beat** | Incluido | Scheduler de tareas |
+| Tecnología      | Versión  | Propósito                  |
+| --------------- | -------- | -------------------------- |
+| **Redis**       | 7        | Cache + broker Celery      |
+| **Celery**      | 5.4+     | Cola de tareas distribuida |
+| **Celery Beat** | Incluido | Scheduler de tareas        |
 
 ### IA y Machine Learning
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **Whisper** | 20240930 | Transcripción de audio |
+| Tecnología       | Versión        | Propósito               |
+| ---------------- | -------------- | ----------------------- |
+| **Whisper**      | 20240930       | Transcripción de audio  |
 | **DeepSeek API** | Via OpenAI SDK | Generación de resúmenes |
-| **yt-dlp** | 2024.12+ | Descarga de YouTube |
+| **yt-dlp**       | 2024.12+       | Descarga de YouTube     |
 
 ### Monitorización y Observabilidad
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **Prometheus** | - | Recolección de métricas |
-| **Grafana** | - | Dashboards visuales |
-| **structlog** | 24.4+ | Logging estructurado |
-| **prometheus_client** | 0.21+ | Exportación de métricas |
+| Tecnología            | Versión | Propósito               |
+| --------------------- | ------- | ----------------------- |
+| **Prometheus**        | -       | Recolección de métricas |
+| **Grafana**           | -       | Dashboards visuales     |
+| **structlog**         | 24.4+   | Logging estructurado    |
+| **prometheus_client** | 0.21+   | Exportación de métricas |
 
 ### Seguridad
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **python-jose** | 3.5+ | JWT tokens |
-| **bcrypt** | 5.0+ | Hashing de passwords |
-| **slowapi** | 0.1.9+ | Rate limiting |
+| Tecnología      | Versión | Propósito            |
+| --------------- | ------- | -------------------- |
+| **python-jose** | 3.5+    | JWT tokens           |
+| **bcrypt**      | 5.0+    | Hashing de passwords |
+| **slowapi**     | 0.1.9+  | Rate limiting        |
 
 ### Bot de Telegram
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **python-telegram-bot** | 22.5+ | SDK oficial de Telegram |
+| Tecnología              | Versión | Propósito               |
+| ----------------------- | ------- | ----------------------- |
+| **python-telegram-bot** | 22.5+   | SDK oficial de Telegram |
 
 ### DevOps y CI/CD
 
-| Tecnología | Propósito |
-|------------|-----------|
-| **Docker** | Containerización |
-| **Docker Compose** | Orquestación local |
-| **GitHub Actions** | CI/CD automation |
-| **Poetry** | Gestión de dependencias |
+| Tecnología         | Propósito               |
+| ------------------ | ----------------------- |
+| **Docker**         | Containerización        |
+| **Docker Compose** | Orquestación local      |
+| **GitHub Actions** | CI/CD automation        |
+| **Poetry**         | Gestión de dependencias |
 
 ### Testing y Calidad
 
-| Herramienta | Propósito |
-|-------------|-----------|
-| **pytest** | Framework de tests |
-| **pytest-asyncio** | Tests asíncronos |
-| **pytest-cov** | Cobertura de código |
-| **Black** | Formateo automático |
-| **Ruff** | Linting moderno |
-| **mypy** | Type checking |
+| Herramienta        | Propósito           |
+| ------------------ | ------------------- |
+| **pytest**         | Framework de tests  |
+| **pytest-asyncio** | Tests asíncronos    |
+| **pytest-cov**     | Cobertura de código |
+| **Black**          | Formateo automático |
+| **Ruff**           | Linting moderno     |
+| **mypy**           | Type checking       |
 
 ---
 
@@ -447,26 +447,26 @@ Este proyecto incluye **documentación técnica exhaustiva** (>22,500 líneas):
 
 ### Documentación Principal
 
-| Documento | Descripción |
-|-----------|-------------|
-| [`docs/architecture.md`](docs/architecture.md) | Arquitectura completa del sistema + ADRs |
-| [`docs/roadmap.md`](docs/roadmap.md) | Plan de desarrollo en 30+ pasos |
-| [`docs/security-audit-report.md`](docs/security-audit-report.md) | Análisis de seguridad exhaustivo |
-| [`docs/prometheus-guide.md`](docs/prometheus-guide.md) | Setup, queries, alerting |
-| [`docs/grafana-dashboards-guide.md`](docs/grafana-dashboards-guide.md) | Dashboards y visualización |
+| Documento                                                              | Descripción                              |
+| ---------------------------------------------------------------------- | ---------------------------------------- |
+| [`docs/architecture.md`](docs/architecture.md)                         | Arquitectura completa del sistema + ADRs |
+| [`docs/roadmap.md`](docs/roadmap.md)                                   | Plan de desarrollo en 30+ pasos          |
+| [`docs/security-audit-report.md`](docs/security-audit-report.md)       | Análisis de seguridad exhaustivo         |
+| [`docs/prometheus-guide.md`](docs/prometheus-guide.md)                 | Setup, queries, alerting                 |
+| [`docs/grafana-dashboards-guide.md`](docs/grafana-dashboards-guide.md) | Dashboards y visualización               |
 
 ### Prompts para Claude Code
 
 Este proyecto utiliza **prompts especializados** para desarrollo asistido con Claude Code:
 
-| Prompt | Rol |
-|--------|-----|
-| [`1-project-designer.md`](docs/contexting-prompts/1-project-designer.md) | Arquitecto de software |
-| [`2-incremental-builder.md`](docs/contexting-prompts/2-incremental-builder.md) | Desarrollador incremental |
-| [`3-code-review--refactor.md`](docs/contexting-prompts/3-code-review--refactor.md) | Revisor/Refactorizador |
-| [`4-diagnostic-expert.md`](docs/contexting-prompts/4-diagnostic-expert.md) | Diagnóstico y optimización |
-| [`5-deployment--ops.md`](docs/contexting-prompts/5-deployment--ops.md) | DevOps/Mantenimiento |
-| [`6-documentation-mentor.md`](docs/contexting-prompts/6-documentation-mentor.md) | Documentación técnica |
+| Prompt                                                                             | Rol                        |
+| ---------------------------------------------------------------------------------- | -------------------------- |
+| [`1-project-designer.md`](docs/contexting-prompts/1-project-designer.md)           | Arquitecto de software     |
+| [`2-incremental-builder.md`](docs/contexting-prompts/2-incremental-builder.md)     | Desarrollador incremental  |
+| [`3-code-review--refactor.md`](docs/contexting-prompts/3-code-review--refactor.md) | Revisor/Refactorizador     |
+| [`4-diagnostic-expert.md`](docs/contexting-prompts/4-diagnostic-expert.md)         | Diagnóstico y optimización |
+| [`5-deployment--ops.md`](docs/contexting-prompts/5-deployment--ops.md)             | DevOps/Mantenimiento       |
+| [`6-documentation-mentor.md`](docs/contexting-prompts/6-documentation-mentor.md)   | Documentación técnica      |
 
 ---
 
@@ -510,14 +510,14 @@ xdg-open htmlcov/index.html
 
 ### Métricas del Proyecto
 
-| Métrica | Valor |
-|---------|-------|
+| Métrica                     | Valor    |
+| --------------------------- | -------- |
 | **Líneas de Código (src/)** | ~15,000+ |
-| **Líneas de Tests** | ~8,000+ |
+| **Líneas de Tests**         | ~8,000+  |
 | **Líneas de Documentación** | ~22,500+ |
-| **Tests Totales** | 177+ |
-| **Coverage** | >80% |
-| **Commits** | 150+ |
+| **Tests Totales**           | 177+     |
+| **Coverage**                | >80%     |
+| **Commits**                 | 150+     |
 
 ---
 
